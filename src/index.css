@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Fonts */
+  --font-display: "Geologica", sans-serif;
+  --font-body: "IBM Plex Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+
+  /* MINERAL PALETTE */
+  --color-amethyst: #7B4F9E;
+  --color-amethyst-light: #9B6FBE;
+  --color-citrine: #E6A817;
+  --color-rose-quartz: #D4839E;
+  --color-tourmaline: #2A9D8F;
+  --color-tourmaline-deep: #1E7268;
+  --color-obsidian: #1A1A2E;
+  --color-obsidian-light: #252540;
+  --color-labradorite: #3D5A80;
+  --color-malachite: #2D6A4F;
+  --color-jasper-red: #A63D40;
+  --color-agate-cream: #F0E6D3;
+  --color-agate-band: #C9B8A0;
+  --color-selenite: #F5F0E8;
+
+  /* STRATA BACKGROUNDS (Dark by default) */
+  --color-bg-deep: #0D0D1A;
+  --color-bg-mantle: #141428;
+  --color-bg-bedrock: #1C1C35;
+  --color-bg-shale: #252542;
+  --color-bg-sandstone: #2E2E4F;
+
+  /* TEXT COLORS */
+  --color-text-primary: #E8E4F0;
+  --color-text-secondary: #B0A8C0;
+  --color-text-muted: #7A7490;
+  --color-text-mineral: #E6A817;
+}
+
+@layer utilities {
+  .animate-marquee {
+    animation: marquee 10s linear infinite;
+  }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
