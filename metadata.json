@@ -1,0 +1,11 @@
+{
+  "name": "Corre Logo 🏃",
+  "description": "Import and manage running workout plans with performance tracking.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

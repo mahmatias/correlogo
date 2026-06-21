@@ -1,0 +1,81 @@
+export const formatDuration = (seconds: number) => {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  if (hrs > 0) return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+export const formatDistance = (distKm: number) => {
+  if (distKm < 1) {
+    return `${Math.round(distKm * 1000)}m`;
+  } else {
+    return `${distKm.toFixed(2).replace('.', ',')} km`;
+  }
+};
+
+export const formatTotalDuration = (seconds: number) => {
+  const totalMins = Math.ceil(seconds / 60);
+  const hrs = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  if (hrs > 0) return `${hrs}hs ${mins > 0 ? mins+'min' : ''}`;
+  return `${totalMins}min`;
+};
+
+export interface WorkoutStep {
+  id: string;
+  type: 'warmup' | 'run' | 'rest' | 'cooldown';
+  durationSeconds: number;
+  targetPace?: number; // min/km
+  targetDistance?: number; // km
+}
+
+// Tradução do tipo de etapa apenas para exibição na tela. O código interno
+// (lógica de progressão, comparações, etc.) sempre trabalha com os valores
+// em inglês ('warmup' | 'run' | 'rest' | 'cooldown'); esta função é o único
+// lugar que converte para o nome em português mostrado ao usuário final.
+const STEP_TYPE_LABELS_PT: Record<WorkoutStep['type'], string> = {
+  warmup: 'Aquecimento',
+  run: 'Corrida',
+  rest: 'Intervalo',
+  cooldown: 'Desaquecimento',
+};
+
+export const getStepTypeLabel = (type: string): string => {
+  return STEP_TYPE_LABELS_PT[type as WorkoutStep['type']] ?? type;
+};
+
+export interface WorkoutPlan {
+  id: string;
+  name: string;
+  steps: WorkoutStep[];
+  isCompleted?: boolean;
+  programName?: string;
+  activityName?: string;
+  activityNumber?: string;
+}
+
+export interface ActivityPoint {
+  timestampSeconds: number;
+  speedKmh: number;
+  distanceKm: number;
+  stepIndex: number;
+  lat?: number;
+  lon?: number;
+  heartRate?: number;
+  cadence?: number;
+}
+
+export interface TrainingSession {
+  id: string;
+  planId: string;
+  planName: string;
+  date: string;
+  mode: 'treadmill' | 'outdoor';
+  trainingType: 'time' | 'distance';
+  totalDurationSeconds: number;
+  totalDistanceKm: number;
+  avgSpeedKmh: number;
+  completed: boolean;
+  points: ActivityPoint[];
+}
