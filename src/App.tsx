@@ -278,7 +278,19 @@ export default function App() {
               />
             )}
             {selectedSession && (
-              <SessionSummary session={selectedSession} onClose={() => setSelectedSession(null)} isDarkMode={isDarkMode} />
+              <SessionSummary 
+                session={selectedSession} 
+                plan={plans.find(p => p.id === selectedSession.planId)}
+                onClose={() => setSelectedSession(null)} 
+                isDarkMode={isDarkMode} 
+                onSuggestAdjustment={(adjustedPlan) => {
+                  const updatedPlans = plans.map(p =>
+                    p.id === selectedSession?.planId ? adjustedPlan : p
+                  );
+                  updatePlansState(updatedPlans);
+                  setSelectedSession(null);
+                }}
+              />
             )}
             {!activePlan && (
               <div className="flex justify-between items-center mb-8">
@@ -445,7 +457,7 @@ export default function App() {
                               {plan.steps.map((step, idx) => {
                                 const ptType = step.type === 'warmup' ? 'Aquecimento' : step.type === 'run' ? 'Corrida' : step.type === 'cooldown' ? 'Desaquecimento' : step.type === 'rest' ? 'Descanso' : step.type;
                                 return (
-                                  <li key={idx}>{ptType}: {formatDuration(step.durationSeconds)}min @ { (60/(step.targetPace||1)).toFixed(2) } KM/h (Ritmo {step.targetPace||0}")</li>
+                                  <li key={idx}>{ptType}: {formatDuration(step.durationSeconds)}min @ { (60/(step.targetPace||1)).toFixed(2) } KM/h (Ritmo {Math.floor(step.targetPace||0)}'{Math.round(((step.targetPace||0) % 1) * 60)}"/km)</li>
                                 );
                               })}
                             </ul>

@@ -40,57 +40,166 @@ const createStep = (
     ...(basis ? { basis } : {}),
 });
 
+type SessionStepDef = { type: 'run' | 'rest'; dur: number; isDist?: boolean };
+
+type CanonicalWeek = {
+  labelA: string;
+  labelB: string;
+  stepsA: SessionStepDef[];
+  stepsB: SessionStepDef[];
+};
+
+const CANONICAL_WEEKS: CanonicalWeek[] = [
+  // W1 — Foundation: time-based walk/run
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
+    stepsA: [{type:'run',dur:180},{type:'rest',dur:120},{type:'run',dur:180},{type:'rest',dur:120},{type:'run',dur:180}],
+    stepsB: [{type:'run',dur:150},{type:'rest',dur:90},{type:'run',dur:180},{type:'rest',dur:120},{type:'run',dur:150},{type:'rest',dur:90},{type:'run',dur:180},{type:'rest',dur:120}] },
+  // W2
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
+    stepsA: [{type:'run',dur:120},{type:'rest',dur:60},{type:'run',dur:120},{type:'rest',dur:60},{type:'run',dur:120},{type:'rest',dur:60},{type:'run',dur:120},{type:'rest',dur:60},{type:'run',dur:120},{type:'rest',dur:60},{type:'run',dur:120}],
+    stepsB: [{type:'run',dur:240},{type:'rest',dur:90},{type:'run',dur:240},{type:'rest',dur:90},{type:'run',dur:240}] },
+  // W3
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
+    stepsA: [{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:180}],
+    stepsB: [{type:'run',dur:90},{type:'rest',dur:60},{type:'run',dur:300},{type:'rest',dur:90},{type:'run',dur:90},{type:'rest',dur:60},{type:'run',dur:300}] },
+  // W4
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
+    stepsA: [{type:'run',dur:150},{type:'rest',dur:60},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:150},{type:'rest',dur:60},{type:'run',dur:180}],
+    stepsB: [{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:300},{type:'rest',dur:90},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:300}] },
+  // W5
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
+    stepsA: [{type:'run',dur:360},{type:'rest',dur:90},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:360}],
+    stepsB: [{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:180}] },
+  // W6
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
+    stepsA: [{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:240},{type:'rest',dur:60},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:240}],
+    stepsB: [{type:'run',dur:420},{type:'rest',dur:90},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:420}] },
+  // W7
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
+    stepsA: [{type:'run',dur:480},{type:'rest',dur:90},{type:'run',dur:480}],
+    stepsB: [{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:300},{type:'rest',dur:60},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:300}] },
+  // W8 — Transition: distance-based + walk breaks
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
+    stepsA: [{type:'run',dur:0.75,isDist:true},{type:'rest',dur:60},{type:'run',dur:0.25,isDist:true},{type:'rest',dur:30},{type:'run',dur:0.75,isDist:true}],
+    stepsB: [{type:'run',dur:0.75,isDist:true},{type:'rest',dur:60},{type:'run',dur:0.75,isDist:true}] },
+  // W9
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
+    stepsA: [{type:'run',dur:1.25,isDist:true},{type:'rest',dur:60},{type:'run',dur:1.25,isDist:true}],
+    stepsB: [{type:'run',dur:1.75,isDist:true}] },
+  // W10
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
+    stepsA: [{type:'run',dur:1.5,isDist:true},{type:'rest',dur:60},{type:'run',dur:1.5,isDist:true}],
+    stepsB: [{type:'run',dur:2.25,isDist:true}] },
+  // W11
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
+    stepsA: [{type:'run',dur:1.75,isDist:true},{type:'rest',dur:60},{type:'run',dur:1.75,isDist:true}],
+    stepsB: [{type:'run',dur:2.75,isDist:true}] },
+  // W12 — Consolidation: mixed
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
+    stepsA: [{type:'run',dur:0.75,isDist:true},{type:'rest',dur:30},{type:'run',dur:1.5,isDist:true},{type:'rest',dur:60},{type:'run',dur:0.75,isDist:true}],
+    stepsB: [{type:'run',dur:2.5,isDist:true}] },
+  // W13
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
+    stepsA: [{type:'run',dur:2.0,isDist:true},{type:'rest',dur:60},{type:'run',dur:0.25,isDist:true},{type:'rest',dur:30},{type:'run',dur:2.0,isDist:true}],
+    stepsB: [{type:'run',dur:3.5,isDist:true}] },
+  // W14
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
+    stepsA: [{type:'run',dur:2.0,isDist:true},{type:'rest',dur:60},{type:'run',dur:2.0,isDist:true}],
+    stepsB: [{type:'run',dur:3.75,isDist:true}] },
+  // W15
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
+    stepsA: [{type:'run',dur:2.5,isDist:true},{type:'rest',dur:60},{type:'run',dur:2.5,isDist:true}],
+    stepsB: [{type:'run',dur:4.25,isDist:true}] },
+  // W16
+  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
+    stepsA: [{type:'run',dur:1.25,isDist:true},{type:'rest',dur:30},{type:'run',dur:2.5,isDist:true},{type:'rest',dur:60},{type:'run',dur:1.25,isDist:true}],
+    stepsB: [{type:'run',dur:5.0,isDist:true}] },
+];
+
+const toCanonicalIndex = (weekIdx: number, totalWeeks: number): number => {
+  const CANONICAL = CANONICAL_WEEKS.length;
+  if (totalWeeks <= 1) return 0;
+  const pos = weekIdx / (totalWeeks - 1);
+  return Math.min(CANONICAL - 1, Math.round(pos * (CANONICAL - 1)));
+};
+
+const isRecoveryWeek = (canIdx: number): boolean => {
+  return canIdx === 3 || canIdx === 7 || canIdx === 11;
+};
+
+const createRunStep = (dur: number, isDist: boolean | undefined, runPace: number): WorkoutStep => {
+  if (isDist) {
+    const distKm = dur;
+    const secs = Math.round(distKm * runPace * 60);
+    return {
+      id: uuidv4(), type: 'run',
+      durationSeconds: Math.max(30, secs),
+      targetPace: parseFloat(runPace.toFixed(2)),
+      targetDistance: parseFloat(distKm.toFixed(3)),
+      basis: 'distance',
+    };
+  }
+  return {
+    id: uuidv4(), type: 'run',
+    durationSeconds: Math.max(30, Math.round(dur)),
+    targetPace: parseFloat(runPace.toFixed(2)),
+    basis: 'time',
+  };
+};
+
+const createRestStep = (type: WorkoutStep['type'], dur: number, pace: number): WorkoutStep => ({
+  id: uuidv4(), type,
+  durationSeconds: Math.max(10, Math.round(dur)),
+  targetPace: parseFloat(pace.toFixed(2)),
+  basis: 'time',
+});
+
 const generateBeginnerProgram = (data: any, totalWeeks: number): TrainingProgram => {
     const weeks: ProgramWeek[] = [];
-    const runPace = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
-    const walkPace = runPace + 2.0;
+    const runPace = data.goal.targetPace ?? 8;
+    const comfortPace = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
+    const walkPace = Math.max(12, comfortPace);
 
     for (let i = 0; i < totalWeeks; i++) {
         const weekNum = i + 1;
-        const isCorridaContinua = weekNum > totalWeeks - 4;
-        const isRecoveryWeek = weekNum % 4 === 0 && !isCorridaContinua;
-        const recoveryFactor = isRecoveryWeek ? 0.75 : 1.0;
-        let steps: WorkoutStep[] = [];
-        
-        steps.push(createStep('warmup', 300, walkPace));
-        
-        if (isCorridaContinua) {
-            const raceDistMap: Record<string, number> = {
-                '5k': 5, '10k': 10, '21k': 21, '42k': 42, 'none': data.referenceRace.distanceKm
-            };
-            const goalDist = raceDistMap[data.goal.raceDistance] ?? data.referenceRace.distanceKm;
-            const continuousFactors = [0.30, 0.55, 0.80, 1.0];
-            const continuousIndex = Math.min(3, weekNum - (totalWeeks - 3));
-            const dist = goalDist * continuousFactors[continuousIndex];
-            steps.push(createStep('run', Math.round(dist * runPace * 60 * recoveryFactor), runPace, 'distance'));
-        } else {
-            const table = [
-                { run: 120, rest: 120, reps: 4 }, { run: 180, rest: 120, reps: 4 },
-                { run: 240, rest: 90, reps: 4 }, { run: 180, rest: 60, reps: 4 },
-                { run: 300, rest: 90, reps: 3 }, { run: 360, rest: 90, reps: 3 },
-                { run: 420, rest: 60, reps: 3 }, { run: 480, rest: 60, reps: 2 },
-                { run: 600, rest: 60, reps: 2 }, { run: 720, rest: 60, reps: 2 },
-                { run: 600, rest: 60, reps: 2 }, { run: 900, rest: 60, reps: 1 }
-            ][weekNum - 1] || { run: 900, rest: 60, reps: 1 };
-            
-            for (let r = 0; r < table.reps; r++) {
-                steps.push(createStep('run', Math.round(table.run * recoveryFactor), runPace, 'time'));
-                if (r < table.reps - 1) steps.push(createStep('rest', Math.round(table.rest * recoveryFactor), walkPace, 'time'));
-            }
-        }
-        steps.push(createStep('cooldown', 300, walkPace));
+        const canIdx = toCanonicalIndex(i, totalWeeks);
+        const cw = CANONICAL_WEEKS[canIdx];
+        const isRec = isRecoveryWeek(canIdx);
 
         const plans: WorkoutPlan[] = data.daysOfWeek.map((day: number, idx: number) => {
-            const volumeFactor = idx === 0 ? 1.0 : 0.85;
-            const adjustedSteps = steps.map(s => 
-                (s.type === 'run' || s.type === 'rest') ? {...s, durationSeconds: Math.max(30, Math.round(s.durationSeconds * volumeFactor))} : s
-            );
-            return { id: uuidv4(), name: `Semana ${weekNum} — ${isCorridaContinua ? 'Corrida contínua' : 'Corrida/Caminhada'}${idx > 0 ? ' (2)' : ''}`, steps: adjustedSteps, programName: 'Plano Iniciante' };
+            const isSessionA = idx === 0 || (idx > 0 && idx % 2 === 0);
+            const def = isSessionA ? cw.stepsA : cw.stepsB;
+            const label = isSessionA ? cw.labelA : cw.labelB;
+
+            const steps: WorkoutStep[] = [];
+            steps.push(createRestStep('warmup', 300, walkPace));
+
+            for (const sd of def) {
+              if (sd.type === 'run') {
+                steps.push(createRunStep(sd.dur, sd.isDist, runPace));
+              } else {
+                steps.push(createRestStep('rest', sd.dur, walkPace));
+              }
+            }
+
+            steps.push(createRestStep('cooldown', 300, walkPace));
+
+            return {
+              id: uuidv4(),
+              name: `Semana ${weekNum} — ${label}${idx > 0 && idx % 2 === 0 ? ' (2)' : ''}`,
+              steps,
+              programName: 'Plano Iniciante',
+            };
         });
 
-        weeks.push({ weekNumber: weekNum, phase: 'base', isRecoveryWeek, plans });
+        weeks.push({ weekNumber: weekNum, phase: 'base', isRecoveryWeek: isRec, plans });
     }
-    return { id: uuidv4(), name: 'Plano Iniciante', goal: data.goal, experienceLevel: data.experienceLevel, referenceRace: data.referenceRace, daysOfWeek: data.daysOfWeek, mode: data.mode, raceDate: data.raceDate, weeks, createdAt: Date.now() };
+    return {
+      id: uuidv4(), name: 'Plano Iniciante', goal: data.goal,
+      experienceLevel: data.experienceLevel, referenceRace: data.referenceRace,
+      daysOfWeek: data.daysOfWeek, mode: data.mode, raceDate: data.raceDate,
+      weeks, createdAt: Date.now(),
+    };
 };
 
 const generateImprovePaceProgram = (data: any, totalWeeks: number): TrainingProgram => {
@@ -243,7 +352,7 @@ const generateStandardProgram = (data: any, totalWeeks: number): TrainingProgram
             }
         }
         const plans: WorkoutPlan[] = data.daysOfWeek.map((day: number, index: number) => {
-            const sessionType = (phase === 'base' || isRecoveryWeek) ? 'easy' : (index === weekDays - 1) ? 'long' : intervalIndices.has(index) ? 'intervalo' : (index === 1 && phase !== 'base' && !isRecoveryWeek) ? 'limiar' : 'easy';
+            const sessionType = (phase === 'base' || isRecoveryWeek) ? 'easy' : (index === weekDays - 1) ? 'long' : intervalIndices.has(index) ? 'intervalo' : (index === 1 && (phase as any) !== 'base' && !isRecoveryWeek) ? 'limiar' : 'easy';
             let runSeconds = cumulativeVolume / weekDays;
             if (sessionType === 'long') runSeconds *= 1.4;
             else if (sessionType === 'intervalo') runSeconds *= 0.8;
@@ -267,7 +376,14 @@ const generateProgram = (data: any): TrainingProgram => {
     const totalWeeks = calculateTotalWeeks(data);
     const refPaceMinkm = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
 
-    if (data.experienceLevel === 'beginner' && refPaceMinkm > 8.5) {
+    const isBeginnerWhoCanAlreadyRun = refPaceMinkm <= 8.5;
+    const hasTargetPaceForBeginnerGoal = 
+        data.experienceLevel === 'beginner' && 
+        data.goal.targetPace != null &&
+        data.goal.targetPace < refPaceMinkm &&
+        !isBeginnerWhoCanAlreadyRun;
+
+    if (hasTargetPaceForBeginnerGoal) {
         return generateBeginnerProgram(data, totalWeeks);
     }
     
@@ -281,7 +397,14 @@ const generateProgram = (data: any): TrainingProgram => {
 export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate: (program: TrainingProgram) => void, onCancel: () => void }) {
     const [page, setPage] = useState(0);
     const [useEstimation, setUseEstimation] = useState(false);
-    const [estimationPace, setEstimationPace] = useState(5);
+    const [estimationPaceMin, setEstimationPaceMin] = useState(9);
+    const [estimationPaceSec, setEstimationPaceSec] = useState(0);
+    const [comfortPaceMin, setComfortPaceMin] = useState(12);
+    const [comfortPaceSec, setComfortPaceSec] = useState(0);
+    const [beginnerTargetPaceMin, setBeginnerTargetPaceMin] = useState(8);
+    const [beginnerTargetPaceSec, setBeginnerTargetPaceSec] = useState(0);
+    const [targetPaceMin, setTargetPaceMin] = useState(7);
+    const [targetPaceSec, setTargetPaceSec] = useState(0);
     const [refHours, setRefHours] = useState(0);
     const [refMinutes, setRefMinutes] = useState(30);
     const [refSeconds, setRefSeconds] = useState(0);
@@ -318,10 +441,44 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                     </div>
                     {data.goal.raceDistance === (data.referenceRace?.distanceKm + 'k') && (
                         <div className="mt-4">
-                            <label className="text-sm text-gray-600 block mb-1">Qual seu pace alvo (min/km)?</label>
-                            <input type="number" step="0.1" min="3" max="12" className="w-full p-2 border rounded" value={data.goal.targetPace ?? ''} onChange={e => setData({...data, goal: {...data.goal, targetPace: parseFloat(e.target.value) || undefined}})} />
-                            <label className="text-sm text-gray-600 block mt-2 mb-1">Em qual distância? (km)</label>
-                            <input type="number" step="0.1" min="1" className="w-full p-2 border rounded" value={data.goal.targetDistance ?? data.referenceRace.distanceKm} onChange={e => setData({...data, goal: {...data.goal, targetDistance: parseFloat(e.target.value) || undefined}})} />
+                            <label className="text-sm text-gray-600 block mb-2">
+                                Qual seu pace alvo para esse programa (min/km)?
+                            </label>
+                            <div className="flex gap-2 items-center">
+                                <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                                    <select
+                                        value={targetPaceMin ?? 7}
+                                        onChange={e => {
+                                            const m = Math.max(3, Math.min(12, parseInt(e.target.value) || 7));
+                                            setTargetPaceMin(m);
+                                            setData({...data, goal: {...data.goal, targetPace: m + (targetPaceSec ?? 0) / 60}});
+                                        }}
+                                        className="w-full p-2 border rounded text-center"
+                                    >
+                                        {Array.from({length: 10}, (_, i) => i + 3).map(m => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                    </select>
+                                    minutos
+                                </label>
+                                <span className="text-gray-500">:</span>
+                                <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                                    <select
+                                        value={targetPaceSec ?? 0}
+                                        onChange={e => {
+                                            const s = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
+                                            setTargetPaceSec(s);
+                                            setData({...data, goal: {...data.goal, targetPace: (targetPaceMin ?? 7) + s / 60}});
+                                        }}
+                                        className="w-full p-2 border rounded text-center"
+                                    >
+                                        {Array.from({length: 60}, (_, i) => i).map(s => (
+                                            <option key={s} value={s}>{String(s).padStart(2, '0')}</option>
+                                        ))}
+                                    </select>
+                                    segundos / km
+                                </label>
+                            </div>
                             {isPaceGoalUnrealistic(data, calculateTotalWeeks(data)) && <p className="text-yellow-600 text-sm mt-2">⚠️ Essa melhora de pace é muito agressiva para o prazo. Considere um objetivo mais gradual ou mais semanas de treino.</p>}
                         </div>
                     )}
@@ -337,7 +494,8 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                     setUseEstimation(checked);
                     if (checked) {
                         // Sincronizar referenceRace com estimationPace atual ao marcar o checkbox
-                        setData({...data, referenceRace: { distanceKm: 5, timeSeconds: estimationPace * 5 * 60 }});
+                        const p = (estimationPaceMin ?? 9) + (estimationPaceSec ?? 0) / 60;
+                        setData({...data, referenceRace: { distanceKm: 5, timeSeconds: p * 5 * 60 }});
                     }
                 }} />
                 Não tenho corrida recente (usar estimativa)
@@ -390,14 +548,136 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                       </label>
                     </div>
                 </>
+            ) : data.experienceLevel === 'beginner' ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-gray-600 block mb-2">
+                    Em qual pace você consegue caminhar ou correr confortavelmente agora (min/km)?
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                      <select
+                        value={comfortPaceMin ?? 12}
+                        onChange={e => {
+                          const m = Math.max(6, Math.min(15, parseInt(e.target.value) || 12));
+                          setComfortPaceMin(m);
+                          setData({...data, referenceRace: { distanceKm: 5, timeSeconds: (m + (comfortPaceSec ?? 0) / 60) * 5 * 60 }});
+                        }}
+                        className="w-full p-2 border rounded text-center"
+                      >
+                        {Array.from({length: 10}, (_, i) => i + 6).map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                      minutos
+                    </label>
+                    <span className="text-gray-500">:</span>
+                    <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                      <select
+                        value={comfortPaceSec ?? 0}
+                        onChange={e => {
+                          const s = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
+                          setComfortPaceSec(s);
+                          setData({...data, referenceRace: { distanceKm: 5, timeSeconds: ((comfortPaceMin ?? 12) + s / 60) * 5 * 60 }});
+                        }}
+                        className="w-full p-2 border rounded text-center"
+                      >
+                        {Array.from({length: 60}, (_, i) => i).map(s => (
+                          <option key={s} value={s}>{String(s).padStart(2, '0')}</option>
+                        ))}
+                      </select>
+                      segundos / km
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">* Você pode caminhar rápido ou correr muito lentamente nesse pace</p>
+                </div>
+            
+                <div>
+                  <label className="text-sm text-gray-600 block mb-2">
+                    Em qual pace você quer aprender a correr (min/km)?
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                      <select
+                        value={beginnerTargetPaceMin ?? 8}
+                        onChange={e => {
+                          const m = Math.max(3, Math.min(11, parseInt(e.target.value) || 8));
+                          setBeginnerTargetPaceMin(m);
+                          const targetPace = m + (beginnerTargetPaceSec ?? 0) / 60;
+                          setData({...data, goal: {...data.goal, targetPace}});
+                        }}
+                        className="w-full p-2 border rounded text-center"
+                      >
+                        {Array.from({length: 9}, (_, i) => i + 3).map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                      minutos
+                    </label>
+                    <span className="text-gray-500">:</span>
+                    <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                      <select
+                        value={beginnerTargetPaceSec ?? 0}
+                        onChange={e => {
+                          const s = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
+                          setBeginnerTargetPaceSec(s);
+                          const targetPace = (beginnerTargetPaceMin ?? 8) + s / 60;
+                          setData({...data, goal: {...data.goal, targetPace}});
+                        }}
+                        className="w-full p-2 border rounded text-center"
+                      >
+                        {Array.from({length: 60}, (_, i) => i).map(s => (
+                          <option key={s} value={s}>{String(s).padStart(2, '0')}</option>
+                        ))}
+                      </select>
+                      segundos / km
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">* Deve ser mais rápido que seu pace de conforto</p>
+                </div>
+              </div>
             ) : (
                 <>
-                    <label className="text-sm text-gray-600 block mb-1">Seu ritmo confortável (min/km):</label>
-                    <input type="number" className="w-full p-2 border rounded" value={estimationPace} onChange={(e) => {
-                        const p = Math.max(1, parseFloat(e.target.value) || 0);
-                        setEstimationPace(p);
-                        setData({...data, referenceRace: { distanceKm: 5, timeSeconds: p * 5 * 60 }});
-                    }} />
+                    <label className="text-sm text-gray-600 block mb-2">
+                        Em qual pace você consegue completar essa distância atualmente (min/km)?
+                    </label>
+                    <div className="flex gap-2 items-center">
+                        <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                            <select
+                                value={estimationPaceMin ?? 9}
+                                onChange={e => {
+                                    const m = Math.max(6, Math.min(15, parseInt(e.target.value) || 9));
+                                    setEstimationPaceMin(m);
+                                    const p = m + (estimationPaceSec ?? 0) / 60;
+                                    setData({...data, referenceRace: { distanceKm: 5, timeSeconds: p * 5 * 60 }});
+                                }}
+                                className="w-full p-2 border rounded text-center"
+                            >
+                                {Array.from({length: 10}, (_, i) => i + 6).map(m => (
+                                    <option key={m} value={m}>{m}</option>
+                                ))}
+                            </select>
+                            minutos
+                        </label>
+                        <span className="text-gray-500">:</span>
+                        <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                            <select
+                                value={estimationPaceSec ?? 0}
+                                onChange={e => {
+                                    const s = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
+                                    setEstimationPaceSec(s);
+                                    const p = (estimationPaceMin ?? 9) + s / 60;
+                                    setData({...data, referenceRace: { distanceKm: 5, timeSeconds: p * 5 * 60 }});
+                                }}
+                                className="w-full p-2 border rounded text-center"
+                            >
+                                {Array.from({length: 60}, (_, i) => i).map(s => (
+                                    <option key={s} value={s}>{String(s).padStart(2, '0')}</option>
+                                ))}
+                            </select>
+                            segundos / km
+                        </label>
+                    </div>
                 </>
             )}
             <p className="text-xs text-gray-500 mt-2">* Estimativa menos precisa que uma corrida real.</p>

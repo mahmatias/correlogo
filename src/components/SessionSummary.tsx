@@ -1,30 +1,38 @@
-import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download } from 'lucide-react';
-import { formatDistance, formatDuration, TrainingSession } from '../types';
+import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle } from 'lucide-react';
+import { formatDistance, formatDuration, TrainingSession, WorkoutPlan } from '../types';
 import MapComponent from './MapComponent';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useState } from 'react';
 import { generateTCX, generateGPX } from '../lib/exportUtils';
+import { evaluateSessionPerformance, suggestAdjustment } from '../lib/evaluatePerformance';
 
 interface Props {
   session: TrainingSession;
+  plan?: WorkoutPlan;
   onClose: () => void;
+  onSuggestAdjustment?: (adjustedPlan: WorkoutPlan) => void;
   isDarkMode: boolean;
 }
 
-export default function SessionSummary({ session, onClose, isDarkMode }: Props) {
+export default function SessionSummary({ session, plan, onClose, onSuggestAdjustment, isDarkMode }: Props) {
   const [viewMode, setViewMode] = useState<'km' | 'lap'>('km');
 
   // Basic stats
   const avgPace = session.totalDurationSeconds / (session.totalDistanceKm || 1); // seconds per km
   
   // Pace data for graph
-  const paceHistory = (session.points || []).map(p => ({
+  const pacePoints = (session.points || []).map(p => ({
     timeSeconds: p.timestampSeconds,
-    pace: p.speedKmh > 0 ? (60 / p.speedKmh) : 0
+    pace: p.speedKmh > 0 ? (60 / p.speedKmh) : 0,
+    stepIndex: p.stepIndex
   }));
 
-  const validPaces = (paceHistory || []).filter(h => h.pace > 0).map(h => h.pace);
+  const COLORS = ['#8884d8', '#82ca9d', '#ff7300', '#ff0000', '#0088FE', '#00C49F'];
+
+  const validPaces = (pacePoints || []).filter(h => h.pace > 0).map(h => h.pace);
   const bestPace = validPaces.length > 0 ? Math.min(...validPaces) * 60 : avgPace;
+  
+  const evaluation = plan ? evaluateSessionPerformance(plan, session) : null;
 
   const path = (session.points || []).filter(p => p.lat !== undefined && p.lon !== undefined).map(p => ({
       lat: p.lat!,
@@ -86,13 +94,40 @@ export default function SessionSummary({ session, onClose, isDarkMode }: Props) 
                 <div className="text-xl font-bold">{formatDuration(Math.round(bestPace))} /km</div>
             </div>
         </div>
+        
+        {evaluation && (
+          <div className={`p-4 rounded-xl mb-6 ${isDarkMode ? 'bg-bg-bedrock' : 'bg-selenite'}`}>
+            <h3 className="font-bold mb-4">Desempenho vs Plano</h3>
+            <div className="text-sm mb-2">{evaluation.completionRate.toFixed(0)}% dos steps concluídos no pace alvo</div>
+            <div className="space-y-2 mb-4">
+              {evaluation.stepResults.map(res => (
+                <div key={res.stepIndex} className="flex justify-between items-center text-sm">
+                  <span>Step {res.stepIndex + 1}</span>
+                  <div className="flex gap-4">
+                    <span>Alvo: {res.targetPace.toFixed(2)}</span>
+                    <span>Real: {res.actualAvgPace.toFixed(2)}</span>
+                    {res.completed ? <CheckCircle className="text-green-500 w-4 h-4" /> : <XCircle className="text-red-500 w-4 h-4" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {evaluation.needsAdjustment && (
+              <div className="bg-yellow-100 p-3 rounded-lg text-yellow-800 text-sm mb-3">
+                A progressão atual parece acelerada para você. Deseja que os próximos treinos sejam ajustados?
+                <button onClick={() => plan && onSuggestAdjustment?.(suggestAdjustment(plan))} className="block mt-2 font-bold underline">
+                  Sugerir ajuste nos próximos treinos
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
-        {paceHistory.length > 0 && (
+        {pacePoints.length > 0 && (
             <div className={`p-4 rounded-xl mb-6 ${isDarkMode ? 'bg-bg-bedrock' : 'bg-selenite'}`}>
                 <h3 className="font-bold mb-4">Variação de Pace</h3>
                 <div className="relative h-48 min-h-[192px]">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={paceHistory}>
+                        <LineChart data={pacePoints}>
                             <XAxis dataKey="timeSeconds" tickFormatter={(timeSeconds) => {
                                 const minutes = Math.floor(timeSeconds / 60);
                                 const seconds = Math.floor(timeSeconds % 60);
@@ -108,7 +143,19 @@ export default function SessionSummary({ session, onClose, isDarkMode }: Props) 
                                 const seconds = Math.round((value - minutes) * 60);
                                 return [`${minutes < 10 ? '0' : ''}${minutes}'${seconds < 10 ? '0' : ''}${seconds}"`, 'Pace'];
                             }} />
-                            <Line type="monotone" dataKey="pace" stroke="#8884d8" dot={false} />
+                            <Line 
+                                type="monotone" 
+                                dataKey="pace" 
+                                stroke="#8884d8" 
+                                strokeWidth={2}
+                                dot={(props: any) => {
+                                    const { cx, cy, payload } = props;
+                                    if (payload.pace === 0) return null;
+                                    const color = COLORS[payload.stepIndex % COLORS.length];
+                                    return <circle cx={cx} cy={cy} r={3} fill={color} stroke={color} />;
+                                }} 
+                                connectNulls={true}
+                            />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>

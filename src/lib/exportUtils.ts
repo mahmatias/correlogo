@@ -12,6 +12,7 @@ export const generateTCX = (session: TrainingSession): string => {
         trackPoints += `
           <Trackpoint>
             <Time>${new Date(new Date(session.date).getTime() + p.timestampSeconds * 1000).toISOString()}</Time>
+            <DistanceMeters>${Math.round(p.distanceKm * 1000)}</DistanceMeters>
             ${position}
             <Extensions>
               <ns3:TPX>
