@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, ChangeEvent } from 'react';
 import { Download } from 'lucide-react';
 import { WorkoutPlan, WorkoutStep } from '../types';
 
@@ -39,7 +39,7 @@ const normalizeStepType = (rawType: string): WorkoutStep['type'] | null => {
 export default function ImportPlan({ onImport, plans }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 

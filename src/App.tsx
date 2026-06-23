@@ -5,9 +5,12 @@
 
 import { useState, useEffect } from 'react';
 import { Play, LogOut, RefreshCw, CheckCircle, Circle, Trash2, BarChart2 } from 'lucide-react';
-import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession } from './types';
+import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram } from './types';
 import WorkoutTracker from './components/WorkoutTracker';
 import ImportPlan from './components/ImportPlan';
+import WorkoutEditor from './components/WorkoutEditor';
+import TrainingGenerator from './components/TrainingGenerator';
+import ProgramReview from './components/ProgramReview';
 import SessionSummary from './components/SessionSummary';
 import SessionHistory from './components/SessionHistory';
 import Signup from './components/Signup';
@@ -22,11 +25,14 @@ export default function App() {
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
-  const [activePlan, setActivePlan] = useState<{plan: WorkoutPlan, mode: 'treadmill' | 'outdoor', trainingType: 'time' | 'distance', sessionId: string} | null>(null);
-  const [workoutToStart, setWorkoutToStart] = useState<{plan: WorkoutPlan, mode?: 'treadmill' | 'outdoor', type?: 'time' | 'distance'} | null>(null);
+  const [activePlan, setActivePlan] = useState<{plan: WorkoutPlan, mode: 'treadmill' | 'outdoor', sessionId: string} | null>(null);
+  const [workoutToStart, setWorkoutToStart] = useState<{plan: WorkoutPlan, mode?: 'treadmill' | 'outdoor'} | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [programToReview, setProgramToReview] = useState<TrainingProgram | null>(null);
   const [planToDelete, setPlanToDelete] = useState<WorkoutPlan | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -92,12 +98,12 @@ export default function App() {
     setWorkoutToStart({ plan });
   };
 
-  const confirmWorkoutMode = (mode: 'treadmill' | 'outdoor', trainingType: 'time' | 'distance') => {
+  const confirmWorkoutMode = (mode: 'treadmill' | 'outdoor') => {
     if (workoutToStart) {
       if (mode === 'outdoor') {
         navigator.geolocation.getCurrentPosition(() => {}, (err) => console.error(err));
       }
-      setActivePlan({ plan: workoutToStart.plan, mode, trainingType, sessionId: `${workoutToStart.plan.id}-${Date.now()}` });
+      setActivePlan({ plan: workoutToStart.plan, mode, sessionId: `${workoutToStart.plan.id}-${Date.now()}` });
       setWorkoutToStart(null);
     }
   };
@@ -122,6 +128,12 @@ export default function App() {
   const handleImport = async (newPlans: WorkoutPlan[]) => {
     const updatedPlans = [...plans, ...newPlans];
     updatePlansState(updatedPlans);
+  };
+
+  const handleSaveManualPlan = (plan: WorkoutPlan) => {
+    const updatedPlans = [...plans, plan];
+    updatePlansState(updatedPlans);
+    setIsEditing(false);
   };
 
   const deletePlan = async (id: string) => {
@@ -194,8 +206,7 @@ export default function App() {
         points: ActivityPoint[], 
         distanceKm: number, 
         timeSeconds: number,
-        mode: 'treadmill' | 'outdoor',
-        trainingType: 'time' | 'distance'
+        mode: 'treadmill' | 'outdoor'
     }
 ) => {
     const plan = plans.find(p => p.id === id);
@@ -214,7 +225,6 @@ export default function App() {
                 planName: plan.name,
                 date: new Date().toISOString(),
                 mode: sessionStats.mode,
-                trainingType: sessionStats.trainingType,
                 totalDurationSeconds: totalSeconds,
                 totalDistanceKm: totalDistance,
                 avgSpeedKmh: avgSpeed,
@@ -249,7 +259,7 @@ export default function App() {
   };
 
   const calculateTotalDuration = (plan: WorkoutPlan) => {
-    return plan.steps.reduce((acc, step) => acc + step.durationSeconds, 0);
+    return plan.steps.reduce((acc, step) => acc + getStepDurationSeconds(step), 0);
   }
 
   return (
@@ -310,28 +320,21 @@ export default function App() {
                         </div>
                       </div>
                       
-                      <div>
-                        <label className={`block mb-2 text-sm font-semibold ${isDarkMode ? 'text-text-secondary' : 'text-text-muted'}`}>Tipo de Treino</label>
-                        <div className="flex gap-2">
-                           <button className={`flex-1 p-3 rounded-lg ${workoutToStart.type === 'time' ? (isDarkMode ? 'bg-labradorite text-agate-cream' : 'bg-tourmaline text-selenite') : (isDarkMode ? 'bg-bg-mantle' : 'bg-agate-band')}`} onClick={() => setWorkoutToStart({...workoutToStart, type: 'time'})}>Tempo</button>
-                           <button className={`flex-1 p-3 rounded-lg ${workoutToStart.type === 'distance' ? (isDarkMode ? 'bg-labradorite text-agate-cream' : 'bg-tourmaline text-selenite') : (isDarkMode ? 'bg-bg-mantle' : 'bg-agate-band')}`} onClick={() => setWorkoutToStart({...workoutToStart, type: 'distance'})}>Distância</button>
-                        </div>
+                      <div className="flex gap-4">
+                          <button className={`flex-1 p-3 rounded-lg ${isDarkMode ? 'bg-bg-shale text-text-primary' : 'bg-agate-band text-obsidian'}`} onClick={() => setWorkoutToStart(null)}>Voltar</button>
+                          <button 
+                            className="flex-1 bg-amethyst text-selenite p-3 rounded-lg disabled:opacity-50" 
+                            disabled={!workoutToStart.mode}
+                            onClick={() => confirmWorkoutMode(workoutToStart.mode as 'treadmill' | 'outdoor')}
+                          >
+                            Iniciar
+                          </button>
                       </div>
-                    </div>
-
-                    <div className="flex gap-4">
-                        <button className={`flex-1 p-3 rounded-lg ${isDarkMode ? 'bg-bg-shale text-text-primary' : 'bg-agate-band text-obsidian'}`} onClick={() => setWorkoutToStart(null)}>Voltar</button>
-                        <button 
-                          className="flex-1 bg-amethyst text-selenite p-3 rounded-lg disabled:opacity-50" 
-                          disabled={!workoutToStart.mode || !workoutToStart.type}
-                          onClick={() => confirmWorkoutMode(workoutToStart.mode!, workoutToStart.type!)}
-                        >
-                          Iniciar
-                        </button>
                     </div>
                 </div>
               </div>
             )}
+            
             {activePlan ? (
                 <WorkoutTracker 
                   key={activePlan.sessionId} 
@@ -340,15 +343,60 @@ export default function App() {
                   onStop={() => setActivePlan(null)} 
                   isDarkMode={isDarkMode} 
                   markAsCompleted={markAsCompleted}
-                  trainingType={activePlan.trainingType}
                   totalWorkoutTime={calculateTotalDuration(activePlan.plan)}
                 />
+            ) : isEditing ? (
+              <WorkoutEditor onSave={handleSaveManualPlan} onCancel={() => setIsEditing(false)} />
+            ) : showGenerator ? (
+              <TrainingGenerator onGenerate={(program) => {
+                setProgramToReview(program);
+                setShowGenerator(false);
+              }} onCancel={() => setShowGenerator(false)} />
+            ) : programToReview ? (
+              <ProgramReview
+                program={programToReview}
+                onConfirm={(finalProgram) => {
+                  const allPlans = finalProgram.weeks.flatMap(week => week.plans);
+                  updatePlansState([...plans, ...allPlans]);
+                  setProgramToReview(null);
+                }}
+                onCancel={() => setProgramToReview(null)}
+              />
             ) : (
               <div className={`${isDarkMode ? 'bg-bg-bedrock border-bg-shale' : 'bg-selenite border-agate-band'} p-8 rounded-2xl shadow-sm border`}>
                 <ImportPlan onImport={handleImport} plans={plans} />
+                <button 
+                  className="w-full mt-4 p-2 bg-tourmaline text-selenite rounded-lg hover:bg-tourmaline-deep transition-colors"
+                  onClick={() => setIsEditing(true)}
+                >
+                  Novo Treino Manual
+                </button>
+                <button 
+                  className="w-full mt-4 p-2 bg-tourmaline text-selenite rounded-lg hover:bg-tourmaline-deep transition-colors"
+                  onClick={() => setShowGenerator(true)}
+                >
+                  Gerador Automático
+                </button>
+                {plans.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const json = JSON.stringify(plans, null, 2);
+                      const blob = new Blob([json], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `plano_${new Date().toISOString().slice(0, 10)}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="w-full mt-2 p-2 border border-gray-400 text-gray-500 rounded-lg text-sm"
+                  >
+                    Exportar plano atual (JSON)
+                  </button>
+                )}
                 {plans.length > 0 && (
                     <button 
-                        className="w-full p-2 text-jasper-red border border-jasper-red rounded-lg hover:bg-jasper-red hover:text-selenite transition-colors"
+                        className="w-full mt-4 p-2 text-jasper-red border border-jasper-red rounded-lg hover:bg-jasper-red hover:text-selenite transition-colors"
                         onClick={() => setPlanToDelete({ id: 'ALL', name: 'TODOS os planos' } as WorkoutPlan)}
                     >
                         Apagar Plano de Treino
