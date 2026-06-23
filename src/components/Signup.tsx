@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, FormEvent } from 'react';
 import { getAuth } from '../lib/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { CheckCircle, XCircle } from 'lucide-react';
@@ -24,7 +24,7 @@ export default function Signup() {
 
     const [showPassPanel, setShowPassPanel] = useState(false);
 
-    const handleSignup = async (e: React.FormEvent) => {
+    const handleSignup = async (e: FormEvent) => {
         e.preventDefault();
         if (!isEmailValid || !emailsMatch || !isPasswordValid || !passwordsMatch || !formData.termsAccepted) {
             setError('Por favor, corrija os erros no formulário.');

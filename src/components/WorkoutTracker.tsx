@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Play, Pause, SkipForward, Minus, Plus, Square } from 'lucide-react';
-import { WorkoutPlan, formatDuration, formatDistance, getStepTypeLabel, ActivityPoint } from '../types';
+import { WorkoutPlan, formatDuration, formatDistance, getStepTypeLabel, ActivityPoint, getStepDurationSeconds } from '../types';
 import MapComponent from './MapComponent';
 
 interface Props {
@@ -12,14 +12,13 @@ interface Props {
       points: ActivityPoint[], 
       distanceKm: number, 
       timeSeconds: number,
-      mode: 'treadmill' | 'outdoor',
-      trainingType: 'time' | 'distance'
+      mode: 'treadmill' | 'outdoor'
   }) => void;
-  trainingType: 'time' | 'distance';
   totalWorkoutTime: number;
+  key?: string;
 }
 
-export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsCompleted, trainingType, totalWorkoutTime }: Props) {
+export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsCompleted, totalWorkoutTime }: Props) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedRef = useRef(0);
@@ -164,7 +163,7 @@ export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsC
             const paceMins = Math.floor(paceMinPerKm);
             const paceSecs = Math.round((paceMinPerKm - paceMins) * 60);
             
-            speak(`Quilômetro ${currentKm} concluído. Último quilômetro com pace médio de ${paceMins} minutos e ${paceSecs} segundos`);
+            speak(`Quilômetro ${currentKm} completado. Último quilômetro em ${paceMins} minutos e ${paceSecs} segundos`);
             lastKmAnnouncedRef.current = currentKm;
             lastKmStartTimeRef.current = elapsedRef.current;
           }
@@ -243,18 +242,17 @@ export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsC
         speak(`Volta atual ${formatDistance(targetDist)} de ${ptType} Pace ${currentStep.targetPace || 0}`);
         
         lastStepIndexRef.current = currentStepIndex;
-        lastKmStartTimeRef.current = elapsedRef.current; // Reset KM pace interval
     }
 
     let isCompleted = false;
 
-    if (trainingType === 'distance' && currentStep.type === 'run') {
+    if (currentStep.basis === 'distance' && currentStep.type === 'run') {
         // Run steps by distance
         const targetDist = getStepTargetDistance(currentStep);
         if (lapDistance >= targetDist) isCompleted = true;
     } else {
         // Time based completion (warmup, cooldown, rest, or run if trainingType is time)
-        if (lapSeconds >= currentStep.durationSeconds) isCompleted = true;
+        if (lapSeconds >= getStepDurationSeconds(currentStep)) isCompleted = true;
     }
 
     if (!isCompleted) return;
@@ -272,15 +270,15 @@ export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsC
       lapDistRef.current = 0; // Reset for next lap
       setLapDistance(0);
     }
-  }, [lapSeconds, lapDistance, currentStepIndex, plan.steps, trainingType]);
+  }, [lapSeconds, lapDistance, currentStepIndex, plan.steps]);
 
-  const step = plan.steps[currentStepIndex] || { type: 'Finalizado', durationSeconds: 0, targetPace: 1 };
+  const step = plan.steps[currentStepIndex] || { type: 'Finalizado', durationSeconds: 0, targetPace: 1, basis: 'time' };
 
   // É etapa de Corrida E o usuário escolheu o modo distância: nesse caso (e
   // somente nesse caso) o sistema passa a se basear na distância da etapa,
   // tanto para exibição (marquee, barra de progresso) quanto para a
   // conclusão da etapa (já tratado no efeito acima).
-  const isDistanceStep = trainingType === 'distance' && step.type === 'run';
+  const isDistanceStep = step.type === 'run' && (step as any).basis === 'distance';
   const stepTargetDistance = isDistanceStep ? getStepTargetDistance(step) : 0;
 
   useEffect(() => {
@@ -418,7 +416,7 @@ export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsC
         </div>
         
         <div className="w-full bg-bg-sandstone h-2 rounded-full mb-8">
-            <div className="bg-amethyst h-full rounded-full" style={{width: `${((elapsedSeconds + skippedTime) / totalWorkoutTime) * 100}%`}}></div>
+            <div className="bg-amethyst h-full rounded-full" style={{width: `${Math.min(((elapsedSeconds + skippedTime) / totalWorkoutTime) * 100, 100)}%`}}></div>
         </div>
 
         {mode === 'outdoor' && !isWorkoutCompleted && countdown === 0 && <div className="w-full mb-6 h-64"><MapComponent coords={coords} path={path} isDarkMode={isDarkMode} /></div>}
@@ -437,7 +435,7 @@ export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsC
                     onMouseDown={() => { if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
                     onMouseUp={stopAdjusting}
                     onMouseLeave={stopAdjusting}
-                    onTouchStart={() => { if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
+                    onTouchStart={(e) => { e.preventDefault(); if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
                     onTouchEnd={stopAdjusting}
                     className={`p-4 rounded-lg bg-bg-sandstone`}
                 >
@@ -451,7 +449,7 @@ export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsC
                     onMouseDown={() => { if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(0.1); } }}
                     onMouseUp={stopAdjusting}
                     onMouseLeave={stopAdjusting}
-                    onTouchStart={() => { if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(0.1); } }}
+                    onTouchStart={(e) => { e.preventDefault(); if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(0.1); } }}
                     onTouchEnd={stopAdjusting}
                     className={`p-4 rounded-lg bg-bg-sandstone`}
                 >
@@ -491,7 +489,7 @@ export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsC
                     <h2 className={`text-2xl font-bold mb-8 text-center ${isDarkMode ? 'text-text-primary' : 'text-text-primary'}`}>Treino Finalizado</h2>
                     <div className="flex flex-col gap-4">
                         <button 
-                            onClick={() => { markAsCompleted(plan.id, { points: pointsRef.current, distanceKm: dist, timeSeconds: elapsedSeconds, mode, trainingType }); onStop(); }} 
+                            onClick={() => { markAsCompleted(plan.id, { points: pointsRef.current, distanceKm: dist, timeSeconds: elapsedSeconds, mode }); onStop(); }} 
                             className="w-full bg-tourmaline hover:bg-tourmaline-deep active:bg-malachite text-selenite p-4 rounded-xl font-bold transition-colors"
                         >
                             SALVAR RELATÓRIO
