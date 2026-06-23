@@ -19,8 +19,9 @@ Este documento descreve as alterações necessárias no gerador do arquivo `.tcx
     </ns3:TPX>
   </Extensions>
 </Trackpoint>
-Estrutura Desejada
-xml
+```
+## Estrutura Desejada
+```xml
 <Trackpoint>
   <Time>2026-06-22T13:12:13.140Z</Time>
   <DistanceMeters>0.00</DistanceMeters>   <!-- novo elemento -->
@@ -30,12 +31,15 @@ xml
     </ns3:TPX>
   </Extensions>
 </Trackpoint>
-Cálculo da Distância Acumulada
+```
+
+## Cálculo da Distância Acumulada
 A distância em cada trackpoint é calculada a partir da velocidade (<ns3:Speed>, em metros por segundo) e do intervalo de tempo entre dois pontos consecutivos.
 
 Fórmula
-text
+``` text
 distância_acumulada = distância_anterior + (velocidade_atual * Δt)
+```
 onde:
 
 velocidade_atual – valor de <ns3:Speed> do trackpoint atual.
@@ -64,12 +68,13 @@ O elemento <DistanceMeters> deve ser inserido imediatamente após <Time>, antes 
 Namespace
 O elemento pertence ao namespace principal do TCX:
 
-text
+``` text
 http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2
+```
 Portanto, deve ser criado com o mesmo namespace do resto do documento. Na prática, não deve ter prefixo (apenas <DistanceMeters>) se o namespace principal estiver declarado como xmlns="..." no elemento raiz.
 
 Código‑exemplo (pseudocódigo)
-text
+``` text
 para cada trackpoint na lista de trackpoints:
     tempo_atual = converter(Time)
     velocidade = obter(Speed)
@@ -85,7 +90,8 @@ para cada trackpoint na lista de trackpoints:
     inserir_após_Time(trackpoint, elemento)
     
     tempo_anterior = tempo_atual
-Considerações Importantes
+```
+## Considerações Importantes
 Intervalo de tempo: Certifique‑se de que os tempos estejam em ordem crescente e que o cálculo do Δt seja feito com precisão de segundos (pode haver frações, embora no exemplo sejam segundos inteiros).
 
 Velocidade em m/s: O valor de <ns3:Speed> já está em metros por segundo. Não converta.
@@ -97,7 +103,7 @@ Manutenção do <Lap><DistanceMeters>: O valor total da volta (<Lap><DistanceMet
 Namespaces: Ao gerar o XML, preserve a declaração xmlns="..." no elemento <TrainingCenterDatabase> e o prefixo ns3: para as extensões. O novo <DistanceMeters> não deve ter prefixo.
 
 Exemplo de Saída Final (trecho)
-xml
+```xml
 <Trackpoint>
   <Time>2026-06-22T13:12:13.140Z</Time>
   <DistanceMeters>0.00</DistanceMeters>
@@ -116,3 +122,8 @@ xml
     </ns3:TPX>
   </Extensions>
 </Trackpoint>
+```
+## Conclusão
+Implementando essa lógica diretamente no sistema que gera o arquivo TCX, você obtém um arquivo pronto para upload no Strava, com todos os dados necessários para o cálculo correto do pace, sem precisar de scripts adicionais.
+
+Caso seu sistema gere o arquivo em formato JSON ou outro intermediário, a mesma lógica de cálculo deve ser aplicada antes da serialização final para TCX.
