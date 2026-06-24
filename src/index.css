@@ -2,39 +2,54 @@
 @import "tailwindcss";
 
 @theme {
-  /* Fonts */
   --font-display: "Geologica", sans-serif;
   --font-body: "IBM Plex Sans", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
 
-  /* MINERAL PALETTE */
-  --color-amethyst: #7B4F9E;
-  --color-amethyst-light: #9B6FBE;
-  --color-citrine: #E6A817;
-  --color-rose-quartz: #D4839E;
-  --color-tourmaline: #2A9D8F;
-  --color-tourmaline-deep: #1E7268;
-  --color-obsidian: #1A1A2E;
-  --color-obsidian-light: #252540;
-  --color-labradorite: #3D5A80;
-  --color-malachite: #2D6A4F;
-  --color-jasper-red: #A63D40;
-  --color-agate-cream: #F0E6D3;
-  --color-agate-band: #C9B8A0;
-  --color-selenite: #F5F0E8;
+  /* SUNSET PALETTE — Acents (shared across themes) */
+  --color-accent: #FF006E;
+  --color-accent-secondary: #FFBE0B;
+  --color-accent-tertiary: #7209B7;
+  --color-gradient-start: #FF006E;
+  --color-gradient-end: #FFBE0B;
 
-  /* STRATA BACKGROUNDS (Dark by default) */
-  --color-bg-deep: #0D0D1A;
-  --color-bg-mantle: #141428;
-  --color-bg-bedrock: #1C1C35;
-  --color-bg-shale: #252542;
-  --color-bg-sandstone: #2E2E4F;
+  /* DARK MODE (default) */
+  --color-bg-deep: #0A0A14;
+  --color-bg-surface: #12122A;
+  --color-bg-elevated: #1C1C40;
+  --color-border: #2A2A50;
 
-  /* TEXT COLORS */
-  --color-text-primary: #E8E4F0;
-  --color-text-secondary: #B0A8C0;
+  --color-text-primary: #F0ECF5;
+  --color-text-secondary: #B0A8C8;
   --color-text-muted: #7A7490;
-  --color-text-mineral: #E6A817;
+}
+
+@layer base {
+  :root {
+    --bg-deep: #0A0A14;
+    --bg-surface: #12122A;
+    --bg-elevated: #1C1C40;
+    --border: #2A2A50;
+    --text-primary: #F0ECF5;
+    --text-secondary: #B0A8C8;
+    --text-muted: #7A7490;
+  }
+
+  .light {
+    --bg-deep: #F8F4F0;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #F0ECE8;
+    --border: #D4CFC8;
+    --text-primary: #1A1826;
+    --text-secondary: #5A5470;
+    --text-muted: #8A8498;
+  }
+
+  body {
+    background-color: var(--bg-deep);
+    color: var(--text-primary);
+    transition: background-color 0.3s, color 0.3s;
+  }
 }
 
 @layer utilities {
