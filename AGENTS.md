@@ -8,6 +8,24 @@
 - **Skeleton loading**: Use `animate-pulse` + `bg-bg-elevated` para estados de carregamento.
 - **Empty states**: Sempre incluir ícone (`lucide-react`) + CTA textual.
 
+## Code Splitting
+- **Lazy load heavy components**: Use `React.lazy(() => import(...))` + `<Suspense>` para `SessionSummary` e `MapComponent` (recharts + leaflet ≈ 700 KB).
+- **fallback**: `animate-pulse` skeleton ou texto "Carregando…" no Suspense.
+
+## Firebase Error Handling
+- **Use `getFirebaseErrorPt(err)`** de `src/lib/firebaseErrorsPtBr.ts` em vez de `err.message` direto.
+- Mapeamento cobre `auth/invalid-email`, `auth/user-not-found`, `auth/wrong-password`, etc.
+
+## Save Feedback
+- Use `showFeedback('success'|'error', message)` para notificações toast no canto superior direito.
+- O toast desaparece automaticamente após 3s.
+
+## Batch Operations
+- Use `writeBatch(db)` do Firestore para deleções em lote (até 500 ops), nunca `for...of deleteDoc`.
+
+## Offline Persistence
+- `enableIndexedDbPersistence(dbInstance)` chamado após `initializeFirestore()` — falha silenciosa em múltiplas abas.
+
 ## Persistence & Sync
 - **LocalStorage cache**: Always read from localStorage first for instant UI, then Firestore as source of truth.
   - Keys: `correlogo:plans:{uid}`, `correlogo:sessions:{uid}`, `correlogo:darkMode:{uid}`
@@ -15,6 +33,10 @@
 - **Sync**: Sessions with `local-*` prefix IDs are auto-uploaded to Firestore on next successful connection. Plans are merged (local + remote).
 - **Verify** Firestore synchronization for user-specific data by using explicit `[timing]` logs during development.
 - **Always** use `limit(50)` on session queries to avoid unbounded Firestore reads.
+
+## Dependencies
+- **Avoid `uuid`**: Use `crypto.randomUUID()` (nativo, disponível em todos os browsers modernos).
+- **No dead deps**: Não instalar `@google/genai`, `@vis.gl/react-google-maps`, `motion` — nunca importados no app.
 
 ## Firebase Projects
 - **Dev** (`.env` local): `correlogo-dev-9a96a` — Firestore em modo teste (expira 2026-07-25)

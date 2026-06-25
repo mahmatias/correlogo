@@ -107,22 +107,22 @@ Três padrões diferentes:
 2. ✅ Substituir 27+ `text-gray-*` no TrainingGenerator
 3. ✅ Criar tokens `--color-success/error/warning`
 4. ✅ **Rotacionar chaves do `firebase-applet-config.json` e remover do git**
-5. ❌ Versionar `firestore.rules` (ainda pendente)
+5. ✅ Versionar `firestore.rules` + `firebase.json`
 
 ### Fase 2 — Componentes + Performance ✅ (Completa)
 6. ✅ Extrair `<Button>` com variantes
-7. ❌ `React.lazy(SessionSummary)` + `React.lazy(MapComponent)` (~700KB) (pendente)
+7. ✅ `React.lazy(SessionSummary)` + `React.lazy(MapComponent)` (~700KB)
 8. ✅ Padronizar modais — componente `<Modal>` extraído
 9. ✅ Adicionar `limit(50)` na query de sessões
-10. ❌ Remover `@google/genai`, `@vis.gl/react-google-maps`, `motion`, `uuid` (pendente)
+10. ✅ Remover `@google/genai`, `@vis.gl/react-google-maps`, `motion`, `uuid`
 
-### Fase 3 — UX + Banco de Dados ✅ (Parcial)
-11. ❌ Onboarding / welcome screen
+### Fase 3 — UX + Banco de Dados ✅ (Completa)
+11. ✅ Onboarding / welcome screen
 12. ✅ Loading states + skeleton
-13. ❌ Mapear erros Firebase para português (pendente)
-14. ❌ Feedback visual em falhas de save (pendente)
-15. ❌ `writeBatch` para deleção em lote (pendente)
-16. ❌ `enableIndexedDbPersistence` (pendente)
+13. ✅ Mapear erros Firebase para português
+14. ✅ Feedback visual em falhas de save
+15. ✅ `writeBatch` para deleção em lote
+16. ✅ `enableIndexedDbPersistence`
 
 ### Fase 4 — Polimento ✅ (Completa)
 17. ✅ Touch targets ≥ 44px

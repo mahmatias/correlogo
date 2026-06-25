@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Play, LogOut, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard } from 'lucide-react';
 import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram } from './types';
 import WorkoutTracker from './components/WorkoutTracker';
@@ -11,7 +11,6 @@ import ImportPlan from './components/ImportPlan';
 import WorkoutEditor from './components/WorkoutEditor';
 import TrainingGenerator from './components/TrainingGenerator';
 import ProgramReview from './components/ProgramReview';
-import SessionSummary from './components/SessionSummary';
 import SessionHistory from './components/SessionHistory';
 import Signup from './components/Signup';
 import Login from './components/Login';
@@ -19,7 +18,9 @@ import Modal from './components/Modal';
 import Button from './components/Button';
 import { getAuth, getDb } from './lib/firebase';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
+
+const SessionSummary = lazy(() => import('./components/SessionSummary'));
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -39,6 +40,12 @@ export default function App() {
   const [planToDelete, setPlanToDelete] = useState<WorkoutPlan | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [saveFeedback, setSaveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const showFeedback = (type: 'success' | 'error', message: string) => {
+    setSaveFeedback({ type, message });
+    setTimeout(() => setSaveFeedback(null), 3000);
+  };
 
   const applyThemeClass = (light?: boolean) => {
     const isLight = light ?? !window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -224,15 +231,16 @@ export default function App() {
     // Delete associated sessions
     if (user && plansToDelete.length > 0) {
         try {
+            const db = getDb();
             const planIdsToDelete = plansToDelete.map(p => p.id);
             const sessionsToKeep = sessions.filter(s => !planIdsToDelete.includes(s.planId));
             const sessionsToDelete = sessions.filter(s => planIdsToDelete.includes(s.planId));
             
+            const batch = writeBatch(db);
             for (const session of sessionsToDelete) {
-                try {
-                    await deleteDoc(doc(getDb(), 'users', user.uid, 'sessions', session.id));
-                } catch { /* ignore individual delete failures */ }
+                batch.delete(doc(db, 'users', user.uid, 'sessions', session.id));
             }
+            await batch.commit();
             
             setSessions(sessionsToKeep);
             localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(sessionsToKeep));
@@ -310,6 +318,7 @@ export default function App() {
         try {
             console.log("Salvando sessão no Firestore:", { planId: id, ...sessionStats });
             const docRef = await addDoc(collection(getDb(), 'users', user.uid, 'sessions'), sessionData);
+            showFeedback('success', 'Treino salvo com sucesso!');
             const newSession: TrainingSession = { id: docRef.id, ...sessionData };
             setSessions(s => {
               const updated = [newSession, ...s];
@@ -319,6 +328,7 @@ export default function App() {
             setSelectedSession(newSession);
         } catch (e) {
             console.error("Erro ao salvar sessão no Firestore (mantida apenas localmente):", e);
+            showFeedback('error', 'Falha ao salvar treino no servidor. Dados mantidos localmente.');
             const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
             const newSession: TrainingSession = { id: localId, ...sessionData };
             setSessions(s => {
@@ -337,8 +347,10 @@ export default function App() {
         localStorage.setItem(`correlogo:plans:${user.uid}`, JSON.stringify(updatedPlans));
         try {
             await setDoc(doc(getDb(), 'users', user.uid, 'data', 'plans'), { plans: updatedPlans });
+            showFeedback('success', 'Plano salvo com sucesso!');
         } catch (e) {
             console.error("Erro ao salvar planos no Firestore:", e);
+            showFeedback('error', 'Falha ao salvar no servidor. Dados mantidos localmente.');
         }
     }
   }
@@ -353,6 +365,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
+      {saveFeedback && (
+        <div className={`fixed top-4 right-4 z-[9999] px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all duration-300 ${saveFeedback.type === 'success' ? 'bg-green-600' : 'bg-danger'}`} role="alert">
+          {saveFeedback.message}
+        </div>
+      )}
       <main className="w-full max-w-xl mx-auto p-4 pt-8">
         {!user ? (
           showSignup ? <Signup /> : <Login onSignupClick={() => setShowSignup(true)} />
@@ -372,6 +389,7 @@ export default function App() {
               />
             )}
             {selectedSession && (
+              <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="h-8 w-8 bg-bg-elevated rounded animate-pulse" /></div>}>
               <SessionSummary 
                 session={selectedSession} 
                 plan={plans.find(p => p.id === selectedSession.planId)}
@@ -384,6 +402,7 @@ export default function App() {
                   setSelectedSession(null);
                 }}
               />
+              </Suspense>
             )}
             {!activePlan && (
               <div className="flex justify-between items-center mb-8">
@@ -506,10 +525,20 @@ export default function App() {
                 </Button>
                 <div className="space-y-4 pt-4">
                   {plans.length === 0 ? (
-                    <div className="text-center text-text-muted py-8">
-                      <Clipboard className="mx-auto mb-2" size={32} />
-                      <p>Nenhum plano carregado ainda.</p>
-                      <p className="text-sm mt-1">Use o gerador acima para criar seu primeiro plano!</p>
+                    <div className="text-center text-text-muted py-8 space-y-3">
+                      <Clipboard className="mx-auto mb-2" size={40} />
+                      <p className="text-lg font-semibold text-text-primary">Bem-vindo ao Corre Logo! 🏃</p>
+                      <p className="text-sm">Você ainda não tem nenhum plano de treino.</p>
+                      <div className="bg-bg-elevated rounded-xl p-4 text-left text-sm space-y-2">
+                        <p className="font-medium text-text-primary">Para começar:</p>
+                        <ol className="list-decimal list-inside space-y-1 text-text-secondary">
+                          <li>Use o <strong>Gerador Automático</strong> para criar um plano personalizado</li>
+                          <li>Crie um <strong>Treino Manual</strong> com seus próprios passos</li>
+                          <li>Importe um plano de treino existente (arquivo JSON)</li>
+                          <li>Ou faça um <strong>Treino Livre</strong> para correr sem compromisso</li>
+                        </ol>
+                        <p className="text-text-muted pt-2 text-xs">Seus treinos ficam salvos automaticamente na nuvem ☁️</p>
+                      </div>
                     </div>
                   ) : (
                     plans.map((plan, index) => (

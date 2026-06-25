@@ -3,6 +3,7 @@ import { useState, useMemo, FormEvent } from 'react';
 import { getAuth } from '../lib/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { CheckCircle, XCircle } from 'lucide-react';
+import { getFirebaseErrorPt } from '../lib/firebaseErrorsPtBr';
 
 export default function Signup() {
     const [formData, setFormData] = useState({
@@ -43,7 +44,7 @@ export default function Signup() {
             const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
             await updateProfile(userCredential.user, { displayName: `${formData.name} ${formData.surname}` });
         } catch (err: any) {
-            setError(err.message);
+            setError(getFirebaseErrorPt(err));
             setLoading(false);
         }
     };

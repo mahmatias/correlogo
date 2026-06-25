@@ -1,5 +1,4 @@
 import { WorkoutPlan, TrainingSession, ActivityPoint, WorkoutStep } from '../types';
-import { v4 as uuidv4 } from 'uuid';
 
 export interface StepEvaluation {
   stepIndex: number;
@@ -75,7 +74,7 @@ export const suggestAdjustment = (plan: WorkoutPlan): WorkoutPlan => {
 
   return {
     ...plan,
-    id: uuidv4(), // New ID for the adjusted plan
+    id: crypto.randomUUID(),
     name: `${plan.name} (Ajustado)`,
     steps: adjustedSteps,
     isCompleted: false

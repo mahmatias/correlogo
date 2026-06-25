@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { getAuth } from '../lib/firebase';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
+import { getFirebaseErrorPt } from '../lib/firebaseErrorsPtBr';
 
 interface Props {
   onSignupClick: () => void;
@@ -26,7 +27,7 @@ export default function Login({ onSignupClick }: Props) {
         try {
             await signInWithEmailAndPassword(auth, email, password);
         } catch (err: any) {
-            setError(err.message);
+            setError(getFirebaseErrorPt(err));
             setLoading(false);
         }
     };
@@ -44,7 +45,7 @@ export default function Login({ onSignupClick }: Props) {
         try {
             await signInWithPopup(auth, provider);
         } catch (err: any) {
-            setError(err.message);
+            setError(getFirebaseErrorPt(err));
             setLoading(false);
         }
     };
@@ -65,7 +66,7 @@ export default function Login({ onSignupClick }: Props) {
             setSuccessMsg('Email de redefinição de senha enviado!');
         } catch (err: any) {
             setSuccessMsg('');
-            setError(err.message);
+            setError(getFirebaseErrorPt(err));
         }
     };
 

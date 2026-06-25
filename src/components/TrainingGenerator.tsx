@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { TrainingProgram, ProgramWeek, WorkoutPlan, WorkoutStep } from '../types';
 import { X } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 
 const solveVelocity = (vo2target: number) => {
   const a = 0.000104, b = 0.182258, c = -4.60 - vo2target;
@@ -33,7 +32,7 @@ const createStep = (
   targetPace: number,
   basis?: 'time' | 'distance'
 ): WorkoutStep => ({
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     type,
     durationSeconds: Math.round(durationSeconds),
     targetPace: parseFloat(targetPace.toFixed(2)),
@@ -133,15 +132,15 @@ const generateBeginnerProgram = (data: any, totalWeeks: number): TrainingProgram
             const hasDistance = steps.some(s => s.km != null);
             if (hasDistance) {
                 const totalKm = steps.filter(s => s.t === 'run').reduce((a, s) => a + (s.km ?? 0), 0);
-                return { id: uuidv4(), name: `Semana ${i + 1} — Treino ${si + 1} (${totalKm.toFixed(2).replace('.',',')} km)`, steps: planSteps, programName: 'Plano Iniciante' };
+                return { id: crypto.randomUUID(), name: `Semana ${i + 1} — Treino ${si + 1} (${totalKm.toFixed(2).replace('.',',')} km)`, steps: planSteps, programName: 'Plano Iniciante' };
             }
             const totalMin = steps.filter(s => s.t === 'run').reduce((a, s) => a + (s.min ?? 0), 0);
-            return { id: uuidv4(), name: `Semana ${i + 1} — Treino ${si + 1} (${Math.round(totalMin)}min de corrida)`, steps: planSteps, programName: 'Plano Iniciante' };
+            return { id: crypto.randomUUID(), name: `Semana ${i + 1} — Treino ${si + 1} (${Math.round(totalMin)}min de corrida)`, steps: planSteps, programName: 'Plano Iniciante' };
         });
         weeks.push({ weekNumber: i + 1, phase: 'base', isRecoveryWeek: false, plans });
     }
     return {
-        id: uuidv4(), name: 'Plano Iniciante', goal: data.goal,
+        id: crypto.randomUUID(), name: 'Plano Iniciante', goal: data.goal,
         experienceLevel: data.experienceLevel, referenceRace: data.referenceRace,
         daysOfWeek: data.daysOfWeek, mode: data.mode, raceDate: data.raceDate,
         weeks, createdAt: Date.now(),
@@ -231,11 +230,11 @@ const generateImprovePaceProgram = (data: any, totalWeeks: number): TrainingProg
                 steps.push(createStep('run', dur, sessionType === 'limiar' ? paceT : paceE, 'time'));
             }
             steps.push(createStep('cooldown', 300, paceE));
-            return { id: uuidv4(), name: `Semana ${i + 1} — ${phaseLabel[phase]} — ${sessionLabel[sessionType]}`, programName: `Plano pace ${data.goal.targetPace} min/km`, steps };
+            return { id: crypto.randomUUID(), name: `Semana ${i + 1} — ${phaseLabel[phase]} — ${sessionLabel[sessionType]}`, programName: `Plano pace ${data.goal.targetPace} min/km`, steps };
         });
         weeks.push({ weekNumber: i + 1, phase, isRecoveryWeek, plans });
     }
-    return { id: uuidv4(), name: `Plano pace ${data.goal.targetPace} min/km`, goal: data.goal, experienceLevel: data.experienceLevel, referenceRace: data.referenceRace, daysOfWeek: data.daysOfWeek, mode: data.mode, raceDate: data.raceDate, weeks, createdAt: Date.now() };
+    return { id: crypto.randomUUID(), name: `Plano pace ${data.goal.targetPace} min/km`, goal: data.goal, experienceLevel: data.experienceLevel, referenceRace: data.referenceRace, daysOfWeek: data.daysOfWeek, mode: data.mode, raceDate: data.raceDate, weeks, createdAt: Date.now() };
 };
 
 const generateStandardProgram = (data: any, totalWeeks: number): TrainingProgram => {
@@ -314,11 +313,11 @@ const generateStandardProgram = (data: any, totalWeeks: number): TrainingProgram
                 steps.push(createStep('run', Math.round(runSeconds), sessionType === 'limiar' ? paceT : paceE, 'time'));
             }
             steps.push(createStep('cooldown', 300, paceE));
-            return { id: uuidv4(), name: `Semana ${i + 1} — ${phaseLabel[phase]} — ${sessionLabel[sessionType]}`, programName: `Plano ${goal}`, steps };
+            return { id: crypto.randomUUID(), name: `Semana ${i + 1} — ${phaseLabel[phase]} — ${sessionLabel[sessionType]}`, programName: `Plano ${goal}`, steps };
         });
         weeks.push({ weekNumber: i + 1, phase, isRecoveryWeek, plans });
     }
-    return { id: uuidv4(), name: `Plano ${goal}`, goal: data.goal, experienceLevel: data.experienceLevel, referenceRace: data.referenceRace, daysOfWeek: data.daysOfWeek, mode: data.mode, raceDate: data.raceDate, weeks, createdAt: Date.now() };
+    return { id: crypto.randomUUID(), name: `Plano ${goal}`, goal: data.goal, experienceLevel: data.experienceLevel, referenceRace: data.referenceRace, daysOfWeek: data.daysOfWeek, mode: data.mode, raceDate: data.raceDate, weeks, createdAt: Date.now() };
 };
 
 const generateProgram = (data: any): TrainingProgram => {
