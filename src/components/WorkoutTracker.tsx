@@ -7,7 +7,6 @@ interface Props {
   plan: WorkoutPlan;
   onStop: () => void;
   mode: 'treadmill' | 'outdoor';
-  isDarkMode: boolean;
   markAsCompleted: (id: string, sessionStats: { 
       points: ActivityPoint[], 
       distanceKm: number, 
@@ -18,7 +17,7 @@ interface Props {
   key?: string;
 }
 
-export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsCompleted, totalWorkoutTime }: Props) {
+export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime }: Props) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedRef = useRef(0);
@@ -381,68 +380,68 @@ export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsC
   };
 
   return (
-    <div className={`flex flex-col items-center ${isDarkMode ? 'bg-bg-deep text-text-primary' : 'bg-agate-cream text-obsidian'} p-4 min-h-screen relative`}>
+    <div className="flex flex-col items-center p-4 min-h-screen relative">
       {countdown > 0 && (
-        <div className={`absolute inset-0 flex text-6xl justify-center items-center h-screen ${isDarkMode ? 'bg-bg-deep' : 'bg-agate-cream'} z-50`}>{countdown}</div>
+        <div className="absolute inset-0 flex text-6xl justify-center items-center h-screen z-50">{countdown}</div>
       )}
       <div className="w-full max-w-md">
-        <div className={`text-center ${isDarkMode ? 'text-text-secondary' : 'text-text-muted'} text-sm uppercase tracking-wider mb-1`}>Atual</div>
-        <div className={`text-center text-3xl font-bold ${isDarkMode ? 'text-tourmaline' : 'text-tourmaline-deep'} mb-6 uppercase`}>{getStepTypeLabel(step.type)}</div>
+        <div className="text-center text-text-secondary text-sm uppercase tracking-wider mb-1">Atual</div>
+        <div className="text-center text-3xl font-bold text-accent-secondary mb-6 uppercase">{getStepTypeLabel(step.type)}</div>
         
         <div className="grid grid-cols-3 gap-2 text-center mb-4">
           <div>
-            <div className={`${isDarkMode ? 'text-text-secondary' : 'text-text-muted'} text-[10px] uppercase`}>Dist. Total</div>
+            <div className="text-text-secondary text-[10px] uppercase">Dist. Total</div>
             <div className="text-lg font-bold">{formatDistance(displayDistance)}</div>
           </div>
           <div>
-            <div className={`${isDarkMode ? 'text-text-secondary' : 'text-text-muted'} text-[10px] uppercase`}>Tempo total</div>
+            <div className="text-text-secondary text-[10px] uppercase">Tempo total</div>
             <div className="text-lg font-bold">{formatTime(elapsedSeconds)}</div>
           </div>
           <div>
-            <div className={`${isDarkMode ? 'text-text-secondary' : 'text-text-muted'} text-[10px] uppercase`}>Vel. Média</div>
+            <div className="text-text-secondary text-[10px] uppercase">Vel. Média</div>
             <div className="text-lg font-bold">{(elapsedSeconds > 0 ? (displayDistance / (elapsedSeconds / 3600)) : 0).toFixed(1)} KM/h</div>
           </div>
         </div>
              {/* Step objective */}
-        <div className="relative bg-bg-shale rounded p-1 mb-2 overflow-hidden w-full h-5">
+        <div className="relative bg-bg-elevated rounded p-1 mb-2 overflow-hidden w-full h-5">
             <div key={currentStepIndex} className={`absolute top-1/2 -translate-y-1/2 ${!isPaused && countdown === 0 ? 'animate-marquee' : ''} text-[10px] text-text-primary whitespace-nowrap`}>
                {isDistanceStep ? formatDistance(stepTargetDistance) : formatDuration(step.durationSeconds)} {getStepTypeLabel(step.type)} @ { (60/(step.targetPace||1)).toFixed(1) } KM/h
             </div>
         </div>
 
         {/* Progress bars */}
-        <div className="w-full bg-bg-sandstone h-2 rounded-full mb-1">
-            <div className="bg-tourmaline h-full rounded-full" style={{width: `${isDistanceStep ? Math.min((lapDistance / (stepTargetDistance || 1)) * 100, 100) : Math.min((lapSeconds / (step.durationSeconds || 1)) * 100, 100)}%`}}></div>
+        <div className="w-full bg-bg-elevated h-2 rounded-full mb-1">
+            <div className="bg-accent-secondary h-full rounded-full" style={{width: `${isDistanceStep ? Math.min((lapDistance / (stepTargetDistance || 1)) * 100, 100) : Math.min((lapSeconds / (step.durationSeconds || 1)) * 100, 100)}%`}}></div>
         </div>
         
-        <div className="w-full bg-bg-sandstone h-2 rounded-full mb-8">
-            <div className="bg-amethyst h-full rounded-full" style={{width: `${Math.min(((elapsedSeconds + skippedTime) / totalWorkoutTime) * 100, 100)}%`}}></div>
+        <div className="w-full bg-bg-elevated h-2 rounded-full mb-8">
+            <div className="bg-accent-secondary h-full rounded-full" style={{width: `${Math.min(((elapsedSeconds + skippedTime) / totalWorkoutTime) * 100, 100)}%`}}></div>
         </div>
 
-        {mode === 'outdoor' && !isWorkoutCompleted && countdown === 0 && <div className="w-full mb-6 h-64"><MapComponent coords={coords} path={path} isDarkMode={isDarkMode} /></div>}
+        {mode === 'outdoor' && !isWorkoutCompleted && countdown === 0 && <div className="w-full mb-6 h-64"><MapComponent coords={coords} path={path} /></div>}
 
         {/* Step Distance and Time */}
-        <div className="text-center mb-2 p-4 bg-bg-bedrock border border-bg-shale rounded-xl">
+        <div className="text-center mb-2 p-4 bg-bg-surface border border-border rounded-xl">
             <div className="text-4xl font-bold">{formatDistance(lapDistance)}</div>
-            <div className={`${isDarkMode ? 'text-text-secondary' : 'text-text-muted'} uppercase tracking-widest text-xs`}>Dist. da Volta</div>
+            <div className="text-text-secondary uppercase tracking-widest text-xs">Dist. da Volta</div>
             <div className="text-2xl font-bold mt-2">{formatTime(lapSeconds)}</div>
-            <div className={`${isDarkMode ? 'text-text-secondary' : 'text-text-muted'} uppercase tracking-widest text-xs`}>Tempo da Volta</div>
+            <div className="text-text-secondary uppercase tracking-widest text-xs">Tempo da Volta</div>
         </div>
 
         {mode === 'treadmill' && (
-            <div className={`flex items-center justify-between bg-bg-shale rounded-xl p-2 mb-6`}>
+            <div className="flex items-center justify-between bg-bg-elevated rounded-xl p-2 mb-6">
                 <button 
                     onMouseDown={() => { if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
                     onMouseUp={stopAdjusting}
                     onMouseLeave={stopAdjusting}
                     onTouchStart={(e) => { e.preventDefault(); if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
                     onTouchEnd={stopAdjusting}
-                    className={`p-4 rounded-lg bg-bg-sandstone`}
+                    className="p-4 rounded-lg bg-bg-elevated"
                 >
                     <Minus />
                 </button>
                 <div className="flex flex-col items-center">
-                    <div className={`text-2xl font-bold text-tourmaline`}>{currentSpeed.toFixed(1)} KM/h</div>
+                    <div className="text-2xl font-bold text-accent-secondary">{currentSpeed.toFixed(1)} KM/h</div>
                     <div className="text-xs text-text-muted uppercase">Velocidade</div>
                 </div>
                 <button 
@@ -451,7 +450,7 @@ export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsC
                     onMouseLeave={stopAdjusting}
                     onTouchStart={(e) => { e.preventDefault(); if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(0.1); } }}
                     onTouchEnd={stopAdjusting}
-                    className={`p-4 rounded-lg bg-bg-sandstone`}
+                    className="p-4 rounded-lg bg-bg-elevated"
                 >
                     <Plus />
                 </button>
@@ -465,7 +464,7 @@ export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsC
                 onMouseLeave={stopFinish}
                 onTouchStart={startFinish}
                 onTouchEnd={stopFinish}
-                className={`w-full flex items-center justify-center gap-2 bg-jasper-red text-selenite py-4 rounded-full font-bold mb-4 uppercase relative overflow-hidden`}
+                className="w-full flex items-center justify-center gap-2 bg-accent text-white py-4 rounded-full font-bold mb-4 uppercase relative overflow-hidden"
             >
                 <div className="absolute inset-0 bg-white opacity-20" style={{ width: `${finishProgress}%` }}></div>
                 <Square /> Finalizar treino
@@ -474,29 +473,29 @@ export default function WorkoutTracker({ plan, onStop, mode, isDarkMode, markAsC
             <button 
                 onClick={nextStep} 
                 disabled={currentStepIndex >= plan.steps.length - 1}
-                className={`w-full flex items-center justify-center gap-2 bg-bg-shale text-text-primary py-4 rounded-full font-bold mb-4 uppercase ${currentStepIndex >= plan.steps.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`w-full flex items-center justify-center gap-2 bg-bg-elevated text-text-primary py-4 rounded-full font-bold mb-4 uppercase ${currentStepIndex >= plan.steps.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
                 <SkipForward /> Próxima volta
             </button>
         )}
-        <button onClick={() => setIsPaused(!isPaused)} className={`w-full flex items-center justify-center gap-2 ${isDarkMode ? 'bg-agate-cream text-obsidian' : 'bg-bg-shale text-selenite'} py-4 rounded-full font-bold uppercase mb-4`}>
+        <button onClick={() => setIsPaused(!isPaused)} className="w-full flex items-center justify-center gap-2 bg-accent-secondary text-white py-4 rounded-full font-bold uppercase mb-4">
             {isPaused ? <Play /> : <Pause />} {isPaused ? 'Continuar' : 'Pausar'}
         </button>
 
         {isWorkoutCompleted && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70">
-                <div className={`p-8 rounded-3xl shadow-2xl w-full max-w-sm ${isDarkMode ? 'bg-bg-bedrock border border-bg-shale' : 'bg-selenite'}`}>
-                    <h2 className={`text-2xl font-bold mb-8 text-center ${isDarkMode ? 'text-text-primary' : 'text-text-primary'}`}>Treino Finalizado</h2>
+                <div className="p-8 rounded-3xl shadow-2xl w-full max-w-sm bg-bg-surface border border-border">
+                    <h2 className="text-2xl font-bold mb-8 text-center text-text-primary">Treino Finalizado</h2>
                     <div className="flex flex-col gap-4">
                         <button 
                             onClick={() => { markAsCompleted(plan.id, { points: pointsRef.current, distanceKm: dist, timeSeconds: elapsedSeconds, mode }); onStop(); }} 
-                            className="w-full bg-tourmaline hover:bg-tourmaline-deep active:bg-malachite text-selenite p-4 rounded-xl font-bold transition-colors"
+                            className="w-full bg-accent-secondary hover:opacity-90 text-white p-4 rounded-xl font-bold transition-colors"
                         >
                             SALVAR RELATÓRIO
                         </button>
                         <button 
                             onClick={onStop} 
-                            className="w-full bg-jasper-red hover:bg-malachite active:bg-jasper-red text-selenite p-4 rounded-xl font-bold transition-colors"
+                            className="w-full bg-accent hover:opacity-90 text-white p-4 rounded-xl font-bold transition-colors"
                         >
                             DESCARTAR RELATÓRIO
                         </button>

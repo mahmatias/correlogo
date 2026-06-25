@@ -28,13 +28,19 @@ export default function App() {
   const [activePlan, setActivePlan] = useState<{plan: WorkoutPlan, mode: 'treadmill' | 'outdoor', sessionId: string} | null>(null);
   const [workoutToStart, setWorkoutToStart] = useState<{plan: WorkoutPlan, mode?: 'treadmill' | 'outdoor'} | null>(null);
   const [initialized, setInitialized] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isLightMode, setIsLightMode] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showGenerator, setShowGenerator] = useState(false);
   const [programToReview, setProgramToReview] = useState<TrainingProgram | null>(null);
   const [planToDelete, setPlanToDelete] = useState<WorkoutPlan | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+
+  const applyThemeClass = (light?: boolean) => {
+    const isLight = light ?? !window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.classList.toggle('light', isLight);
+    setIsLightMode(isLight);
+  };
 
   useEffect(() => {
     onAuthStateChanged(getAuth(), async (user) => {
@@ -51,9 +57,9 @@ export default function App() {
         }
         const cachedTheme = localStorage.getItem(localThemeKey);
         if (cachedTheme !== null) {
-          setIsDarkMode(cachedTheme === 'true');
+          applyThemeClass(cachedTheme === 'false');
         } else {
-          setIsDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+          applyThemeClass();
         }
 
         // Load plans & settings from Firestore (fonte de verdade, sobrescreve o cache local se disponível)
@@ -77,7 +83,7 @@ export default function App() {
           const settingsDoc = await getDoc(doc(getDb(), 'users', user.uid, 'data', 'settings'));
           if (settingsDoc.exists() && typeof settingsDoc.data().isDarkMode === 'boolean') {
             const remoteDarkMode = settingsDoc.data().isDarkMode;
-            setIsDarkMode(remoteDarkMode);
+            applyThemeClass(!remoteDarkMode);
             localStorage.setItem(localThemeKey, String(remoteDarkMode));
           }
         } catch (e) {
@@ -88,7 +94,7 @@ export default function App() {
       } else {
         setPlans([]);
         // Sem usuário logado: aplica preferência de tema do sistema diretamente.
-        setIsDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+        applyThemeClass();
         setInitialized(true);
       }
     });
@@ -109,12 +115,13 @@ export default function App() {
   };
 
   const toggleDarkMode = async () => {
-    const newDarkMode = !isDarkMode;
-    setIsDarkMode(newDarkMode);
+    const isLight = !isLightMode;
+    document.documentElement.classList.toggle('light', isLight);
+    setIsLightMode(isLight);
     if (user) {
-        localStorage.setItem(`correlogo:darkMode:${user.uid}`, String(newDarkMode));
+        localStorage.setItem(`correlogo:darkMode:${user.uid}`, String(!isLight));
         try {
-            await setDoc(doc(getDb(), 'users', user.uid, 'data', 'settings'), { isDarkMode: newDarkMode }, { merge: true });
+            await setDoc(doc(getDb(), 'users', user.uid, 'data', 'settings'), { isDarkMode: !isLight }, { merge: true });
         } catch (e) {
             console.error("Erro ao salvar preferência de tema no Firestore (mantida apenas localmente):", e);
         }
@@ -263,7 +270,7 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'dark bg-bg-deep' : 'bg-agate-cream'}`}>
+    <div className="min-h-screen">
       <main className="w-full max-w-lg mx-auto p-4 pt-8">
         {!user ? (
           showSignup ? <Signup /> : <Login onSignupClick={() => setShowSignup(true)} />
@@ -274,7 +281,6 @@ export default function App() {
                 sessions={sessions} 
                 onClose={() => setShowHistory(false)} 
                 onSelectSession={(s) => {setSelectedSession(s); setShowHistory(false);}} 
-                isDarkMode={isDarkMode} 
               />
             )}
             {selectedSession && (
@@ -282,7 +288,6 @@ export default function App() {
                 session={selectedSession} 
                 plan={plans.find(p => p.id === selectedSession.planId)}
                 onClose={() => setSelectedSession(null)} 
-                isDarkMode={isDarkMode} 
                 onSuggestAdjustment={(adjustedPlan) => {
                   const updatedPlans = plans.map(p =>
                     p.id === selectedSession?.planId ? adjustedPlan : p
@@ -294,25 +299,25 @@ export default function App() {
             )}
             {!activePlan && (
               <div className="flex justify-between items-center mb-8">
-                <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-text-primary' : 'text-obsidian'}`}>Corre Logo 🏃</h1>
+                <h1 className="text-2xl font-bold text-text-primary">Corre Logo 🏃</h1>
                 <div className='flex gap-2'>
                 <button 
                   onClick={() => setShowHistory(true)}
-                  className={`p-2 rounded-full ${isDarkMode ? 'bg-bg-mantle text-citrine' : 'bg-agate-band text-obsidian'}`}
+                  className="p-2 rounded-full bg-bg-elevated text-accent-secondary"
                 >
                   <BarChart2 size={20} />
                 </button>
                 <button 
                   onClick={handleLogout}
-                  className={`p-2 rounded-full ${isDarkMode ? 'bg-bg-mantle text-jasper-red' : 'bg-agate-band text-jasper-red'}`}
+                  className="p-2 rounded-full bg-bg-elevated text-accent"
                 >
                   <LogOut size={20} />
                 </button>
                 <button 
                   onClick={toggleDarkMode}
-                  className={`p-2 rounded-full ${isDarkMode ? 'bg-bg-mantle text-citrine' : 'bg-agate-band text-obsidian'}`}
+                  className="p-2 rounded-full bg-bg-elevated text-accent-secondary"
                 >
-                  {isDarkMode ? '☀️' : '🌙'}
+                  {isLightMode ? '🌙' : '☀️'}
                 </button>
                 </div>
               </div>
@@ -320,22 +325,22 @@ export default function App() {
             
             {workoutToStart && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className={`p-6 rounded-2xl shadow-xl w-full max-w-sm ${isDarkMode ? 'bg-bg-bedrock border border-bg-shale' : 'bg-selenite'}`}>
-                    <h2 className={`text-xl font-bold mb-6 ${isDarkMode ? 'text-text-primary' : 'text-obsidian'}`}>Configurar Treino</h2>
+                <div className="p-6 rounded-2xl shadow-xl w-full max-w-sm bg-bg-surface border border-border">
+                    <h2 className="text-xl font-bold mb-6 text-text-primary">Configurar Treino</h2>
                     
                     <div className="space-y-4 mb-8">
                       <div>
-                        <label className={`block mb-2 text-sm font-semibold ${isDarkMode ? 'text-text-secondary' : 'text-text-muted'}`}>Modalidade</label>
+                        <label className="block mb-2 text-sm font-semibold text-text-secondary">Modalidade</label>
                         <div className="flex gap-2">
-                           <button className={`flex-1 p-3 rounded-lg ${workoutToStart.mode === 'outdoor' ? (isDarkMode ? 'bg-labradorite text-agate-cream' : 'bg-tourmaline text-selenite') : (isDarkMode ? 'bg-bg-mantle' : 'bg-agate-band')}`} onClick={() => setWorkoutToStart({...workoutToStart, mode: 'outdoor'})}>Ar Livre</button>
-                           <button className={`flex-1 p-3 rounded-lg ${workoutToStart.mode === 'treadmill' ? (isDarkMode ? 'bg-labradorite text-agate-cream' : 'bg-tourmaline text-selenite') : (isDarkMode ? 'bg-bg-mantle' : 'bg-agate-band')}`} onClick={() => setWorkoutToStart({...workoutToStart, mode: 'treadmill'})}>Esteira</button>
+                           <button className={`flex-1 p-3 rounded-lg ${workoutToStart.mode === 'outdoor' ? 'bg-accent text-white' : 'bg-bg-elevated text-text-primary'}`} onClick={() => setWorkoutToStart({...workoutToStart, mode: 'outdoor'})}>Ar Livre</button>
+                           <button className={`flex-1 p-3 rounded-lg ${workoutToStart.mode === 'treadmill' ? 'bg-accent text-white' : 'bg-bg-elevated text-text-primary'}`} onClick={() => setWorkoutToStart({...workoutToStart, mode: 'treadmill'})}>Esteira</button>
                         </div>
                       </div>
                       
                       <div className="flex gap-4">
-                          <button className={`flex-1 p-3 rounded-lg ${isDarkMode ? 'bg-bg-shale text-text-primary' : 'bg-agate-band text-obsidian'}`} onClick={() => setWorkoutToStart(null)}>Voltar</button>
+                          <button className="flex-1 p-3 rounded-lg bg-bg-elevated text-text-primary" onClick={() => setWorkoutToStart(null)}>Voltar</button>
                           <button 
-                            className="flex-1 bg-amethyst text-selenite p-3 rounded-lg disabled:opacity-50" 
+                            className="flex-1 bg-accent text-white p-3 rounded-lg disabled:opacity-50" 
                             disabled={!workoutToStart.mode}
                             onClick={() => confirmWorkoutMode(workoutToStart.mode as 'treadmill' | 'outdoor')}
                           >
@@ -353,7 +358,6 @@ export default function App() {
                   plan={activePlan.plan} 
                   mode={activePlan.mode} 
                   onStop={() => setActivePlan(null)} 
-                  isDarkMode={isDarkMode} 
                   markAsCompleted={markAsCompleted}
                   totalWorkoutTime={calculateTotalDuration(activePlan.plan)}
                 />
@@ -375,16 +379,16 @@ export default function App() {
                 onCancel={() => setProgramToReview(null)}
               />
             ) : (
-              <div className={`${isDarkMode ? 'bg-bg-bedrock border-bg-shale' : 'bg-selenite border-agate-band'} p-8 rounded-2xl shadow-sm border`}>
+              <div className="bg-bg-surface border border-border p-8 rounded-2xl shadow-sm">
                 <ImportPlan onImport={handleImport} plans={plans} />
                 <button 
-                  className="w-full mt-4 p-2 bg-tourmaline text-selenite rounded-lg hover:bg-tourmaline-deep transition-colors"
+                  className="w-full mt-4 p-2 bg-accent text-white rounded-lg hover:opacity-90 transition-colors"
                   onClick={() => setIsEditing(true)}
                 >
                   Novo Treino Manual
                 </button>
                 <button 
-                  className="w-full mt-4 p-2 bg-tourmaline text-selenite rounded-lg hover:bg-tourmaline-deep transition-colors"
+                  className="w-full mt-4 p-2 bg-accent text-white rounded-lg hover:opacity-90 transition-colors"
                   onClick={() => setShowGenerator(true)}
                 >
                   Gerador Automático
@@ -401,14 +405,14 @@ export default function App() {
                       a.click();
                       URL.revokeObjectURL(url);
                     }}
-                    className="w-full mt-2 p-2 border border-gray-400 text-gray-500 rounded-lg text-sm"
+                    className="w-full mt-2 p-2 border border-border text-text-muted rounded-lg text-sm"
                   >
                     Exportar plano atual (JSON)
                   </button>
                 )}
                 {plans.length > 0 && (
                     <button 
-                        className="w-full mt-4 p-2 text-jasper-red border border-jasper-red rounded-lg hover:bg-jasper-red hover:text-selenite transition-colors"
+                        className="w-full mt-4 p-2 text-accent border border-accent rounded-lg hover:bg-accent hover:text-white transition-colors"
                         onClick={() => setPlanToDelete({ id: 'ALL', name: 'TODOS os planos' } as WorkoutPlan)}
                     >
                         Apagar Plano de Treino
@@ -416,33 +420,33 @@ export default function App() {
                 )}
                 <div className="space-y-4 pt-4">
                   {plans.length === 0 ? (
-                    <p className={`text-center ${isDarkMode ? 'text-text-muted' : 'text-text-muted'}`}>Nenhum plano carregado ainda.</p>
+                    <p className="text-center text-text-muted">Nenhum plano carregado ainda.</p>
                   ) : (
                     plans.map((plan, index) => (
-                      <div key={`${plan.id}-${index}`} className={`${isDarkMode ? 'border-bg-shale' : 'border-agate-band'} border rounded-lg overflow-hidden ${plan.isCompleted ? 'opacity-50' : ''}`}>
+                      <div key={`${plan.id}-${index}`} className={`border border-border rounded-lg overflow-hidden ${plan.isCompleted ? 'opacity-50' : ''}`}>
                         <div
-                          className={`flex justify-between items-center p-4 cursor-pointer ${isDarkMode ? 'hover:bg-bg-mantle' : 'hover:bg-agate-cream'}`}
+                          className="flex justify-between items-center p-4 cursor-pointer hover:bg-bg-elevated"
                           onClick={() => togglePlanExpansion(plan.id)}
                         >
                           <div className='flex gap-2 items-center'>
                             <button onClick={(e) => { e.stopPropagation(); toggleComplete(plan); }}>
-                                {plan.isCompleted ? <CheckCircle className='text-tourmaline' /> : <Circle className={isDarkMode ? 'text-text-muted' : 'text-agate-band'} />}
+                                {plan.isCompleted ? <CheckCircle className='text-accent-secondary' /> : <Circle className='text-text-muted' />}
                             </button>
-                            <span className={`font-medium ${isDarkMode ? 'text-agate-cream' : 'text-obsidian'}`}>{plan.activityName || plan.name || 'Plano sem nome'}</span>
+                            <span className="font-medium text-text-primary">{plan.activityName || plan.name || 'Plano sem nome'}</span>
                           </div>
                         </div>
-                        <div className={`flex justify-between items-center px-4 pb-4 ${isDarkMode ? 'bg-bg-bedrock' : 'bg-selenite'}`}>
-                            <span className={`text-xs ${isDarkMode ? 'text-text-muted' : 'text-agate-band'}`}>{formatTotalDuration(calculateTotalDuration(plan))}</span>
+                        <div className="flex justify-between items-center px-4 pb-4 bg-bg-surface">
+                            <span className="text-xs text-text-muted">{formatTotalDuration(calculateTotalDuration(plan))}</span>
                             <div className='flex gap-2 items-center'>
                                 <button 
-                                    className={`p-2 text-tourmaline hover:bg-obsidian-light rounded-full ${!sessions.some(s => s.planId === plan.id) ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                    className={`p-2 text-accent-secondary hover:bg-bg-elevated rounded-full ${!sessions.some(s => s.planId === plan.id) ? 'opacity-30 cursor-not-allowed' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); setSelectedSession(sessions.find(s => s.planId === plan.id) || null); }}
                                     disabled={!sessions.some(s => s.planId === plan.id)}
                                 >
                                     <BarChart2 size={20} />
                                 </button>
                                 <button 
-                                    className={`p-2 text-amethyst hover:bg-obsidian-light rounded-full ${plan.isCompleted ? 'cursor-not-allowed opacity-30' : ''}`}
+                                    className={`p-2 text-accent hover:bg-bg-elevated rounded-full ${plan.isCompleted ? 'cursor-not-allowed opacity-30' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); if (!plan.isCompleted) startWorkout(plan); }}
                                     disabled={plan.isCompleted}
                                 >
@@ -451,7 +455,7 @@ export default function App() {
                             </div>
                         </div>
                         {expandedPlanId === plan.id && (
-                          <div className={`p-4 border-t ${isDarkMode ? 'border-bg-shale text-text-secondary' : 'border-agate-band text-text-muted'} text-sm`}>
+                          <div className="p-4 border-t border-border text-text-secondary text-sm">
                             <h4 className="font-semibold mb-2">Passos:</h4>
                             <ul className="space-y-1">
                               {plan.steps.map((step, idx) => {
@@ -471,22 +475,22 @@ export default function App() {
             )}
             {planToUncomplete && (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70">
-                <div className={`p-8 rounded-3xl shadow-2xl w-full max-w-sm ${isDarkMode ? 'bg-bg-bedrock border border-bg-shale' : 'bg-selenite'}`}>
-                    <h2 className={`text-xl font-bold mb-4 text-center ${isDarkMode ? 'text-text-primary' : 'text-obsidian'}`}>Confirmar</h2>
-                    <p className={`mb-8 text-center ${isDarkMode ? 'text-text-secondary' : 'text-text-muted'}`}>
+                <div className="p-8 rounded-3xl shadow-2xl w-full max-w-sm bg-bg-surface border border-border">
+                    <h2 className="text-xl font-bold mb-4 text-center text-text-primary">Confirmar</h2>
+                    <p className="mb-8 text-center text-text-secondary">
                         Tem certeza que deseja marcar a atividade como não realizada?<br />
                         Seu relatório de progresso dessa atividade será apagado.
                     </p>
                     <div className="flex flex-col gap-4">
                         <button 
                             onClick={() => uncompletePlan(planToUncomplete)} 
-                            className="w-full bg-jasper-red hover:bg-malachite active:bg-jasper-red text-selenite p-4 rounded-xl font-bold transition-colors"
+                            className="w-full bg-accent hover:opacity-90 text-white p-4 rounded-xl font-bold transition-colors"
                         >
                             MARCAR COMO NÃO REALIZADA
                         </button>
                         <button 
                             onClick={() => setPlanToUncomplete(null)} 
-                            className={`w-full ${isDarkMode ? 'bg-bg-shale' : 'bg-agate-band'} p-4 rounded-xl font-bold`}
+                            className="w-full bg-bg-elevated text-text-primary p-4 rounded-xl font-bold"
                         >
                             CANCELAR
                         </button>
@@ -496,21 +500,21 @@ export default function App() {
             )}
             {planToDelete && (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70">
-                <div className={`p-8 rounded-3xl shadow-2xl w-full max-w-sm ${isDarkMode ? 'bg-bg-bedrock border border-bg-shale' : 'bg-selenite'}`}>
-                    <h2 className={`text-xl font-bold mb-4 text-center ${isDarkMode ? 'text-text-primary' : 'text-obsidian'}`}>Confirmar Exclusão</h2>
-                    <p className={`mb-8 text-center ${isDarkMode ? 'text-text-secondary' : 'text-text-muted'}`}>
+                <div className="p-8 rounded-3xl shadow-2xl w-full max-w-sm bg-bg-surface border border-border">
+                    <h2 className="text-xl font-bold mb-4 text-center text-text-primary">Confirmar Exclusão</h2>
+                    <p className="mb-8 text-center text-text-secondary">
                         Deseja realmente apagar o plano "{planToDelete.name}"?
                     </p>
                     <div className="flex flex-col gap-4">
                         <button 
                             onClick={() => deletePlan(planToDelete.id)} 
-                            className="w-full bg-jasper-red hover:bg-malachite active:bg-jasper-red text-selenite p-4 rounded-xl font-bold transition-colors"
+                            className="w-full bg-accent hover:opacity-90 text-white p-4 rounded-xl font-bold transition-colors"
                         >
                             SIM, APAGAR
                         </button>
                         <button 
                             onClick={() => setPlanToDelete(null)} 
-                            className={`w-full ${isDarkMode ? 'bg-bg-shale' : 'bg-agate-band'} p-4 rounded-xl font-bold`}
+                            className="w-full bg-bg-elevated text-text-primary p-4 rounded-xl font-bold"
                         >
                             CANCELAR
                         </button>

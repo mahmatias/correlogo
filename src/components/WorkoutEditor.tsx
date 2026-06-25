@@ -54,18 +54,18 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
     }
 
     return (
-        <div className="p-6 bg-selenite rounded-xl">
+        <div className="p-6 bg-bg-surface rounded-xl border border-border">
             <h2 className="text-2xl font-bold mb-4">{initialPlan ? 'Editar Sessão' : 'Novo Plano de Treino'}</h2>
             <input 
                 type="text" 
                 placeholder="Nome do treino" 
                 value={name} 
                 onChange={e => setName(e.target.value)}
-                className="w-full p-2 mb-4 border rounded"
+                className="w-full p-2 mb-4 border border-border rounded bg-bg-elevated text-text-primary"
             />
             
             {steps.map((step, index) => (
-                <div key={step.id} className="flex flex-col gap-2 mb-4 p-3 bg-white rounded shadow-sm">
+                <div key={step.id} className="flex flex-col gap-2 mb-4 p-3 bg-bg-elevated rounded">
                     <div className="flex gap-2 items-center">
                         <span className="flex-1 font-semibold">{getStepTypeLabel(step.type)}</span>
                         <button onClick={() => moveStep(index, 'up')}><ArrowUp size={16} /></button>
@@ -79,24 +79,24 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
                                     const dist = parseFloat(e.target.value);
                                     const speedKmh = 60 / (step.targetPace || 1);
                                     updateStep(step.id, { targetDistance: dist, durationSeconds: Math.round((dist / speedKmh) * 3600) });
-                                }} className="w-16 p-1 border rounded" /></label>
+                                }} className="w-16 p-1 border border-border rounded bg-bg-elevated text-text-primary" /></label>
                                 <label className="flex items-center gap-1">ou Segs: <input type="number" value={step.durationSeconds ?? ''} onChange={e => {
                                     const secs = parseInt(e.target.value);
                                     const speedKmh = 60 / (step.targetPace || 1);
                                     updateStep(step.id, { durationSeconds: secs, targetDistance: (secs / 3600) * speedKmh });
-                                }} className="w-16 p-1 border rounded" /></label>
+                                }} className="w-16 p-1 border border-border rounded bg-bg-elevated text-text-primary" /></label>
                                 <label className="flex items-center gap-1">Ritmo: <input type="text" placeholder="m:ss" value={paceToMmss(step.targetPace)} onChange={e => {
                                     const pace = mmssToPace(e.target.value);
                                     const speedKmh = 60 / pace;
                                     updateStep(step.id, { targetPace: pace, durationSeconds: Math.round(((step.targetDistance || 1) / speedKmh) * 3600) });
-                                }} className="w-16 p-1 border rounded" /></label>
+                                }} className="w-16 p-1 border border-border rounded bg-bg-elevated text-text-primary" /></label>
                             </div>
                             <label className="flex items-center gap-2">
                                 Progressão por:
                                 <select
                                     value={step.basis ?? 'time'}
                                     onChange={e => updateStep(step.id, { basis: e.target.value as 'time' | 'distance' })}
-                                    className="p-1 border rounded text-sm"
+                                    className="p-1 border border-border rounded text-sm bg-bg-elevated text-text-primary"
                                 >
                                     <option value="time">Tempo</option>
                                     <option value="distance">Distância</option>
@@ -104,22 +104,22 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
                             </label>
                         </div>
                     ) : (
-                        <label className="text-sm flex items-center gap-1">Duração (segs): <input type="number" value={step.durationSeconds ?? 300} onChange={e => updateStep(step.id, { durationSeconds: parseInt(e.target.value) })} className="w-20 p-1 border rounded" /></label>
+                        <label className="text-sm flex items-center gap-1">Duração (segs): <input type="number" value={step.durationSeconds ?? 300} onChange={e => updateStep(step.id, { durationSeconds: parseInt(e.target.value) })} className="w-20 p-1 border border-border rounded bg-bg-elevated text-text-primary" /></label>
                     )}
                 </div>
             ))}
 
             <div className="flex gap-2 mb-4">
                 {(['warmup', 'run', 'rest', 'cooldown'] as WorkoutStep['type'][]).map(type => (
-                    <button key={type} onClick={() => addStep(type)} className="p-2 bg-tourmaline text-white rounded text-sm">
+                    <button key={type} onClick={() => addStep(type)} className="p-2 bg-accent-secondary text-white rounded text-sm">
                         <Plus size={16} className="inline mr-1" /> {getStepTypeLabel(type)}
                     </button>
                 ))}
             </div>
 
             <div className="flex justify-end gap-2">
-                <button onClick={onCancel} className="p-2 bg-gray-300 rounded">Cancelar</button>
-                <button onClick={handleSave} className="p-2 bg-amethyst text-white rounded">Salvar Treino</button>
+                <button onClick={onCancel} className="p-2 bg-bg-elevated text-text-primary rounded">Cancelar</button>
+                <button onClick={handleSave} className="p-2 bg-accent text-white rounded">Salvar Treino</button>
             </div>
         </div>
     );
