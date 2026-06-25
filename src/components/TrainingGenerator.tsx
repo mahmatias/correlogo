@@ -40,73 +40,106 @@ const createStep = (
     ...(basis ? { basis } : {}),
 });
 
-const BEGINNER_TABLE: [number, number, number, boolean][] = [
-  [2,   2,   4, false],   // W1
-  [3,   2,   4, false],   // W2
-  [4,   1.5, 4, false],   // W3
-  [3,   1,   4, true],    // W4 — recovery
-  [5,   1.5, 3, false],   // W5
-  [6,   1.5, 3, false],   // W6
-  [7,   1,   3, false],   // W7
-  [8,   1,   2, true],    // W8 — recovery (transição)
-  [10,  1,   2, false],   // W9
-  [12,  1,   2, false],   // W10
-  [10,  1,   2, true],    // W11 — recovery
-  [15,  1,   1, false],   // W12
-];
-// W13-W16: continuous runs (distância progressiva até 5km)
-
 const generateBeginnerProgram = (data: any, totalWeeks: number): TrainingProgram => {
-    const runPace = data.goal.targetPace ?? 8;
-    const walkPace = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
-    const goalDistKm = data.goal.raceDistance === 'none' ? 5 : parseInt(data.goal.raceDistance);
-    const maxWeeks = Math.min(totalWeeks, 16);
-    const continuousFactors = [0.30, 0.55, 0.80, 1.0];
+    const comfortPace = Math.max(6, (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm);
+    const runPace = data.goal.targetPace ?? comfortPace;
+    const walkPace = Math.max(comfortPace, 12);
+    const maxW = Math.min(totalWeeks, 16);
+
+    const runnaTable: { t: string; min?: number; km?: number }[][][] = [
+        [ // W1
+            [{t:'run',min:3},{t:'walk',min:2},{t:'run',min:3},{t:'walk',min:2},{t:'run',min:3},{t:'walk',min:2}],
+            [{t:'run',min:2.5},{t:'walk',min:1.5},{t:'run',min:3},{t:'walk',min:2},{t:'run',min:2.5},{t:'walk',min:1.5},{t:'run',min:3},{t:'walk',min:2},{t:'run',min:1}],
+        ],
+        [ // W2
+            [{t:'run',min:2},{t:'walk',min:1},{t:'run',min:2},{t:'walk',min:1},{t:'run',min:2},{t:'walk',min:1},{t:'run',min:2},{t:'walk',min:1},{t:'run',min:2},{t:'walk',min:1},{t:'run',min:2},{t:'walk',min:1}],
+            [{t:'run',min:4},{t:'walk',min:1.5},{t:'run',min:4},{t:'walk',min:1.5},{t:'run',min:4},{t:'walk',min:1.5}],
+        ],
+        [ // W3
+            [{t:'run',min:1},{t:'walk',min:0.5},{t:'run',min:3},{t:'walk',min:1},{t:'run',min:1},{t:'walk',min:0.5},{t:'run',min:3},{t:'walk',min:1},{t:'run',min:1},{t:'walk',min:0.5},{t:'run',min:3},{t:'walk',min:1},{t:'run',min:1}],
+            [{t:'run',min:1.5},{t:'walk',min:1},{t:'run',min:5},{t:'walk',min:1.5},{t:'run',min:1.5},{t:'walk',min:1},{t:'run',min:5},{t:'walk',min:1.5}],
+        ],
+        [ // W4
+            [{t:'run',min:2.5},{t:'walk',min:1},{t:'run',min:3},{t:'walk',min:1},{t:'run',min:2.5},{t:'walk',min:1},{t:'run',min:3},{t:'walk',min:1}],
+            [{t:'run',min:1},{t:'walk',min:0.5},{t:'run',min:5},{t:'walk',min:1.5},{t:'run',min:1},{t:'walk',min:0.5},{t:'run',min:5},{t:'walk',min:1.5}],
+        ],
+        [ // W5
+            [{t:'run',min:6},{t:'walk',min:1.5},{t:'run',min:1},{t:'walk',min:0.5},{t:'run',min:6}],
+            [{t:'run',min:1},{t:'walk',min:0.5},{t:'run',min:3},{t:'walk',min:1},{t:'run',min:1},{t:'walk',min:0.5},{t:'run',min:3},{t:'walk',min:1},{t:'run',min:1},{t:'walk',min:0.5},{t:'run',min:3},{t:'walk',min:1},{t:'run',min:1}],
+        ],
+        [ // W6
+            [{t:'run',min:3},{t:'walk',min:1},{t:'run',min:4},{t:'walk',min:1},{t:'run',min:3},{t:'walk',min:1},{t:'run',min:4},{t:'walk',min:1}],
+            [{t:'run',min:7},{t:'walk',min:1.5},{t:'run',min:1},{t:'walk',min:0.5},{t:'run',min:7}],
+        ],
+        [ // W7
+            [{t:'run',min:8},{t:'walk',min:1.5},{t:'run',min:8},{t:'walk',min:1.5}],
+            [{t:'run',min:3},{t:'walk',min:1},{t:'run',min:5},{t:'walk',min:1},{t:'run',min:3},{t:'walk',min:1},{t:'run',min:5},{t:'walk',min:1}],
+        ],
+        [ // W8
+            [{t:'run',km:0.75},{t:'walk',min:1},{t:'run',km:0.25},{t:'walk',min:0.5},{t:'run',km:0.75}],
+            [{t:'run',km:0.75},{t:'walk',min:1},{t:'run',km:0.75},{t:'walk',min:1}],
+        ],
+        [ // W9
+            [{t:'run',km:1.75}],
+            [{t:'run',km:1.25},{t:'walk',min:1},{t:'run',km:1.25},{t:'walk',min:1}],
+        ],
+        [ // W10
+            [{t:'run',km:2.25}],
+            [{t:'run',km:1.5},{t:'walk',min:1},{t:'run',km:1.5},{t:'walk',min:1}],
+        ],
+        [ // W11
+            [{t:'run',km:2.75}],
+            [{t:'run',km:1.75},{t:'walk',min:1},{t:'run',km:1.75},{t:'walk',min:1}],
+        ],
+        [ // W12
+            [{t:'run',km:0.75},{t:'walk',min:0.5},{t:'run',km:1.5},{t:'walk',min:1},{t:'run',km:0.75}],
+            [{t:'run',km:2.5}],
+        ],
+        [ // W13
+            [{t:'run',km:3.5}],
+            [{t:'run',km:2},{t:'walk',min:1},{t:'run',km:0.25},{t:'walk',min:0.5},{t:'run',km:2}],
+        ],
+        [ // W14
+            [{t:'run',km:4}],
+            [{t:'run',km:3.75}],
+        ],
+        [ // W15
+            [{t:'run',km:2.5},{t:'walk',min:1},{t:'run',km:2.5},{t:'walk',min:1}],
+            [{t:'run',km:4.25}],
+        ],
+        [ // W16
+            [{t:'run',km:1.25},{t:'walk',min:0.5},{t:'run',km:2.5},{t:'walk',min:1},{t:'run',km:1.25}],
+            [{t:'run',km:5}],
+        ],
+    ];
 
     const weeks: ProgramWeek[] = [];
-
-    for (let i = 0; i < maxWeeks; i++) {
-        const weekNum = i + 1;
-        const isContinuous = i >= BEGINNER_TABLE.length;
-
-        const plans: WorkoutPlan[] = data.daysOfWeek.map((day: number, idx: number) => {
-            const volumeFactor = idx === 0 ? 1.0 : 0.85;
-            const steps: WorkoutStep[] = [];
-
-            steps.push(createStep('warmup', 300, walkPace));
-
-            if (isContinuous) {
-                const ci = Math.min(3, i - BEGINNER_TABLE.length);
-                const distKm = goalDistKm * continuousFactors[ci];
-                const secs = Math.round(distKm * runPace * 60);
-                steps.push(createStep('run', Math.max(30, secs), runPace, 'distance'));
-            } else {
-                const [runMin, walkMin, reps, isRec] = BEGINNER_TABLE[i];
-                const recoveryFactor = isRec ? 0.75 : 1.0;
-                for (let r = 0; r < reps; r++) {
-                    const runSecs = Math.round(runMin * 60 * recoveryFactor * volumeFactor);
-                    steps.push(createStep('run', Math.max(30, runSecs), runPace));
-                    if (r < reps - 1) {
-                        const walkSecs = Math.round(walkMin * 60 * recoveryFactor * volumeFactor);
-                        steps.push(createStep('rest', Math.max(10, walkSecs), walkPace));
-                    }
+    for (let i = 0; i < maxW; i++) {
+        const sessions = runnaTable[i];
+        const plans: WorkoutPlan[] = sessions.map((steps, si) => {
+            const planSteps: WorkoutStep[] = [];
+            planSteps.push(createStep('warmup', 300, walkPace));
+            for (const s of steps) {
+                if (s.t === 'run' && s.min != null) {
+                    planSteps.push(createStep('run', Math.round(s.min * 60), runPace));
+                } else if (s.t === 'run' && s.km != null) {
+                    const secs = Math.round((s.km / (60 / runPace)) * 3600);
+                    planSteps.push({ ...createStep('run', secs, runPace, 'distance'), targetDistance: s.km });
+                } else if (s.t === 'walk') {
+                    planSteps.push(createStep('rest', Math.round((s.min ?? 1) * 60), walkPace));
                 }
             }
-
-            steps.push(createStep('cooldown', 300, walkPace));
-
-            return {
-                id: uuidv4(),
-                name: `Semana ${weekNum} — Corrida/Caminhada${idx > 0 ? ' (2)' : ''}`,
-                steps,
-                programName: 'Plano Iniciante',
-            };
+            planSteps.push(createStep('cooldown', 300, walkPace));
+            const hasDistance = steps.some(s => s.km != null);
+            if (hasDistance) {
+                const totalKm = steps.filter(s => s.t === 'run').reduce((a, s) => a + (s.km ?? 0), 0);
+                return { id: uuidv4(), name: `Semana ${i + 1} — Treino ${si + 1} (${totalKm.toFixed(2).replace('.',',')} km)`, steps: planSteps, programName: 'Plano Iniciante' };
+            }
+            const totalMin = steps.filter(s => s.t === 'run').reduce((a, s) => a + (s.min ?? 0), 0);
+            return { id: uuidv4(), name: `Semana ${i + 1} — Treino ${si + 1} (${Math.round(totalMin)}min de corrida)`, steps: planSteps, programName: 'Plano Iniciante' };
         });
-
-        const isRec = !isContinuous && BEGINNER_TABLE[i][3];
-        weeks.push({ weekNumber: weekNum, phase: 'base', isRecoveryWeek: isRec, plans });
+        weeks.push({ weekNumber: i + 1, phase: 'base', isRecoveryWeek: false, plans });
     }
-
     return {
         id: uuidv4(), name: 'Plano Iniciante', goal: data.goal,
         experienceLevel: data.experienceLevel, referenceRace: data.referenceRace,
@@ -145,7 +178,8 @@ const generateImprovePaceProgram = (data: any, totalWeeks: number): TrainingProg
     for (let i = 0; i < totalWeeks; i++) {
         const progress = totalWeeks > 1 ? i / (totalWeeks - 1) : 1;
         const vdotWeek = vdotCurrent + (vdotTarget - vdotCurrent) * progress;
-        const paceE = vToPace(solveVelocity(vdotWeek * 0.65)), paceT = vToPace(solveVelocity(vdotWeek * 0.88)), paceI = vToPace(solveVelocity(vdotWeek * 0.975));
+        const refPaceMinKm = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
+        const paceE = Math.min(vToPace(solveVelocity(vdotWeek * 0.65)), refPaceMinKm + 2), paceT = vToPace(solveVelocity(vdotWeek * 0.88)), paceI = vToPace(solveVelocity(vdotWeek * 0.975));
 
         let phase: 'base' | 'build' | 'peak' | 'taper' = i < baseWeeks ? 'base' : i < baseWeeks + buildWeeks ? 'build' : i < baseWeeks + buildWeeks + peakWeeks ? 'peak' : 'taper';
         const isRecoveryWeek = (i + 1) % 4 === 0 && (phase === 'build' || phase === 'peak');
@@ -210,7 +244,8 @@ const generateStandardProgram = (data: any, totalWeeks: number): TrainingProgram
     const VO2 = calcVO2(v);
     const percentVO2max = 0.8 + 0.1894393 * Math.exp(-0.012778 * T) + 0.2989558 * Math.exp(-0.1932605 * T);
     const vdot = VO2 / percentVO2max;
-    const paceE = vToPace(solveVelocity(vdot * 0.65)), paceT = vToPace(solveVelocity(vdot * 0.88)), paceI = vToPace(solveVelocity(vdot * 0.975));
+    const refPaceMinKm = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
+    const paceE = Math.min(vToPace(solveVelocity(vdot * 0.65)), refPaceMinKm + 2), paceT = vToPace(solveVelocity(vdot * 0.88)), paceI = vToPace(solveVelocity(vdot * 0.975));
     const goal = data.goal.raceDistance;
     const isBeginner = data.experienceLevel === 'beginner';
 
@@ -288,20 +323,13 @@ const generateStandardProgram = (data: any, totalWeeks: number): TrainingProgram
 
 const generateProgram = (data: any): TrainingProgram => {
     const totalWeeks = calculateTotalWeeks(data);
-    const refPaceMinkm = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
-
-    const isBeginnerWhoCanAlreadyRun = refPaceMinkm <= 8.5;
-    const hasTargetPaceForBeginnerGoal = 
-        data.experienceLevel === 'beginner' && 
-        data.goal.targetPace != null &&
-        data.goal.targetPace < refPaceMinkm &&
-        !isBeginnerWhoCanAlreadyRun;
-
-    if (hasTargetPaceForBeginnerGoal) {
+    
+    if (data.experienceLevel === 'beginner') {
         return generateBeginnerProgram(data, totalWeeks);
     }
     
-    if (data.goal.targetPace != null) {
+    const refPaceMinkm = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
+    if (data.goal.targetPace != null && refPaceMinkm - data.goal.targetPace > 0.15) {
         return generateImprovePaceProgram(data, totalWeeks);
     }
     
