@@ -15,10 +15,11 @@ interface Props {
   }) => void;
   totalWorkoutTime: number;
   isFreeTraining?: boolean;
+  simulateGps?: boolean;
   key?: string;
 }
 
-export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime, isFreeTraining }: Props) {
+export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime, isFreeTraining, simulateGps }: Props) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedRef = useRef(0);
@@ -82,42 +83,55 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
 
     let lastCoords: {lat: number, lng: number} | null = null;
     let lastTime: number = Date.now();
+    let cleanup: (() => void) | null = null;
 
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const newCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        const now = Date.now();
-        setCoords(newCoords);
-        setPath(p => [...p, { ...newCoords, timestamp: now }]);
+    const handlePosition = (pos: GeolocationPosition) => {
+      const newCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const now = Date.now();
+      setCoords(newCoords);
+      setPath(p => [...p, { ...newCoords, timestamp: now }]);
 
-        if (lastCoords) {
-           const R = 6371; // km
-           const dLat = (newCoords.lat - lastCoords.lat) * Math.PI / 180;
-           const dLon = (newCoords.lng - lastCoords.lng) * Math.PI / 180;
-           const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                     Math.cos(lastCoords.lat * Math.PI / 180) * Math.cos(newCoords.lat * Math.PI / 180) *
-                     Math.sin(dLon/2) * Math.sin(dLon/2);
-           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-           const d = R * c; // km
-           
-           if (d > 0.001) { // Filter noise
-             distRef.current += d;
-             lapDistRef.current += d;
-             const timeDiffHours = (now - lastTime) / 3600000;
-             if (timeDiffHours > 0) {
-               speedRef.current = d / timeDiffHours;
-             }
+      if (lastCoords) {
+         const R = 6371; // km
+         const dLat = (newCoords.lat - lastCoords.lat) * Math.PI / 180;
+         const dLon = (newCoords.lng - lastCoords.lng) * Math.PI / 180;
+         const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                   Math.cos(lastCoords.lat * Math.PI / 180) * Math.cos(newCoords.lat * Math.PI / 180) *
+                   Math.sin(dLon/2) * Math.sin(dLon/2);
+         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+         const d = R * c; // km
+         
+         if (d > 0.001) { // Filter noise
+           distRef.current += d;
+           lapDistRef.current += d;
+           const timeDiffHours = (now - lastTime) / 3600000;
+           if (timeDiffHours > 0) {
+             speedRef.current = d / timeDiffHours;
            }
-        }
-        lastCoords = newCoords;
-        lastTime = now;
-      },
-      (err) => console.error(err),
-      { enableHighAccuracy: true }
-    );
+         }
+      }
+      lastCoords = newCoords;
+      lastTime = now;
+    };
 
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [mode]);
+    const handleError = (err: GeolocationPositionError) => console.error(err);
+
+    if (simulateGps) {
+      import('../lib/gpsSimulator').then(({ startGpsSimulation }) => {
+        cleanup = startGpsSimulation({
+          originLat: -15.7975,
+          originLng: -47.8919,
+          onPosition: handlePosition,
+          onError: handleError,
+        });
+      });
+    } else {
+      const watchId = navigator.geolocation.watchPosition(handlePosition, handleError, { enableHighAccuracy: true });
+      cleanup = () => navigator.geolocation.clearWatch(watchId);
+    }
+
+    return () => { if (cleanup) cleanup(); };
+  }, [mode, simulateGps]);
 
   useEffect(() => {
       return () => {
