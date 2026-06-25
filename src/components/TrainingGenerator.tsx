@@ -351,7 +351,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                 <>
                     <div className="mt-4">
                         <label>Data da prova:</label>
-                        <input type="date" className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary" onChange={e => setData({...data, raceDate: e.target.value})} />
+                        <input type="date" className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary" onChange={e => setData({...data, raceDate: e.target.value})} min={new Date().toISOString().slice(0, 10)} max={new Date(Date.now() + 5 * 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)} />
                     </div>
                     {data.goal.raceDistance !== 'none' && (
                         <div className="mt-4">
