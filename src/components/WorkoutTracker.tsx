@@ -380,9 +380,9 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   };
 
   return (
-    <div className="flex flex-col items-center p-4 min-h-screen relative">
+    <div className="flex flex-col items-center p-4 min-h-screen relative bg-bg-deep text-text-primary">
       {countdown > 0 && (
-        <div className="absolute inset-0 flex text-6xl justify-center items-center h-screen z-50">{countdown}</div>
+        <div className="absolute inset-0 flex text-6xl justify-center items-center h-screen bg-bg-deep z-50">{countdown}</div>
       )}
       <div className="w-full max-w-md">
         <div className="text-center text-text-secondary text-sm uppercase tracking-wider mb-1">Atual</div>

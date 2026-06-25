@@ -55,7 +55,7 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
   const exportGPX = () => downloadFile(generateGPX(session), `session_${session.id}.gpx`, 'application/gpx+xml');
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex flex-col p-6 overflow-y-auto bg-bg-deep text-text-primary">
         <button onClick={onClose} className="mb-4 flex items-center gap-2">
             <ArrowLeft /> Voltar
         </button>
