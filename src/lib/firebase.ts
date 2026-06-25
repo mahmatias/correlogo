@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { initializeApp } from 'firebase/app';
-import { initializeFirestore } from 'firebase/firestore';
+import { initializeFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getAuth as _getAuth } from 'firebase/auth';
 
 let authInstance: any = null;
@@ -33,6 +33,16 @@ function init() {
   const t2 = performance.now();
   dbInstance = initializeFirestore(app, {});
   console.log(`[timing] initializeFirestore: ${(performance.now() - t2).toFixed(0)}ms`);
+
+  enableIndexedDbPersistence(dbInstance).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn("[persistence] Falhou: múltiplas abas abertas — cache desabilitado");
+    } else if (err.code === 'unimplemented') {
+      console.warn("[persistence] Navegador não suporta IndexedDB — cache desabilitado");
+    } else {
+      console.warn("[persistence] Erro inesperado:", err);
+    }
+  });
 
   const t3 = performance.now();
   authInstance = _getAuth(app);

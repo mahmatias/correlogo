@@ -1,8 +1,9 @@
 import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle } from 'lucide-react';
 import { formatDistance, formatDuration, TrainingSession, WorkoutPlan } from '../types';
-import MapComponent from './MapComponent';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
+
+const MapComponent = lazy(() => import('./MapComponent'));
 import { generateTCX, generateGPX } from '../lib/exportUtils';
 import { evaluateSessionPerformance, suggestAdjustment } from '../lib/evaluatePerformance';
 
@@ -71,7 +72,9 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
 
         {path.length > 0 && (
             <div className="w-full mb-6 h-64">
-                <MapComponent coords={null} path={path} />
+                <Suspense fallback={<div className="w-full h-64 bg-bg-elevated rounded animate-pulse flex items-center justify-center text-text-muted">Carregando mapa…</div>}>
+                    <MapComponent coords={null} path={path} />
+                </Suspense>
             </div>
         )}
 
