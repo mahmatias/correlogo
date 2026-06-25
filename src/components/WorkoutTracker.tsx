@@ -35,8 +35,8 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const finishTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // GPS state
-  const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
-  const [path, setPath] = useState<{lat: number, lng: number, timestamp: number}[]>([]);
+  const [coords, setCoords] = useState<{lat: number, lng: number, altitude?: number} | null>(null);
+  const [path, setPath] = useState<{lat: number, lng: number, altitude?: number, timestamp: number}[]>([]);
   const [dist, setDist] = useState(0); // km
   const [paceHistory, setPaceHistory] = useState<{timeSeconds: number, pace: number}[]>([]);
   
@@ -44,7 +44,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const speedRef = useRef(10);
   const lapDistRef = useRef(0);
   const pointsRef = useRef<ActivityPoint[]>([]);
-  const coordsRef = useRef(coords);
+  const coordsRef = useRef<{lat: number, lng: number, altitude?: number} | null>(null);
 
   // Sync coords ref
   useEffect(() => {
@@ -86,7 +86,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     let cleanup: (() => void) | null = null;
 
     const handlePosition = (pos: GeolocationPosition) => {
-      const newCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const newCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude, altitude: pos.coords.altitude ?? undefined };
       const now = Date.now();
       setCoords(newCoords);
       setPath(p => [...p, { ...newCoords, timestamp: now }]);
@@ -165,6 +165,9 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
           if (coordsRef.current) {
               newPoint.lat = coordsRef.current.lat;
               newPoint.lon = coordsRef.current.lng;
+              if (coordsRef.current.altitude !== undefined) {
+                  newPoint.altitude = coordsRef.current.altitude;
+              }
           }
           
           pointsRef.current.push(newPoint);

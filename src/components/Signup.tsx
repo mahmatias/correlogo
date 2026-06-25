@@ -1,9 +1,9 @@
-
 import { useState, useMemo, FormEvent } from 'react';
 import { getAuth } from '../lib/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { getFirebaseErrorPt } from '../lib/firebaseErrorsPtBr';
+import { sanitizeText, sanitizeEmail } from '../lib/sanitize';
 
 interface SignupProps {
   onLoginClick?: () => void;
@@ -33,6 +33,9 @@ export default function Signup({ onLoginClick }: SignupProps) {
     const handleSignup = async (e: FormEvent) => {
         e.preventDefault();
         if (loading) return;
+        const name = sanitizeText(formData.name, 50);
+        const surname = sanitizeText(formData.surname, 50);
+        const email = sanitizeEmail(formData.email);
         if (!isEmailValid || !emailsMatch || !isPasswordValid || !passwordsMatch || !formData.termsAccepted) {
             setError('Por favor, corrija os erros no formulário.');
             return;
@@ -45,8 +48,8 @@ export default function Signup({ onLoginClick }: SignupProps) {
             return;
         }
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-            await updateProfile(userCredential.user, { displayName: `${formData.name} ${formData.surname}` });
+            const userCredential = await createUserWithEmailAndPassword(auth, email, formData.password);
+            await updateProfile(userCredential.user, { displayName: `${name} ${surname}` });
         } catch (err: any) {
             setError(getFirebaseErrorPt(err));
             setLoading(false);

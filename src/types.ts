@@ -70,6 +70,7 @@ export interface ActivityPoint {
   stepIndex: number;
   lat?: number;
   lon?: number;
+  altitude?: number;
   heartRate?: number;
   cadence?: number;
 }
