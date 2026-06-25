@@ -157,38 +157,29 @@ const generateImprovePaceProgram = (data: any, totalWeeks: number): TrainingProg
         }
 
         const weekDays = data.daysOfWeek.length;
-        const intervalIndices = new Set<number>();
-        const limarIndices = new Set<number>();
-
-        if (!isRecoveryWeek && phase !== 'base' && phase !== 'taper') {
-            const maxI = phase === 'peak' ? 2 : 1;
-            let countI = 0;
-            for (let idx = 0; idx < weekDays - 1 && countI < maxI; idx++) {
-                if (intervalIndices.has(idx - 1)) continue;
-                const nextDayIsConsecutive = idx + 1 < weekDays &&
-                    data.daysOfWeek[idx + 1] === data.daysOfWeek[idx] + 1;
-                if (nextDayIsConsecutive && countI > 0) continue;
-                intervalIndices.add(idx);
-                countI++;
-            }
-        }
-        
-        if (!isRecoveryWeek && phase !== 'base' && phase !== 'taper') {
-            if (weekDays <= 2) {
-                const useInterval = i % 2 === 0;
-                if (useInterval) {
-                    intervalIndices.clear();
-                    intervalIndices.add(0);
+        const [intervalIndices, limarIndices] = (() => {
+            const interval = new Set<number>();
+            const limiar = new Set<number>();
+            if (!isRecoveryWeek && phase !== 'base' && phase !== 'taper') {
+                if (weekDays <= 2) {
+                    if (i % 2 === 0) interval.add(0);
+                    else limiar.add(0);
                 } else {
-                    intervalIndices.clear();
-                    limarIndices.add(0);
-                }
-            } else {
-                for (let idx = 0; idx < weekDays - 1; idx++) {
-                    if (!intervalIndices.has(idx)) { limarIndices.add(idx); break; }
+                    const maxI = phase === 'peak' ? 2 : 1;
+                    let count = 0;
+                    for (let idx = 0; idx < weekDays - 1 && count < maxI; idx++) {
+                        const nextIsConsecutive = idx + 1 < weekDays && data.daysOfWeek[idx + 1] === data.daysOfWeek[idx] + 1;
+                        if (nextIsConsecutive && count > 0) continue;
+                        interval.add(idx);
+                        count++;
+                    }
+                    for (let idx = 0; idx < weekDays - 1; idx++) {
+                        if (!interval.has(idx)) { limiar.add(idx); break; }
+                    }
                 }
             }
-        }
+            return [interval, limiar];
+        })();
         const plans: WorkoutPlan[] = data.daysOfWeek.map((day: number, index: number) => {
             const isLastDay = index === weekDays - 1;
             const sessionType = isRecoveryWeek ? 'easy' : isLastDay ? 'long' : intervalIndices.has(index) ? 'intervalo' : limarIndices.has(index) ? 'limiar' : 'easy';
@@ -251,21 +242,31 @@ const generateStandardProgram = (data: any, totalWeeks: number): TrainingProgram
         }
 
         const weekDays = data.daysOfWeek.length;
-        const intervalIndices = new Set<number>();
-        if (phase !== 'base' && !isRecoveryWeek) {
-            const maxInterval = phase === 'peak' ? 2 : 1;
-            let count = 0;
-            for (let idx = 0; idx < weekDays - 1 && count < maxInterval; idx++) {
-                if (intervalIndices.has(idx - 1)) continue;
-                const nextDayIsConsecutive = idx + 1 < weekDays &&
-                    data.daysOfWeek[idx + 1] === data.daysOfWeek[idx] + 1;
-                if (nextDayIsConsecutive && count > 0) continue;
-                intervalIndices.add(idx);
-                count++;
+        const [intervalIndices, limiarIndices] = (() => {
+            const interval = new Set<number>();
+            const limiar = new Set<number>();
+            if (phase !== 'base' && !isRecoveryWeek) {
+                if (weekDays <= 2) {
+                    if (i % 2 === 0) interval.add(0);
+                    else limiar.add(0);
+                } else {
+                    const maxI = phase === 'peak' ? 2 : 1;
+                    let count = 0;
+                    for (let idx = 0; idx < weekDays - 1 && count < maxI; idx++) {
+                        const nextIsConsecutive = idx + 1 < weekDays && data.daysOfWeek[idx + 1] === data.daysOfWeek[idx] + 1;
+                        if (nextIsConsecutive && count > 0) continue;
+                        interval.add(idx);
+                        count++;
+                    }
+                    for (let idx = 0; idx < weekDays - 1; idx++) {
+                        if (!interval.has(idx)) { limiar.add(idx); break; }
+                    }
+                }
             }
-        }
+            return [interval, limiar];
+        })();
         const plans: WorkoutPlan[] = data.daysOfWeek.map((day: number, index: number) => {
-            const sessionType = (phase === 'base' || isRecoveryWeek) ? 'easy' : (index === weekDays - 1) ? 'long' : intervalIndices.has(index) ? 'intervalo' : (index === 1 && (phase as any) !== 'base' && !isRecoveryWeek) ? 'limiar' : 'easy';
+            const sessionType = (phase === 'base' || isRecoveryWeek) ? 'easy' : (index === weekDays - 1) ? 'long' : intervalIndices.has(index) ? 'intervalo' : limiarIndices.has(index) ? 'limiar' : 'easy';
             let runSeconds = cumulativeVolume / weekDays;
             if (sessionType === 'long') runSeconds *= 1.4;
             else if (sessionType === 'intervalo') runSeconds *= 0.8;
