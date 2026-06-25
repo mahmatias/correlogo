@@ -4,6 +4,9 @@
 - **Always** read `TODO.md` first thing — it's the persistent task list.
 - Add new tasks to `TODO.md` whenever the user asks. Never rely on in-memory only.
 
+## Custom Commands
+- `/todo <items>` — Adiciona itens ao `TODO.md` (definido em `.opencode/commands/todo.md`)
+
 ## UI & Component Patterns
 - **Button component**: Use `<Button variant="primary|secondary|ghost|danger" size="sm|md|lg">` em vez de `<button>` raw.
 - **Modal component**: Use `<Modal open onClose title>` para diálogos, com `role="alertdialog"` para confirmações destrutivas.
