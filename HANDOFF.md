@@ -1,14 +1,35 @@
 # Handoff
 
-## Current Functional State
-- User workout plan retrieval and persistence in Firestore is verified.
-- Dark mode theme preference is persisted to Firebase and loaded on initialization.
-- Workout tracker correctly handles completion, asks for confirmation, and allows starting new workouts after finishing previous ones.
-- App is deployed to production on AWS EC2, reachable at `https://correlogo.sytes.net` (no port in URL), with valid SSL.
+## Current Functional State (2026-06-25)
+
+### Loading & Sync
+- App carrega em <1.2s (cache localStorage instantâneo + Firestore paralelo com timeout de 5s)
+- Dados offline (sessões com prefixo `local-*`) são sincronizados ao Firestore automaticamente na próxima conexão bem-sucedida
+- Planos criados offline são mesclados com remotos ao reconectar
+- Logs `[timing]` no console para diagnóstico de performance
+
+### Firebase Projects
+- **Dev** (`.env`): `correlogo-dev-9a96a` — Firestore ativado em modo teste (expira 2026-07-25)
+- **Prod** (servidor AWS): `correlogo-prod` — credenciais no `.env` do servidor
+- `firebase-applet-config.json` removido do git (projeto `zealous-arcanum-nwfkz` era do AI Studio e não é mais usado)
+
+### UI Components
+- `<Button>` — variantes: `primary`, `secondary`, `ghost`, `danger`; sizes: `sm`, `md`, `lg`
+- `<Modal>` — backdrop centralizado com `role="dialog"` ou `role="alertdialog"`
+- Ambos em `src/components/`
+
+### Known Issues
+- Firestore no dev `correlogo-dev-9a96a` expira modo teste em 2026-07-25 — atualizar regras antes
+- Skeleton de carregamento aparece enquanto Firestore não responde (até 5s) — reduzir timeout se necessário
+- `favicon.ico` retorna 404 (cosmético, sem impacto)
 
 ## Key Considerations for Future Agent
-- When modifying `WorkoutTracker.tsx`, respect the state initialization and reset lifecycle.
-- Keep Firestore interactions consolidated within the main `App.tsx` state management to avoid fragmented persistence logic.
+- `App.tsx` gerencia todo o estado global (plans, sessions, user, theme) — persistência centralizada
+- `WorkoutTracker` usa `key={sessionId}` para re-inicialização correta
+- `isFreeTraining` flag + `speak(text, force)` controlam anúncios de voz no Treino Livre
+- `manual: true` em planos criados no WorkoutEditor controla visibilidade do botão de deletar
+- Sempre usar `limit(50)` em queries de sessões — documentado como regra
+- Cache localStorage: chaves `correlogo:plans:{uid}`, `correlogo:sessions:{uid}`, `correlogo:darkMode:{uid}`
 
 ## Production Deployment State (as of 2026-06-21)
 
@@ -32,4 +53,3 @@ The app runs on an AWS EC2 instance (Ubuntu), domain `correlogo.sytes.net` (No-I
 - If a future change seems to require re-opening port 3000 publicly, that's a red flag — it means something is bypassing Nginx, which shouldn't happen.
 
 **Build/env gotcha already hit once:** the production build had stale/missing `VITE_FIREBASE_*` values baked in because `.env` was edited *after* the last `npm run build`. Symptom was "Firebase has no API key" in the browser console despite a correct `.env` on disk. Fix was re-running `npm run build` (with `sudo`, since `/opt/correlogo` is root-owned) followed by `pm2 restart correlogo`. Keep this in mind for any future `VITE_*` env change.
-

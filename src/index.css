@@ -22,6 +22,10 @@
   --color-text-primary: #F0ECF5;
   --color-text-secondary: #B0A8C8;
   --color-text-muted: #7A7490;
+
+  --color-success: #22C55E;
+  --color-danger: #EF4444;
+  --color-warning: #FFBE0B;
 }
 
 @layer base {
@@ -48,7 +52,12 @@
   body {
     background-color: var(--bg-deep);
     color: var(--text-primary);
+    font-family: var(--font-body);
     transition: background-color 0.3s, color 0.3s;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
   }
 }
 

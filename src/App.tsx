@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Play, LogOut, RefreshCw, CheckCircle, Circle, Trash2, BarChart2 } from 'lucide-react';
+import { Play, LogOut, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard } from 'lucide-react';
 import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram } from './types';
 import WorkoutTracker from './components/WorkoutTracker';
 import ImportPlan from './components/ImportPlan';
@@ -15,9 +15,11 @@ import SessionSummary from './components/SessionSummary';
 import SessionHistory from './components/SessionHistory';
 import Signup from './components/Signup';
 import Login from './components/Login';
+import Modal from './components/Modal';
+import Button from './components/Button';
 import { getAuth, getDb } from './lib/firebase';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc } from 'firebase/firestore';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -36,6 +38,7 @@ export default function App() {
   const [programToReview, setProgramToReview] = useState<TrainingProgram | null>(null);
   const [planToDelete, setPlanToDelete] = useState<WorkoutPlan | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const applyThemeClass = (light?: boolean) => {
     const isLight = light ?? !window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -44,17 +47,22 @@ export default function App() {
   };
 
   useEffect(() => {
-    onAuthStateChanged(getAuth(), async (user) => {
+    const t0 = performance.now();
+    const unsub = onAuthStateChanged(getAuth(), async (user) => {
+      console.log(`[timing] onAuthStateChanged fired at ${(performance.now() - t0).toFixed(0)}ms, user=`, !!user);
       setUser(user);
       if (user) {
-        // Local cache (localStorage) é aplicado primeiro para resposta instantânea
-        // e como rede de segurança caso a leitura do Firestore falhe.
         const localPlansKey = `correlogo:plans:${user.uid}`;
+        const localSessionsKey = `correlogo:sessions:${user.uid}`;
         const localThemeKey = `correlogo:darkMode:${user.uid}`;
 
         const cachedPlans = localStorage.getItem(localPlansKey);
         if (cachedPlans) {
           try { setPlans(JSON.parse(cachedPlans)); } catch { /* ignore corrupt cache */ }
+        }
+        const cachedSessions = localStorage.getItem(localSessionsKey);
+        if (cachedSessions) {
+          try { setSessions(JSON.parse(cachedSessions)); } catch { /* ignore corrupt cache */ }
         }
         const cachedTheme = localStorage.getItem(localThemeKey);
         if (cachedTheme !== null) {
@@ -63,42 +71,85 @@ export default function App() {
           applyThemeClass();
         }
 
-        // Load plans & settings from Firestore (fonte de verdade, sobrescreve o cache local se disponível)
+        const db = getDb();
+        const t1 = performance.now();
         try {
-          const plansDoc = await getDoc(doc(getDb(), 'users', user.uid, 'data', 'plans'));
+          const firestorePromise = Promise.all([
+            getDoc(doc(db, 'users', user.uid, 'data', 'plans')),
+            getDocs(query(collection(db, 'users', user.uid, 'sessions'), orderBy('date', 'desc'), limit(50))),
+            getDoc(doc(db, 'users', user.uid, 'data', 'settings')),
+          ]);
+          // Timeout de 5s — se o Firestore não responder, cai no catch e usa cache local
+          const timeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Firestore timeout after 5s')), 5000)
+          );
+          const [plansDoc, qs, settingsDoc] = await Promise.race([firestorePromise, timeout]);
+          console.log(`[timing] Firestore reads done at ${(performance.now() - t1).toFixed(0)}ms`);
+
           if (plansDoc.exists()) {
             const remotePlans = plansDoc.data().plans ?? [];
-            setPlans(remotePlans);
-            localStorage.setItem(localPlansKey, JSON.stringify(remotePlans));
+            // Merge: preserva planos criados localmente que ainda não estão no Firestore
+            const cachedPlansRaw = localStorage.getItem(localPlansKey);
+            if (cachedPlansRaw) {
+              const localPlans: WorkoutPlan[] = JSON.parse(cachedPlansRaw);
+              const merged = [...remotePlans];
+              for (const lp of localPlans) {
+                if (!merged.find(rp => rp.id === lp.id)) {
+                  merged.push(lp);
+                }
+              }
+              setPlans(merged);
+              localStorage.setItem(localPlansKey, JSON.stringify(merged));
+              // Salva de volta no Firestore se houve merge
+              if (merged.length !== remotePlans.length) {
+                setDoc(doc(db, 'users', user.uid, 'data', 'plans'), { plans: merged }).catch(() => {});
+              }
+            } else {
+              setPlans(remotePlans);
+              localStorage.setItem(localPlansKey, JSON.stringify(remotePlans));
+            }
           }
-          
-          // Load sessions
-          const q = query(collection(getDb(), 'users', user.uid, 'sessions'), orderBy('date', 'desc'));
-          const qs = await getDocs(q);
-          setSessions(qs.docs.map(doc => ({ id: doc.id, ...doc.data() } as TrainingSession)));
-        } catch (e) {
-          console.error("Erro ao carregar dados do Firestore.", e);
-        }
 
-        try {
-          const settingsDoc = await getDoc(doc(getDb(), 'users', user.uid, 'data', 'settings'));
+          const remoteSessions = qs.docs.map(doc => ({ id: doc.id, ...doc.data() } as TrainingSession));
+          setSessions(remoteSessions);
+          localStorage.setItem(localSessionsKey, JSON.stringify(remoteSessions));
+
           if (settingsDoc.exists() && typeof settingsDoc.data().isDarkMode === 'boolean') {
             const remoteDarkMode = settingsDoc.data().isDarkMode;
             applyThemeClass(!remoteDarkMode);
             localStorage.setItem(localThemeKey, String(remoteDarkMode));
           }
-        } catch (e) {
-          console.error("Erro ao carregar preferência de tema do Firestore. Usando cache local ou padrão do sistema.", e);
-        }
 
-        setInitialized(true);
+          // Sync: sobe para o Firestore dados que foram criados localmente enquanto offline
+          const cachedSessionsRaw = localStorage.getItem(localSessionsKey);
+          if (cachedSessionsRaw) {
+            const allLocalSessions: TrainingSession[] = JSON.parse(cachedSessionsRaw);
+            const localOnlySessions = allLocalSessions.filter(s => s.id.startsWith('local-') && !remoteSessions.find(rs => rs.id === s.id));
+            for (const localSess of localOnlySessions) {
+              try {
+                const { id: _, ...data } = localSess;
+                const docRef = await addDoc(collection(db, 'users', user.uid, 'sessions'), data);
+                const updatedSessions = allLocalSessions.map(s => s.id === localSess.id ? { ...s, id: docRef.id } : s);
+                localStorage.setItem(localSessionsKey, JSON.stringify(updatedSessions));
+              } catch { /* se falhar na sync, tenta na próxima vez */ }
+            }
+          }
+        } catch (e) {
+          console.warn("Rodando no localStorage — Firestore indisponível.", e);
+        } finally {
+          setIsLoading(false);
+          setInitialized(true);
+          console.log(`[timing] Total load: ${(performance.now() - t0).toFixed(0)}ms`);
+        }
       } else {
         setPlans([]);
-        // Sem usuário logado: aplica preferência de tema do sistema diretamente.
+        setSessions([]);
         applyThemeClass();
         setInitialized(true);
+        setIsLoading(false);
       }
     });
+    return () => { unsub(); };
   }, []);
 
   const startWorkout = (plan: WorkoutPlan) => {
@@ -178,10 +229,13 @@ export default function App() {
             const sessionsToDelete = sessions.filter(s => planIdsToDelete.includes(s.planId));
             
             for (const session of sessionsToDelete) {
-                await deleteDoc(doc(getDb(), 'users', user.uid, 'sessions', session.id));
+                try {
+                    await deleteDoc(doc(getDb(), 'users', user.uid, 'sessions', session.id));
+                } catch { /* ignore individual delete failures */ }
             }
             
             setSessions(sessionsToKeep);
+            localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(sessionsToKeep));
         } catch (e) {
             console.error("Erro ao deletar sessões do Firestore:", e);
         }
@@ -209,7 +263,11 @@ export default function App() {
             const sessionToDelete = sessions.find(s => s.planId === plan.id);
             if (sessionToDelete) {
                 await deleteDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionToDelete.id));
-                setSessions(s => s.filter(si => si.id !== sessionToDelete.id));
+                setSessions(s => {
+                  const updated = s.filter(si => si.id !== sessionToDelete.id);
+                  localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                  return updated;
+                });
             }
         } catch (e) {
             console.error("Erro ao deletar sessão do Firestore:", e);
@@ -237,27 +295,38 @@ export default function App() {
         const totalDistance = sessionStats.distanceKm;
         const totalSeconds = sessionStats.timeSeconds;
         const avgSpeed = totalSeconds > 0 ? (totalDistance / (totalSeconds / 3600)) : 0;
+        const sessionData: Omit<TrainingSession, 'id'> = {
+            planId: id,
+            planName,
+            date: new Date().toISOString(),
+            mode: sessionStats.mode,
+            totalDurationSeconds: totalSeconds,
+            totalDistanceKm: totalDistance,
+            avgSpeedKmh: avgSpeed,
+            completed: true,
+            points: sessionStats.points
+        };
         
         try {
             console.log("Salvando sessão no Firestore:", { planId: id, ...sessionStats });
-            const sessionData: Omit<TrainingSession, 'id'> = {
-                planId: id,
-                planName,
-                date: new Date().toISOString(),
-                mode: sessionStats.mode,
-                totalDurationSeconds: totalSeconds,
-                totalDistanceKm: totalDistance,
-                avgSpeedKmh: avgSpeed,
-                completed: true,
-                points: sessionStats.points
-            };
-            
             const docRef = await addDoc(collection(getDb(), 'users', user.uid, 'sessions'), sessionData);
             const newSession: TrainingSession = { id: docRef.id, ...sessionData };
-            setSessions(s => [newSession, ...s]);
+            setSessions(s => {
+              const updated = [newSession, ...s];
+              localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+              return updated;
+            });
             setSelectedSession(newSession);
         } catch (e) {
-            console.error("Erro ao salvar sessão no Firestore:", e);
+            console.error("Erro ao salvar sessão no Firestore (mantida apenas localmente):", e);
+            const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+            const newSession: TrainingSession = { id: localId, ...sessionData };
+            setSessions(s => {
+              const updated = [newSession, ...s];
+              localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+              return updated;
+            });
+            setSelectedSession(newSession);
         }
     }
   }
@@ -284,9 +353,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <main className="w-full max-w-lg mx-auto p-4 pt-8">
+      <main className="w-full max-w-xl mx-auto p-4 pt-8">
         {!user ? (
           showSignup ? <Signup /> : <Login onSignupClick={() => setShowSignup(true)} />
+        ) : isLoading ? (
+          <div className="flex flex-col gap-4 pt-8">
+            <div className="h-8 w-48 bg-bg-elevated rounded animate-pulse" />
+            <div className="h-40 bg-bg-elevated rounded animate-pulse" />
+            <div className="h-40 bg-bg-elevated rounded animate-pulse" />
+          </div>
         ) : (
           <>
             {showHistory && (
@@ -314,36 +389,36 @@ export default function App() {
               <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-bold text-text-primary">Corre Logo 🏃</h1>
                 <div className='flex gap-2'>
-                <button 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setShowHistory(true)}
-                  className="p-2 rounded-full bg-bg-elevated text-accent-secondary"
                   aria-label="Histórico de treinos"
                 >
                   <BarChart2 size={20} />
-                </button>
-                <button 
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={handleLogout}
-                  className="p-2 rounded-full bg-bg-elevated text-accent"
                   aria-label="Sair"
                 >
                   <LogOut size={20} />
-                </button>
-                <button 
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={toggleDarkMode}
-                  className="p-2 rounded-full bg-bg-elevated text-accent-secondary"
                   aria-label={isLightMode ? 'Alternar para modo escuro' : 'Alternar para modo claro'}
                 >
                   {isLightMode ? '🌙' : '☀️'}
-                </button>
+                </Button>
                 </div>
               </div>
             )}
             
             {workoutToStart && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-label="Configurar treino">
-                <div className="p-6 rounded-2xl shadow-xl w-full max-w-sm bg-bg-surface border border-border">
-                    <h2 className="text-xl font-bold mb-6 text-text-primary">Configurar Treino</h2>
-                    
+              <Modal open={!!workoutToStart} onClose={() => setWorkoutToStart(null)} title="Configurar Treino">
                     <div className="space-y-4 mb-8">
                       <div>
                         <label className="block mb-2 text-sm font-semibold text-text-secondary">Modalidade</label>
@@ -354,18 +429,13 @@ export default function App() {
                       </div>
                       
                       <div className="flex gap-4">
-                          <button className="flex-1 p-3 rounded-lg bg-bg-elevated text-text-primary" onClick={() => setWorkoutToStart(null)}>Voltar</button>
-                          <button 
-                            className="flex-1 bg-accent text-white p-3 rounded-lg disabled:opacity-50" 
-                            disabled={!workoutToStart.mode}
-                            onClick={() => confirmWorkoutMode(workoutToStart.mode as 'treadmill' | 'outdoor')}
-                          >
+                          <Button variant="secondary" className="flex-1" onClick={() => setWorkoutToStart(null)}>Voltar</Button>
+                          <Button className="flex-1" disabled={!workoutToStart.mode} onClick={() => confirmWorkoutMode(workoutToStart.mode as 'treadmill' | 'outdoor')}>
                             Iniciar
-                          </button>
+                          </Button>
                       </div>
                     </div>
-                </div>
-              </div>
+                </Modal>
             )}
             
             {activePlan ? (
@@ -398,20 +468,16 @@ export default function App() {
             ) : (
               <div className="bg-bg-surface border border-border p-8 rounded-2xl shadow-sm">
                 <ImportPlan onImport={handleImport} plans={plans} />
-                <button 
-                  className="w-full mt-4 p-2 bg-accent text-white rounded-lg hover:opacity-90 transition-colors"
-                  onClick={() => setIsEditing(true)}
-                >
+                <Button className="w-full mt-4" onClick={() => setIsEditing(true)}>
                   Novo Treino Manual
-                </button>
-                <button 
-                  className="w-full mt-4 p-2 bg-accent text-white rounded-lg hover:opacity-90 transition-colors"
-                  onClick={() => setShowGenerator(true)}
-                >
+                </Button>
+                <Button className="w-full mt-4" onClick={() => setShowGenerator(true)}>
                   Gerador Automático
-                </button>
+                </Button>
                 {plans.length > 0 && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    className="w-full mt-2 border border-border"
                     onClick={() => {
                       const json = JSON.stringify(plans, null, 2);
                       const blob = new Blob([json], { type: 'application/json' });
@@ -422,45 +488,46 @@ export default function App() {
                       a.click();
                       URL.revokeObjectURL(url);
                     }}
-                    className="w-full mt-2 p-2 border border-border text-text-muted rounded-lg text-sm"
                   >
                     Exportar plano atual (JSON)
-                  </button>
+                  </Button>
                 )}
                 {plans.length > 0 && (
-                    <button 
-                        className="w-full mt-4 p-2 text-accent border border-accent rounded-lg hover:bg-accent hover:text-white transition-colors"
+                    <Button
+                        variant="ghost"
+                        className="w-full mt-4 border border-accent text-accent"
                         onClick={() => setPlanToDelete({ id: 'ALL', name: 'TODOS os planos' } as WorkoutPlan)}
                     >
                         Apagar Plano de Treino
-                    </button>
+                    </Button>
                 )}
-                <button
-                    className="w-full mt-4 p-3 bg-accent text-white rounded-lg font-semibold"
-                    onClick={startFreeTraining}
-                >
+                <Button className="w-full mt-4" size="lg" onClick={startFreeTraining}>
                     Treino Livre
-                </button>
+                </Button>
                 <div className="space-y-4 pt-4">
                   {plans.length === 0 ? (
-                    <p className="text-center text-text-muted">Nenhum plano carregado ainda.</p>
+                    <div className="text-center text-text-muted py-8">
+                      <Clipboard className="mx-auto mb-2" size={32} />
+                      <p>Nenhum plano carregado ainda.</p>
+                      <p className="text-sm mt-1">Use o gerador acima para criar seu primeiro plano!</p>
+                    </div>
                   ) : (
                     plans.map((plan, index) => (
-                      <div key={`${plan.id}-${index}`} className={`border border-border rounded-lg overflow-hidden ${plan.isCompleted ? 'opacity-50' : ''}`}>
+                       <div key={`${plan.id}-${index}`} className={`border border-border rounded-lg overflow-hidden ${plan.isCompleted ? 'opacity-70' : ''}`}>
                         <div
                           className="flex justify-between items-center p-4 cursor-pointer hover:bg-bg-elevated"
                           onClick={() => togglePlanExpansion(plan.id)}
                         >
                           <div className='flex gap-2 items-center'>
-                            <button onClick={(e) => { e.stopPropagation(); toggleComplete(plan); }} aria-label={plan.isCompleted ? 'Marcar como não realizado' : 'Marcar como realizado'}>
+                            <button onClick={(e) => { e.stopPropagation(); toggleComplete(plan); }} className="p-2" aria-label={plan.isCompleted ? 'Marcar como não realizado' : 'Marcar como realizado'}>
                                 {plan.isCompleted ? <CheckCircle className='text-accent-secondary' /> : <Circle className='text-text-muted' />}
                                 <span className="sr-only">{plan.isCompleted ? 'Concluído' : 'Pendente'}</span>
                             </button>
-                            <span className="font-medium text-text-primary">{plan.activityName || plan.name || 'Plano sem nome'}</span>
+                            <span className="font-medium text-text-primary truncate">{plan.activityName || plan.name || 'Plano sem nome'}</span>
                           </div>
                         </div>
                         <div className="flex justify-between items-center px-4 pb-4 bg-bg-surface">
-                            <span className="text-xs text-text-muted">{formatTotalDuration(calculateTotalDuration(plan))}</span>
+                            <span className="text-xs text-text-secondary">{formatTotalDuration(calculateTotalDuration(plan))}</span>
                             <div className='flex gap-2 items-center'>
                                 {plan.manual && (
                                 <button 
@@ -489,7 +556,7 @@ export default function App() {
                                 </button>
                             </div>
                         </div>
-                        {expandedPlanId === plan.id && (
+                        <div className={`overflow-hidden transition-all duration-300 ${expandedPlanId === plan.id ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
                           <div className="p-4 border-t border-border text-text-secondary text-sm">
                             <h4 className="font-semibold mb-2">Passos:</h4>
                             <ul className="space-y-1">
@@ -501,7 +568,7 @@ export default function App() {
                               })}
                             </ul>
                           </div>
-                        )}
+                        </div>
                       </div>
                     ))
                   )}
@@ -509,53 +576,35 @@ export default function App() {
               </div>
             )}
             {planToUncomplete && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70" role="alertdialog" aria-modal="true" aria-label="Confirmar desmarcar atividade">
-                <div className="p-8 rounded-3xl shadow-2xl w-full max-w-sm bg-bg-surface border border-border">
-                    <h2 className="text-xl font-bold mb-4 text-center text-text-primary">Confirmar</h2>
+              <Modal open={!!planToUncomplete} onClose={() => setPlanToUncomplete(null)} title="Confirmar" role="alertdialog">
                     <p className="mb-8 text-center text-text-secondary">
                         Tem certeza que deseja marcar a atividade como não realizada?<br />
                         Seu relatório de progresso dessa atividade será apagado.
                     </p>
                     <div className="flex flex-col gap-4">
-                        <button 
-                            onClick={() => uncompletePlan(planToUncomplete)} 
-                            className="w-full bg-accent hover:opacity-90 text-white p-4 rounded-xl font-bold transition-colors"
-                        >
+                        <Button size="lg" onClick={() => uncompletePlan(planToUncomplete)}>
                             MARCAR COMO NÃO REALIZADA
-                        </button>
-                        <button 
-                            onClick={() => setPlanToUncomplete(null)} 
-                            className="w-full bg-bg-elevated text-text-primary p-4 rounded-xl font-bold"
-                        >
+                        </Button>
+                        <Button variant="secondary" size="lg" onClick={() => setPlanToUncomplete(null)}>
                             CANCELAR
-                        </button>
+                        </Button>
                     </div>
-                </div>
-              </div>
+                </Modal>
             )}
             {planToDelete && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70" role="alertdialog" aria-modal="true" aria-label="Confirmar exclusão">
-                <div className="p-8 rounded-3xl shadow-2xl w-full max-w-sm bg-bg-surface border border-border">
-                    <h2 className="text-xl font-bold mb-4 text-center text-text-primary">Confirmar Exclusão</h2>
+              <Modal open={!!planToDelete} onClose={() => setPlanToDelete(null)} title="Confirmar Exclusão" role="alertdialog">
                     <p className="mb-8 text-center text-text-secondary">
                         Deseja realmente apagar o plano "{planToDelete.name}"?
                     </p>
                     <div className="flex flex-col gap-4">
-                        <button 
-                            onClick={() => deletePlan(planToDelete.id)} 
-                            className="w-full bg-accent hover:opacity-90 text-white p-4 rounded-xl font-bold transition-colors"
-                        >
+                        <Button size="lg" onClick={() => deletePlan(planToDelete.id)}>
                             SIM, APAGAR
-                        </button>
-                        <button 
-                            onClick={() => setPlanToDelete(null)} 
-                            className="w-full bg-bg-elevated text-text-primary p-4 rounded-xl font-bold"
-                        >
+                        </Button>
+                        <Button variant="secondary" size="lg" onClick={() => setPlanToDelete(null)}>
                             CANCELAR
-                        </button>
+                        </Button>
                     </div>
-                </div>
-              </div>
+                </Modal>
             )}
           </>
         )}

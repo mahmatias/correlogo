@@ -77,19 +77,19 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
 
         <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="p-4 rounded-xl bg-bg-surface">
-                <div className="text-sm text-text-muted">Total Distância</div>
+                <div className="text-sm text-text-secondary">Total Distância</div>
                 <div className="text-xl font-bold">{formatDistance(session.totalDistanceKm)}</div>
             </div>
             <div className="p-4 rounded-xl bg-bg-surface">
-                <div className="text-sm text-text-muted">Total Tempo</div>
+                <div className="text-sm text-text-secondary">Total Tempo</div>
                 <div className="text-xl font-bold">{formatDuration(session.totalDurationSeconds)}</div>
             </div>
             <div className="p-4 rounded-xl bg-bg-surface">
-                <div className="text-sm text-text-muted">Pace Médio</div>
+                <div className="text-sm text-text-secondary">Pace Médio</div>
                 <div className="text-xl font-bold">{formatDuration(Math.round(avgPace))} /km</div>
             </div>
             <div className="p-4 rounded-xl bg-bg-surface">
-                <div className="text-sm text-text-muted">Melhor Pace</div>
+                <div className="text-sm text-text-secondary">Melhor Pace</div>
                 <div className="text-xl font-bold">{formatDuration(Math.round(bestPace))} /km</div>
             </div>
         </div>
@@ -105,13 +105,13 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
                   <div className="flex gap-4">
                     <span>Alvo: {res.targetPace.toFixed(2)}</span>
                     <span>Real: {res.actualAvgPace.toFixed(2)}</span>
-                    {res.completed ? <CheckCircle className="text-green-500 w-4 h-4" /> : <XCircle className="text-red-500 w-4 h-4" />}
+                    {res.completed ? <CheckCircle className="text-success w-4 h-4" /> : <XCircle className="text-danger w-4 h-4" />}
                   </div>
                 </div>
               ))}
             </div>
             {evaluation.needsAdjustment && (
-              <div className="bg-yellow-100 p-3 rounded-lg text-yellow-800 text-sm mb-3">
+              <div className="bg-warning/10 p-3 rounded-lg text-warning text-sm mb-3">
                 A progressão atual parece acelerada para você. Deseja que os próximos treinos sejam ajustados?
                 <button onClick={() => plan && onSuggestAdjustment?.(suggestAdjustment(plan))} className="block mt-2 font-bold underline">
                   Sugerir ajuste nos próximos treinos

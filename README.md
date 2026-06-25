@@ -1,20 +1,42 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Corre Logo 🏃
 
-# Run and deploy your AI Studio app
+App de treinos de corrida com planos personalizados por VDOT, gerador Runna Couch-to-5K para iniciantes, e exportação TCX/FIT/GPX. PWA com suporte offline.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/44a627dc-a582-4b4b-ac4f-77ae6108e5ab
+- **Gerador de treinos**: 3 perfis — Runna Couch-to-5K (iniciante), melhora de pace (interpolação VDOT), periodização padrão
+- **Workout tracker**: Esteira e GPS, anúncios de voz ("Caminhada", "Quase lá"), modo Treino Livre
+- **Histórico completo**: Sessões salvas no Firestore com fallback localStorage
+- **Exportação**: TCX, GPX e FIT (compatível com Strava)
+- **Design system Pôr-do-Sol**: Paleta temática com tokens CSS, dark mode, acessibilidade
 
-## Run Locally
+## Stack
 
-**Prerequisites:**  Node.js
+- **Frontend**: React 19 + TypeScript + Tailwind v4 + Vite
+- **Backend**: Node.js + Express (SSR fallback)
+- **Banco**: Firestore (Google Firebase)
+- **Autenticação**: Firebase Auth (email + Google)
+- **Mapas**: Leaflet + OpenStreetMap
+- **Deploy**: AWS EC2 + Nginx + PM2 + SSL Let's Encrypt
 
+## Desenvolvimento local
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+npm install
+npm run dev
+# Servidor em http://localhost:3000
+```
+
+Crie um `.env` na raiz com as chaves do Firebase dev (`correlogo-dev-9a96a`).
+
+## Produção
+
+Deploy manual na AWS EC2:
+
+```bash
+git pull
+sudo npm run build
+sudo NODE_ENV=production pm2 restart correlogo
+```
+
+App live em: https://correlogo.sytes.net

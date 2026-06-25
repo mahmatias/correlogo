@@ -20,34 +20,28 @@ const refPaceMinkm = (data.referenceRace.timeSeconds / 60) / data.referenceRace.
 
 Exemplo: 5km em 34:59 (2099s) → `(2099/60) / 5 = 6.997 ≈ 7:00 min/km`
 
-### 2.2 Condições de roteamento
+### 2.2 Condições de roteamento (atuais)
 
 ```typescript
-// Perfil A: Iniciante com pace alvo
-const isBeginnerWhoCanAlreadyRun = refPaceMinkm <= 8.5;
-const hasTargetPaceForBeginnerGoal = 
-    data.experienceLevel === 'beginner' && 
-    data.goal.targetPace != null &&
-    data.goal.targetPace < refPaceMinkm &&
-    !isBeginnerWhoCanAlreadyRun;
-
-if (hasTargetPaceForBeginnerGoal) {
+// Perfil A: Iniciante (Runna Couch-to-5K)
+if (data.experienceLevel === 'beginner') {
     return generateBeginnerProgram(data, totalWeeks);
 }
 
 // Perfil B: Melhora de pace (qualquer nível, com targetPace)
-if (data.goal.targetPace != null) {
+const refPaceMinkm = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
+if (data.goal.targetPace != null && refPaceMinkm - data.goal.targetPace > 0.15) {
     return generateImprovePaceProgram(data, totalWeeks);
 }
 
-// Perfil C: Padrão (distância maior ou sem pace alvo)
+// Perfil C: Padrão (qualquer outro caso)
 return generateStandardProgram(data, totalWeeks);
 ```
 
-**Lógica:** 
-- Se iniciante E quer aprender a correr mais rápido E ainda não consegue correr continuamente → Perfil A
-- Se quer melhorar pace (qualquer nível) → Perfil B
-- Caso contrário → Perfil C
+**Lógica (simplificada em 2026-06-25):**
+- Se `experienceLevel === 'beginner'` → Runna Couch-to-5K (independente de targetPace)
+- Se tem targetPace e diferença > 15s/km → improve pace (interpolação VDOT)
+- Caso contrário → periodização padrão VDOT fixo
 
 ---
 
@@ -119,121 +113,94 @@ const paceI = vToPace(solveVelocity(VDOT * 0.975));  // Interval: 97.5%
 
 ---
 
-## 4. Perfil A: Iniciante com pace alvo
+## 4. Perfil A: Runna Couch-to-5K (Iniciante)
 
 ### 4.1 Detecção
 
 ```typescript
-const hasTargetPaceForBeginnerGoal = 
-    data.experienceLevel === 'beginner' && 
-    data.goal.targetPace != null &&
-    data.goal.targetPace < refPaceMinkm &&
-    refPaceMinkm > 8.5;
+if (data.experienceLevel === 'beginner') {
+    return generateBeginnerProgram(data, totalWeeks);
+}
 ```
 
-**Exemplo:** Cris consegue caminhar em 12:00 (refPace), quer correr em 8:00 (targetPace)
-- `12 > 8` ✓
-- `12 > 8.5` ✓
-- → Perfil A
+**Qualquer usuário que se declara iniciante** recebe o plano Runna Couch-to-5K — independentemente de ter ou não targetPace. (Simplificado em relação à implementação anterior que exigia `refPaceMinkm > 8.5` e `targetPace < refPaceMinkm`.)
 
 ### 4.2 Entrada para geração
 
 ```typescript
-interface ProfileAInput {
-    runPace: number;        // pace alvo (min/km) — o que quer aprender
-    walkPace: number;       // pace de conforto (min/km) — recuperação ativa
-    totalWeeks: number;     // duração do plano
-    goalDistKm: number;     // distância alvo (5km)
-    daysOfWeek: number[];   // dias de treino (ex: [1, 4] para seg/qui)
-}
+const comfortPace = Math.max(6, (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm);
+const runPace = data.goal.targetPace ?? comfortPace;
+const walkPace = Math.max(comfortPace, 12);  // walk pace mínimo 12 min/km
+const maxW = Math.min(totalWeeks, 16);
 ```
 
-**Cálculo:**
-```typescript
-const runPace = data.goal.targetPace;                                    // 8.0 min/km (alvo)
-const walkPace = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;  // 12.0 min/km (conforto)
-```
+- `runPace` = pace alvo (ou pace de conforto se não informado)
+- `walkPace` = pace de caminhada, mínimo de 12 min/km para evitar recuperação muito rápida
+- O plano é limitado a 16 semanas (Runna tem 16 semanas; se usuário marcar mais, trunca)
 
-### 4.3 Tabela de progressão (16 semanas)
+### 4.3 Tabela Runna Couch-to-5K (16 semanas, 2 dias/semana)
 
 ```
-Semana | Run (min) | Walk (min) | Reps | Aquec/Desaq | Total
-1      | 2         | 2          | 4x   | 5+5         | 26min
-2      | 3         | 2          | 4x   | 5+5         | 27min
-3      | 4         | 1.5        | 4x   | 5+5         | 30min
-4*     | 3         | 1          | 4x   | 5+5         | 24min (70% do vol)
-5      | 5         | 1.5        | 3x   | 5+5         | 28min
-6      | 6         | 1.5        | 3x   | 5+5         | 29min
-7      | 7         | 1          | 3x   | 5+5         | 30min
-8*     | 8         | 1          | 2x+4 | 5+5         | 33min (transição)
-9      | 10        | 1          | 2x   | 5+5         | 30min
-10     | 12        | 1          | 2x   | 5+5         | 34min
-11*    | 10        | 1          | 2x   | 5+5         | 30min (70% do vol)
-12     | 15        | 1          | 1x+10| 5+5         | 35min
-13     | 1.5km @ runPace = 12min (continuous)
-14     | 2.75km @ runPace = 22min (continuous)
-15     | 4.0km @ runPace = 32min (continuous)
-16     | 5.0km @ runPace = 40min (continuous)
-
-* Semanas de recuperação (×0.75 volume)
+Semana | Dia 1 (primário)                                          | Dia 2 (secundário)
+1      | 3min run + 2min walk ×3                                  | 2.5/1.5/3/2/2.5/1.5/3/2/1 min run/walk
+2      | 2min run + 1min walk ×6                                  | 4/1.5/4/1.5/4/1.5 min run/walk ×3
+3      | 1/0.5/3/1/1/0.5/3/1/1/0.5/3/1/1 min run/walk            | 1.5/1/5/1.5/1.5/1/5/1.5 min run/walk
+4*     | 2.5/1/3/1/2.5/1/3/1 min run/walk  (recuperação)         | 1/0.5/5/1.5/1/0.5/5/1.5 min run/walk
+5      | 6/1.5/1/0.5/6 min run/walk                               | 1/0.5/3/1/1/0.5/3/1/1/0.5/3/1/1 min run/walk
+6      | 3/1/4/1/3/1/4/1 min run/walk                             | 7/1.5/1/0.5/7 min run/walk
+7      | 8/1.5/8/1.5 min run/walk                                 | 3/1/5/1/3/1/5/1 min run/walk
+8*     | 0.75km + 1min walk + 0.25km + 0.5min walk + 0.75km      | 0.75km + 1min walk + 0.75km (transição p/ distância)
+9      | 1.75km contínuo                                           | 1.25km + 1min walk + 1.25km
+10     | 2.25km contínuo                                           | 1.5km + 1min walk + 1.5km
+11*    | 2.75km contínuo (recuperação)                             | 1.75km + 1min walk + 1.75km
+12*    | 0.75km + 0.5min walk + 1.5km + 1min walk + 0.75km        | 2.5km contínuo (recuperação)
+13     | 3.5km contínuo                                            | 2km + 1min walk + 0.25km + 0.5min walk + 2km
+14     | 4km contínuo                                              | 3.75km contínuo
+15*    | 2.5km + 1min walk + 2.5km (recuperação)                  | 4.25km contínuo
+16     | 1.25km + 0.5min walk + 2.5km + 1min walk + 1.25km        | **5km contínuo** 🎯
 ```
+
+Notas:
+- Até semana 7: treinos baseados em **tempo** (minutos)
+- Semana 8-16: treinos baseados em **distância** (km) com pace alvo
+- Semanas de recuperação marcadas com `*`: volume reduzido
+- Dias ímpares (primário) têm fator 1.0, dias pares (secundário) fator 0.85 de volume
 
 ### 4.4 Geração de WorkoutPlan
 
-**Para cada semana e cada dia:**
-
 ```typescript
-const plans: WorkoutPlan[] = data.daysOfWeek.map((day, index) => {
-    const volumeFactor = index === 0 ? 1.0 : 0.85; // 2º dia com 85% volume
+const plans: WorkoutPlan[] = sessions.map((steps, si) => {
+    const planSteps: WorkoutStep[] = [];
     
-    const steps: WorkoutStep[] = [];
+    // Aquecimento (5 min)
+    planSteps.push(createStep('warmup', 300, walkPace));
     
-    // Aquecimento
-    steps.push(createStep('warmup', 300, walkPace));
-    
-    // Blocos de corrida/caminhada (semanas 1-12)
-    if (!isCorridaContinua) {
-        for (let r = 0; r < table.reps; r++) {
-            steps.push(createStep('run', 
-                Math.round(table.run * 60 * recoveryFactor * volumeFactor), 
-                runPace, 'time'));
-            if (r < table.reps - 1) {
-                steps.push(createStep('rest', 
-                    Math.round(table.rest * 60 * recoveryFactor * volumeFactor), 
-                    walkPace, 'time'));
-            }
+    // Blocos da Runna table
+    for (const s of steps) {
+        if (s.t === 'run') {
+            const seconds = s.min 
+                ? Math.round(s.min * 60 * volumeFactor) 
+                : Math.round((s.km! / runPace) * 60);
+            planSteps.push(createStep('run', seconds, runPace, s.min ? 'time' : 'distance'));
+        } else {
+            const seconds = Math.round(s.min! * 60 * volumeFactor);
+            planSteps.push(createStep('rest', seconds, walkPace, 'time'));
         }
     }
     
-    // Corrida contínua (semanas 13-16)
-    else {
-        const continuousFactors = [0.30, 0.55, 0.80, 1.0];
-        const continuousIndex = Math.min(3, weekNum - (totalWeeks - 3));
-        const dist = goalDistKm * continuousFactors[continuousIndex];
-        steps.push(createStep('run', 
-            Math.round(dist * runPace * 60), 
-            runPace, 'distance'));
-    }
+    // Desaquecimento (5 min)
+    planSteps.push(createStep('cooldown', 300, walkPace));
     
-    // Desaquecimento
-    steps.push(createStep('cooldown', 300, walkPace));
-    
-    return {
-        id: uuidv4(),
-        name: `Semana ${weekNum} — Corrida/Caminhada${index > 0 ? ' (2)' : ''}`,
-        steps
-    };
+    return { id: uuidv4(), name: `Semana ${i + 1} — Corrida/Caminhada${si > 0 ? ' (2)' : ''}`, steps };
 });
 ```
 
 ### 4.5 Validação
 
-- ✓ Semana 1: blocos run 8:00 + rest 12:00
-- ✓ Semana 4: volume reduzido para 70%
-- ✓ Semana 8: transição com blocos maiores
-- ✓ Semana 12: ainda blocos, não contínuo
-- ✓ Semana 13: 1.5km contínuo em 8:00 (12min)
-- ✓ Semana 16: 5km contínuo em 8:00 (40min) ← objetivo atingido
+- ✓ Semana 1: blocos run (runPace) + walk (≥12 min/km)
+- ✓ Semana 8: transição tempo→distância
+- ✓ Semana 12-16: corrida contínua (km, não minutos)
+- ✓ Semana 16 Dia 2: 5km contínuo em runPace ← objetivo
 
 ---
 
@@ -420,23 +387,24 @@ interface WorkoutStep {
 
 ## 9. Casos especiais e validações
 
-### 9.1 Semana de recuperação
+### 9.1 Semana de recuperação (Perfis B/C)
 
 ```typescript
-const isRecoveryWeek = weekNum % 4 === 0 && !isCorridaContinua;
+const isRecoveryWeek = (i + 1) % 4 === 0 && (phase === 'build' || phase === 'peak');
 ```
 
-Recuperação apenas nas semanas 4, 8, 12 (não nas últimas 4 de corrida contínua).
+A cada 4 semanas (apenas nas fases Build e Peak), volume reduzido para 75% (×0.75). No Perfil A (Runna), as semanas de recuperação são embutidas na tabela (semanas 4, 8, 11, 12, 15).
 
-### 9.2 Dias consecutivos e Intervalo
+### 9.2 Dias consecutivos e Intervalo (Perfis B/C apenas)
 
 ```typescript
 // Não marcar Intervalo em dias consecutivos no calendário
 const nextDayIsConsecutive = data.daysOfWeek[idx + 1] === data.daysOfWeek[idx] + 1;
-if (nextDayIsConsecutive && count > 0) continue;  // pular se próximo dia é consecutivo
+if (nextDayIsConsecutive && count > 0) continue;
 ```
 
-**Exemplo:** seg(1) e ter(2) são consecutivos → não colocar Intervalo em ambos
+**Exemplo:** seg(1) e ter(2) são consecutivos → não colocar Intervalo em ambos.
+No Perfil A (Runna) não há conceito de Intervalo/Limiar — todos os treinos são corrida fácil (runPace) + caminhada.
 
 ### 9.3 Validação de pace alvo irreal (Perfil B)
 
@@ -457,26 +425,35 @@ Avisar se alguém quer melhorar 1 min/km em 8 semanas (muito agressivo).
 
 ## 10. Exemplos práticos
 
-### 10.1 Exemplo Perfil A (Cris)
+### 10.1 Exemplo Perfil A — Runna Couch-to-5K (Cris)
 
 **Input:**
 ```
-Pace de conforto: 12:00 min/km (caminha em 5km em 60min)
-Pace alvo: 8:00 min/km (quer aprender a correr em)
-Objetivo: 5km
+Pace de conforto: 12:00 min/km (caminha 5km em 60min)
+Pace alvo: 8:00 min/km (quer aprender a correr)
 Semanas: 16
 Dias: seg (1) + qui (4)
+```
+
+**Cálculos:**
+```
+runPace = 8:00 min/km (targetPace)
+walkPace = max(12:00, 12:00) = 12:00 min/km
 ```
 
 **Output:**
 ```
 Semana 1: 
-  - Seg: warmup 5min (12:00) + 4x(2min run 8:00 + 2min walk 12:00) + cooldown 5min (12:00) = 26min
-  - Qui: Igual com 85% volume = 22min
+  Seg: warmup 5min (12:00) + 3/2/3/2/3/2 min run/walk (8:00/12:00) + cooldown 5min (12:00) = 26min
+  Qui: mesmo padrão com 85% volume ≈ 20min
+
+Semana 8 (transição distância):
+  Seg: warmup + 0.75km run + 1min walk + 0.25km run + 0.5min walk + 0.75km run + cooldown ≈ 23min
+  Qui: warmup + 0.75km run + 1min walk + 0.75km run + cooldown ≈ 20min
 
 Semana 16:
-  - Seg: warmup 5min (12:00) + 5km contínuo 8:00 + cooldown 5min (12:00) = 40min
-  - Qui: Igual com 85% volume = 36min
+  Seg: warmup + 1.25km + 0.5min walk + 2.5km + 1min walk + 1.25km + cooldown ≈ 42min
+  Qui: **warmup + 5km contínuo (8:00) + cooldown = 50min** 🏆
 ```
 
 ### 10.2 Exemplo Perfil B (Márcio)
@@ -523,23 +500,25 @@ Semana 16: Taper - Fácil (seg) + Taper - Long Run (qui)
 
 ## 11. Checklist de implementação
 
-- [ ] `calcVO2(v)` — fórmula quadrática
-- [ ] `solveVelocity(vo2target)` — inversa quadrática
-- [ ] `vToPace(v)` — conversão velocidade → pace
-- [ ] Detecção de perfil (3 condições)
-- [ ] `generateBeginnerProgram()` — tabela + progressão
-- [ ] `generateImprovePaceProgram()` — interpolação VDOT + fases
-- [ ] `generateStandardProgram()` — periodização clássica
-- [ ] Verificação de dias consecutivos para Intervalo
-- [ ] Semanas de recuperação (4ª semana)
-- [ ] Validação de pace alvo irreal
-- [ ] Exportação de JSON para validação
+- [x] `calcVO2(v)` — fórmula quadrática
+- [x] `solveVelocity(vo2target)` — inversa quadrática
+- [x] `vToPace(v)` — conversão velocidade → pace
+- [x] Detecção de perfil (3 condições)
+- [x] `generateBeginnerProgram()` — tabela Runna Couch-to-5K (16 sem, tempo→distância)
+- [x] `generateImprovePaceProgram()` — interpolação VDOT + fases
+- [x] `generateStandardProgram()` — periodização clássica
+- [x] Easy pace com teto de refPace + 2 min/km
+- [x] Walk pace mínimo 12 min/km (iniciantes)
+- [x] Verificação de dias consecutivos para Intervalo
+- [x] Semanas de recuperação (a cada 4 sem)
+- [x] Validação de pace alvo irreal
+- [x] Exportação de JSON para validação
 
 ---
 
 ## 12. Referências
 
 - Jack Daniels' Running Formula (2nd ed.) — base para VDOT
-- Runna App — padrão de progressão para iniciantes
+- Runna App Couch-to-5K — estrutura de progressão para iniciantes (tempo → distância em 16 semanas)
 - Polarized Training — inspiração para distribuição de intensidade
 

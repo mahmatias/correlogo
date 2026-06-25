@@ -429,21 +429,21 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
         
         <div className="grid grid-cols-3 gap-2 text-center mb-4">
           <div>
-            <div className="text-text-secondary text-[10px] uppercase">Dist. Total</div>
+            <div className="text-text-secondary text-xs uppercase">Dist. Total</div>
             <div className="text-lg font-bold">{formatDistance(displayDistance)}</div>
           </div>
           <div>
-            <div className="text-text-secondary text-[10px] uppercase">Tempo total</div>
+            <div className="text-text-secondary text-xs uppercase">Tempo total</div>
             <div className="text-lg font-bold">{formatTime(elapsedSeconds)}</div>
           </div>
           <div>
-            <div className="text-text-secondary text-[10px] uppercase">Vel. Média</div>
+            <div className="text-text-secondary text-xs uppercase">Vel. Média</div>
             <div className="text-lg font-bold">{(elapsedSeconds > 0 ? (displayDistance / (elapsedSeconds / 3600)) : 0).toFixed(1)} KM/h</div>
           </div>
         </div>
              {/* Step objective */}
         <div className="relative bg-bg-elevated rounded p-1 mb-2 overflow-hidden w-full h-5">
-            <div key={currentStepIndex} className={`absolute top-1/2 -translate-y-1/2 ${!isPaused && countdown === 0 ? 'animate-marquee' : ''} text-[10px] text-text-primary whitespace-nowrap`}>
+            <div key={currentStepIndex} className={`absolute top-1/2 -translate-y-1/2 ${!isPaused && countdown === 0 ? 'animate-marquee' : ''} text-xs text-text-primary whitespace-nowrap`}>
                 {isFreeTraining ? 'Corrida Livre' : `${isDistanceStep ? formatDistance(stepTargetDistance) : formatDuration(step.durationSeconds)} ${getStepTypeLabel(step.type)}${step.targetPace ? ` @ ${(60/step.targetPace).toFixed(1)} KM/h` : ''}`}
             </div>
         </div>
@@ -475,6 +475,8 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                     onMouseLeave={stopAdjusting}
                     onTouchStart={(e) => { e.preventDefault(); if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
                     onTouchEnd={stopAdjusting}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startAdjusting(-0.1); } }}
+                    onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') stopAdjusting(); }}
                     className="p-4 rounded-lg bg-bg-elevated"
                     aria-label="Diminuir velocidade"
                 >
@@ -490,6 +492,8 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                     onMouseLeave={stopAdjusting}
                     onTouchStart={(e) => { e.preventDefault(); if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(0.1); } }}
                     onTouchEnd={stopAdjusting}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startAdjusting(0.1); } }}
+                    onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') stopAdjusting(); }}
                     className="p-4 rounded-lg bg-bg-elevated"
                     aria-label="Aumentar velocidade"
                 >

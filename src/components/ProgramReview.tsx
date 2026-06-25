@@ -34,7 +34,7 @@ export default function ProgramReview({ program, onConfirm, onCancel }: ProgramR
     <div className="p-6 bg-bg-surface rounded-xl border border-border">
       <h2 className="text-2xl font-bold mb-4">Revisar Plano: {localProgram.name}</h2>
       
-      <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-yellow-800 text-sm mb-6">
+      <div className="bg-warning/10 border border-warning/20 p-4 rounded-lg text-warning text-sm mb-6">
         ⚠️ Este plano é uma sugestão baseada em metodologia de treinamento esportivo e não substitui a orientação de um profissional de educação física ou médico — especialmente se você tem lesões recentes ou condições de saúde pré-existentes.
       </div>
 
@@ -61,7 +61,7 @@ export default function ProgramReview({ program, onConfirm, onCancel }: ProgramR
                         Editar
                       </button>
                       <button 
-                        className="text-red-500 text-sm"
+                        className="text-danger text-sm"
                         onClick={() => {
                           if (confirm('Remover esta sessão?')) {
                             const newWeeks = [...localProgram.weeks];

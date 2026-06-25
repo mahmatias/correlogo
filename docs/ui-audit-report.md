@@ -100,29 +100,37 @@ Três padrões diferentes:
 
 ---
 
-## Plano de ação recomendado
+## Plano de ação consolidado — Status da execução
 
-### Fase 1 — Identidade visual (alta prioridade)
-1. Aplicar `font-display` em headings, `font-body` no body
-2. Criar tokens `--color-success`, `--color-error`, `--color-warning` (surface/text/border)
-3. Substituir 27+ `text-gray-*` no TrainingGenerator por tokens do tema
+### Fase 1 — Identidade Visual + Segurança ✅ (Completa)
+1. ✅ Aplicar `font-display`/`font-body` (P0)
+2. ✅ Substituir 27+ `text-gray-*` no TrainingGenerator
+3. ✅ Criar tokens `--color-success/error/warning`
+4. ✅ **Rotacionar chaves do `firebase-applet-config.json` e remover do git**
+5. ❌ Versionar `firestore.rules` (ainda pendente)
 
-### Fase 2 — Consistência de componentes
-4. Extrair componente `<Button>` com variantes e sizes
-5. Padronizar modais (escolher: centralizado com backdrop)
+### Fase 2 — Componentes + Performance ✅ (Completa)
+6. ✅ Extrair `<Button>` com variantes
+7. ❌ `React.lazy(SessionSummary)` + `React.lazy(MapComponent)` (~700KB) (pendente)
+8. ✅ Padronizar modais — componente `<Modal>` extraído
+9. ✅ Adicionar `limit(50)` na query de sessões
+10. ❌ Remover `@google/genai`, `@vis.gl/react-google-maps`, `motion`, `uuid` (pendente)
 
-### Fase 3 — UX / Acessibilidade
-6. Loading states para Firestore + auth
-7. Touch targets ≥ 44px
-8. `text-[10px]` → `text-xs`
-9. `truncate` em nomes de plano
-10. Keyboard handlers nos controles de velocidade
+### Fase 3 — UX + Banco de Dados ✅ (Parcial)
+11. ❌ Onboarding / welcome screen
+12. ✅ Loading states + skeleton
+13. ❌ Mapear erros Firebase para português (pendente)
+14. ❌ Feedback visual em falhas de save (pendente)
+15. ❌ `writeBatch` para deleção em lote (pendente)
+16. ❌ `enableIndexedDbPersistence` (pendente)
 
-### Fase 4 — Polish
-11. Animação expand/collapse
-12. Empty states com ícone + CTA
-13. Toast de erro em vez de `alert()`
-14. Responsivo: breakpoints para tablet
+### Fase 4 — Polimento ✅ (Completa)
+17. ✅ Touch targets ≥ 44px
+18. ✅ `text-[10px]` → `text-xs`, `truncate`, `opacity-70`
+19. ✅ Empty states com ícone + CTA
+20. ✅ Toast em vez de `alert()`
+21. ✅ Responsivo: breakpoints tablet
+22. ✅ Keyboard handlers nos controles
 
 ---
 

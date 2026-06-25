@@ -10,6 +10,7 @@ export default function Signup() {
         email: '', confirmEmail: '', password: '', confirmPassword: '', termsAccepted: false
     });
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const isEmailValid = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email), [formData.email]);
     const emailsMatch = useMemo(() => formData.email !== '' && formData.email === formData.confirmEmail, [formData.email, formData.confirmEmail]);
@@ -26,13 +27,16 @@ export default function Signup() {
 
     const handleSignup = async (e: FormEvent) => {
         e.preventDefault();
+        if (loading) return;
         if (!isEmailValid || !emailsMatch || !isPasswordValid || !passwordsMatch || !formData.termsAccepted) {
             setError('Por favor, corrija os erros no formulário.');
             return;
         }
+        setLoading(true);
         const auth = getAuth();
         if (!auth) {
             setError('Serviço de autenticação não configurado.');
+            setLoading(false);
             return;
         }
         try {
@@ -40,6 +44,7 @@ export default function Signup() {
             await updateProfile(userCredential.user, { displayName: `${formData.name} ${formData.surname}` });
         } catch (err: any) {
             setError(err.message);
+            setLoading(false);
         }
     };
 
@@ -72,33 +77,33 @@ export default function Signup() {
             <div className="relative">
                 <label htmlFor="signup-email" className="sr-only">Email</label>
                 <input id="signup-email" placeholder="Email" className={inputClass} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} autoComplete="email" />
-                {isEmailValid ? <CheckCircle className={`${iconClass} text-green-500`} aria-hidden="true" /> : <XCircle className={`${iconClass} text-red-500`} aria-hidden="true" />}
+                {isEmailValid ? <CheckCircle className={`${iconClass} text-success`} aria-hidden="true" /> : <XCircle className={`${iconClass} text-danger`} aria-hidden="true" />}
                 <span className="sr-only">{formData.email ? (isEmailValid ? 'Email válido' : 'Email inválido') : ''}</span>
             </div>
             <div className="relative">
                 <label htmlFor="signup-confirm-email" className="sr-only">Confirme o Email</label>
                 <input id="signup-confirm-email" placeholder="Confirme o Email" className={inputClass} value={formData.confirmEmail} onChange={e => setFormData({...formData, confirmEmail: e.target.value})} autoComplete="email" />
-                {emailsMatch ? <CheckCircle className={`${iconClass} text-green-500`} aria-hidden="true" /> : <XCircle className={`${iconClass} text-red-500`} aria-hidden="true" />}
+                {emailsMatch ? <CheckCircle className={`${iconClass} text-success`} aria-hidden="true" /> : <XCircle className={`${iconClass} text-danger`} aria-hidden="true" />}
                 <span className="sr-only">{formData.confirmEmail ? (emailsMatch ? 'Emails coincidem' : 'Emails não coincidem') : ''}</span>
             </div>
             
             <div className="relative">
                 <label htmlFor="signup-password" className="sr-only">Senha</label>
                 <input id="signup-password" type="password" placeholder="Senha" className={inputClass} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} onFocus={() => setShowPassPanel(true)} autoComplete="new-password" />
-                {isPasswordValid ? <CheckCircle className={`${iconClass} text-green-500`} aria-hidden="true" /> : <XCircle className={`${iconClass} text-red-500`} aria-hidden="true" />}
+                {isPasswordValid ? <CheckCircle className={`${iconClass} text-success`} aria-hidden="true" /> : <XCircle className={`${iconClass} text-danger`} aria-hidden="true" />}
                 <span className="sr-only">{formData.password ? (isPasswordValid ? 'Senha válida' : 'Senha inválida') : ''}</span>
             </div>
             {showPassPanel && (
                 <div className="text-sm mb-2 p-2 bg-bg-elevated rounded" role="list">
-                    <p className={passwordRequirements.length ? 'text-green-500' : 'text-red-500'} role="listitem">{passwordRequirements.length ? '✓' : '✗'} 6+ caracteres</p>
-                    <p className={passwordRequirements.number ? 'text-green-500' : 'text-red-500'} role="listitem">{passwordRequirements.number ? '✓' : '✗'} 1 número</p>
-                    <p className={passwordRequirements.upper ? 'text-green-500' : 'text-red-500'} role="listitem">{passwordRequirements.upper ? '✓' : '✗'} 1 maiúscula</p>
+                    <p className={passwordRequirements.length ? 'text-success' : 'text-danger'} role="listitem">{passwordRequirements.length ? '✓' : '✗'} 6+ caracteres</p>
+                    <p className={passwordRequirements.number ? 'text-success' : 'text-danger'} role="listitem">{passwordRequirements.number ? '✓' : '✗'} 1 número</p>
+                    <p className={passwordRequirements.upper ? 'text-success' : 'text-danger'} role="listitem">{passwordRequirements.upper ? '✓' : '✗'} 1 maiúscula</p>
                 </div>
             )}
             <div className="relative">
                 <label htmlFor="signup-confirm-password" className="sr-only">Confirme a Senha</label>
                 <input id="signup-confirm-password" type="password" placeholder="Confirme a Senha" className={inputClass} value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} autoComplete="new-password" />
-                {passwordsMatch ? <CheckCircle className={`${iconClass} text-green-500`} aria-hidden="true" /> : <XCircle className={`${iconClass} text-red-500`} aria-hidden="true" />}
+                {passwordsMatch ? <CheckCircle className={`${iconClass} text-success`} aria-hidden="true" /> : <XCircle className={`${iconClass} text-danger`} aria-hidden="true" />}
                 <span className="sr-only">{formData.confirmPassword ? (passwordsMatch ? 'Senhas coincidem' : 'Senhas não coincidem') : ''}</span>
             </div>
             
@@ -107,8 +112,8 @@ export default function Signup() {
                 Aceito os <a href="#" className="text-accent-secondary underline ml-1">Termos de Serviço</a>
             </label>
 
-            {error && <p className="text-red-500 mb-2" role="alert">{error}</p>}
-            <button type="submit" className="bg-accent text-white p-2 rounded w-full">Cadastrar</button>
+            {error && <p className="text-danger mb-2" role="alert">{error}</p>}
+            <button type="submit" disabled={loading} className="bg-accent disabled:opacity-50 text-white p-2 rounded w-full">{loading ? 'Cadastrando…' : 'Cadastrar'}</button>
         </form>
     );
 }

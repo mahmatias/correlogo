@@ -383,11 +383,11 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                     </div>
                     {data.goal.raceDistance !== 'none' && (
                         <div className="mt-4">
-                            <label className="text-sm text-gray-600 block mb-2">
+                            <label className="text-sm text-text-secondary block mb-2">
                                 Qual seu pace alvo para esse programa (min/km)?
                             </label>
                             <div className="flex gap-2 items-center">
-                                <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                                <label className="flex flex-col items-center text-xs text-text-muted flex-1">
                                     <select
                                         value={targetPaceMin ?? 7}
                                         onChange={e => {
@@ -403,8 +403,8 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                                     </select>
                                     minutos
                                 </label>
-                                <span className="text-gray-500">:</span>
-                                <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                                <span className="text-text-muted">:</span>
+                                <label className="flex flex-col items-center text-xs text-text-muted flex-1">
                                     <select
                                         value={targetPaceSec ?? 0}
                                         onChange={e => {
@@ -421,12 +421,12 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                                     segundos / km
                                 </label>
                             </div>
-                            {isPaceGoalUnrealistic(data, calculateTotalWeeks(data)) && <p className="text-yellow-600 text-sm mt-2">⚠️ Essa melhora de pace é muito agressiva para o prazo. Considere um objetivo mais gradual ou mais semanas de treino.</p>}
+                            {isPaceGoalUnrealistic(data, calculateTotalWeeks(data)) && <p className="text-accent-secondary text-sm mt-2">⚠️ Essa melhora de pace é muito agressiva para o prazo. Considere um objetivo mais gradual ou mais semanas de treino.</p>}
                         </div>
                     )}
                 </>
             )}
-            {isDeadlineRisky() && <p className="text-red-500 text-sm mt-2">O prazo é arriscado para esse objetivo! Considere ajustar a meta ou a data.</p>}
+            {isDeadlineRisky() && <p className="text-danger text-sm mt-2">O prazo é arriscado para esse objetivo! Considere ajustar a meta ou a data.</p>}
         </div>,
         <div key="page2">
             <h2 className="text-xl font-bold mb-4">Referência de condicionamento</h2>
@@ -446,10 +446,10 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                 <>
                     <input type="number" placeholder="Distância (km)" className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary mb-2" onChange={e => setData({...data, referenceRace: {...data.referenceRace!, distanceKm: Math.max(0, parseFloat(e.target.value) || 0)}})} />
                     <div className="flex gap-2 items-center mb-2">
-                      <label className="text-sm text-gray-600 w-full">Tempo da corrida:</label>
+                      <label className="text-sm text-text-secondary w-full">Tempo da corrida:</label>
                     </div>
                     <div className="flex gap-2">
-                      <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                      <label className="flex flex-col items-center text-xs text-text-muted flex-1">
                         <input
                           type="number" min="0" max="23"
                           value={refHours}
@@ -462,7 +462,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                         />
                         horas
                       </label>
-                      <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                      <label className="flex flex-col items-center text-xs text-text-muted flex-1">
                         <input
                           type="number" min="0" max="59"
                           value={refMinutes}
@@ -475,7 +475,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                         />
                         minutos
                       </label>
-                      <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                      <label className="flex flex-col items-center text-xs text-text-muted flex-1">
                         <input
                           type="number" min="0" max="59"
                           value={refSeconds}
@@ -493,11 +493,11 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
             ) : data.experienceLevel === 'beginner' ? (
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm text-gray-600 block mb-2">
+                  <label className="text-sm text-text-secondary block mb-2">
                     Em qual pace você consegue caminhar ou correr confortavelmente agora (min/km)?
                   </label>
                   <div className="flex gap-2 items-center">
-                    <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                    <label className="flex flex-col items-center text-xs text-text-muted flex-1">
                       <select
                         value={comfortPaceMin ?? 12}
                         onChange={e => {
@@ -513,8 +513,8 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                       </select>
                       minutos
                     </label>
-                    <span className="text-gray-500">:</span>
-                    <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                    <span className="text-text-muted">:</span>
+                    <label className="flex flex-col items-center text-xs text-text-muted flex-1">
                       <select
                         value={comfortPaceSec ?? 0}
                         onChange={e => {
@@ -531,15 +531,15 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                       segundos / km
                     </label>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">* Você pode caminhar rápido ou correr muito lentamente nesse pace</p>
+                  <p className="text-xs text-text-muted mt-1">* Você pode caminhar rápido ou correr muito lentamente nesse pace</p>
                 </div>
             
                 <div>
-                  <label className="text-sm text-gray-600 block mb-2">
+                  <label className="text-sm text-text-secondary block mb-2">
                     Em qual pace você quer aprender a correr (min/km)?
                   </label>
                   <div className="flex gap-2 items-center">
-                    <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                    <label className="flex flex-col items-center text-xs text-text-muted flex-1">
                       <select
                         value={beginnerTargetPaceMin ?? 8}
                         onChange={e => {
@@ -556,8 +556,8 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                       </select>
                       minutos
                     </label>
-                    <span className="text-gray-500">:</span>
-                    <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                    <span className="text-text-muted">:</span>
+                    <label className="flex flex-col items-center text-xs text-text-muted flex-1">
                       <select
                         value={beginnerTargetPaceSec ?? 0}
                         onChange={e => {
@@ -575,16 +575,16 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                       segundos / km
                     </label>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">* Deve ser mais rápido que seu pace de conforto</p>
+                  <p className="text-xs text-text-muted mt-1">* Deve ser mais rápido que seu pace de conforto</p>
                 </div>
               </div>
             ) : (
                 <>
-                    <label className="text-sm text-gray-600 block mb-2">
+                    <label className="text-sm text-text-secondary block mb-2">
                         Em qual pace você consegue completar essa distância atualmente (min/km)?
                     </label>
                     <div className="flex gap-2 items-center">
-                        <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                        <label className="flex flex-col items-center text-xs text-text-muted flex-1">
                             <select
                                 value={estimationPaceMin ?? 9}
                                 onChange={e => {
@@ -601,8 +601,8 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                             </select>
                             minutos
                         </label>
-                        <span className="text-gray-500">:</span>
-                        <label className="flex flex-col items-center text-xs text-gray-500 flex-1">
+                        <span className="text-text-muted">:</span>
+                        <label className="flex flex-col items-center text-xs text-text-muted flex-1">
                             <select
                                 value={estimationPaceSec ?? 0}
                                 onChange={e => {
@@ -622,7 +622,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                     </div>
                 </>
             )}
-            <p className="text-xs text-gray-500 mt-2">* Estimativa menos precisa que uma corrida real.</p>
+            <p className="text-xs text-text-muted mt-2">* Estimativa menos precisa que uma corrida real.</p>
         </div>,
         <div key="page3">
             <h2 className="text-xl font-bold mb-4">Em quais dias costuma treinar?</h2>

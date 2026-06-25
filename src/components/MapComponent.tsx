@@ -61,9 +61,9 @@ export default function MapComponent({ coords, path }: { coords: { lat: number; 
     return (
         <div className="w-full h-64 rounded-xl overflow-hidden relative">
             <div className="absolute top-2 right-2 z-[1000] flex flex-col gap-1">
-                <button onClick={() => setLayerType('light')} className="bg-white text-xs p-1 rounded shadow">Claro</button>
-                <button onClick={() => setLayerType('dark')} className="bg-white text-xs p-1 rounded shadow">Escuro</button>
-                <button onClick={() => setLayerType('satellite')} className="bg-white text-xs p-1 rounded shadow">Satélite</button>
+                <button onClick={() => setLayerType('light')} className="bg-bg-surface text-xs p-2 rounded shadow">Claro</button>
+                <button onClick={() => setLayerType('dark')} className="bg-bg-surface text-xs p-2 rounded shadow">Escuro</button>
+                <button onClick={() => setLayerType('satellite')} className="bg-bg-surface text-xs p-2 rounded shadow">Satélite</button>
             </div>
             
             <MapContainer
