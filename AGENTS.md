@@ -1,5 +1,9 @@
 # Agent Instructions
 
+## Session Start
+- **Always** read `TODO.md` first thing — it's the persistent task list.
+- Add new tasks to `TODO.md` whenever the user asks. Never rely on in-memory only.
+
 ## UI & Component Patterns
 - **Button component**: Use `<Button variant="primary|secondary|ghost|danger" size="sm|md|lg">` em vez de `<button>` raw.
 - **Modal component**: Use `<Modal open onClose title>` para diálogos, com `role="alertdialog"` para confirmações destrutivas.
