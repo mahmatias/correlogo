@@ -60,9 +60,11 @@ export default function Login({ onSignupClick }: Props) {
     return (
         <form onSubmit={handleLogin} className="max-w-md mx-auto p-4 border rounded bg-bg-surface border-border text-text-primary">
             <h2 className="text-xl mb-4">Login</h2>
-            <input placeholder="Email" className="border p-2 mb-2 w-full rounded bg-bg-elevated border-border text-text-primary" value={email} onChange={e => setEmail(e.target.value)} />
-            <input type="password" placeholder="Senha" className="border p-2 mb-2 w-full rounded bg-bg-elevated border-border text-text-primary" value={password} onChange={e => setPassword(e.target.value)} />
-            {error && <p className="text-red-500">{error}</p>}
+            <label htmlFor="login-email" className="sr-only">Email</label>
+            <input id="login-email" type="email" placeholder="Email" className="border p-2 mb-2 w-full rounded bg-bg-elevated border-border text-text-primary" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
+            <label htmlFor="login-password" className="sr-only">Senha</label>
+            <input id="login-password" type="password" placeholder="Senha" className="border p-2 mb-2 w-full rounded bg-bg-elevated border-border text-text-primary" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" />
+            {error && <p className="text-red-500" role="alert">{error}</p>}
             <button type="submit" className="bg-accent text-white p-2 rounded w-full mb-2">Entrar</button>
             <button type="button" onClick={handleGoogleLogin} className="bg-accent-tertiary text-white p-2 rounded w-full mb-2">Entrar com Google</button>
             <button type="button" onClick={onSignupClick} className="text-accent-secondary w-full mb-2">Cadastrar-se</button>
