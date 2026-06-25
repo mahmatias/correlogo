@@ -373,7 +373,7 @@ export default function App() {
       )}
       <main className="w-full max-w-xl mx-auto p-4 pt-8">
         {!user ? (
-          showSignup ? <Signup /> : <Login onSignupClick={() => setShowSignup(true)} />
+          showSignup ? <Signup onLoginClick={() => setShowSignup(false)} /> : <Login onSignupClick={() => setShowSignup(true)} />
         ) : isLoading ? (
           <div className="flex flex-col gap-4 pt-8">
             <div className="h-8 w-48 bg-bg-elevated rounded animate-pulse" />
@@ -620,7 +620,7 @@ export default function App() {
               <Modal open={!!planToUncomplete} onClose={() => setPlanToUncomplete(null)} title="Confirmar" role="alertdialog">
                     <p className="mb-8 text-center text-text-secondary">
                         Tem certeza que deseja marcar a atividade como não realizada?<br />
-                        Seu relatório de progresso dessa atividade será apagado.
+                        Seu relatório de progresso dessa atividade será <strong className="text-danger">apagado permanentemente</strong>.
                     </p>
                     <div className="flex flex-col gap-4">
                         <Button size="lg" onClick={() => uncompletePlan(planToUncomplete)}>

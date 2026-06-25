@@ -540,7 +540,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                         </button>
                         <button 
                             onClick={onStop} 
-                            className="w-full bg-accent hover:opacity-90 text-white p-4 rounded-xl font-bold transition-colors"
+                            className="w-full bg-bg-elevated hover:opacity-80 text-text-secondary p-4 rounded-xl font-bold transition-colors border border-border"
                         >
                             DESCARTAR RELATÓRIO
                         </button>
