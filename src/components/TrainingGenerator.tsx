@@ -40,165 +40,78 @@ const createStep = (
     ...(basis ? { basis } : {}),
 });
 
-type SessionStepDef = { type: 'run' | 'rest'; dur: number; isDist?: boolean };
-
-type CanonicalWeek = {
-  labelA: string;
-  labelB: string;
-  stepsA: SessionStepDef[];
-  stepsB: SessionStepDef[];
-};
-
-const CANONICAL_WEEKS: CanonicalWeek[] = [
-  // W1 — Foundation: time-based walk/run
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
-    stepsA: [{type:'run',dur:180},{type:'rest',dur:120},{type:'run',dur:180},{type:'rest',dur:120},{type:'run',dur:180}],
-    stepsB: [{type:'run',dur:150},{type:'rest',dur:90},{type:'run',dur:180},{type:'rest',dur:120},{type:'run',dur:150},{type:'rest',dur:90},{type:'run',dur:180},{type:'rest',dur:120}] },
-  // W2
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
-    stepsA: [{type:'run',dur:120},{type:'rest',dur:60},{type:'run',dur:120},{type:'rest',dur:60},{type:'run',dur:120},{type:'rest',dur:60},{type:'run',dur:120},{type:'rest',dur:60},{type:'run',dur:120},{type:'rest',dur:60},{type:'run',dur:120}],
-    stepsB: [{type:'run',dur:240},{type:'rest',dur:90},{type:'run',dur:240},{type:'rest',dur:90},{type:'run',dur:240}] },
-  // W3
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
-    stepsA: [{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:180}],
-    stepsB: [{type:'run',dur:90},{type:'rest',dur:60},{type:'run',dur:300},{type:'rest',dur:90},{type:'run',dur:90},{type:'rest',dur:60},{type:'run',dur:300}] },
-  // W4
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
-    stepsA: [{type:'run',dur:150},{type:'rest',dur:60},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:150},{type:'rest',dur:60},{type:'run',dur:180}],
-    stepsB: [{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:300},{type:'rest',dur:90},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:300}] },
-  // W5
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
-    stepsA: [{type:'run',dur:360},{type:'rest',dur:90},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:360}],
-    stepsB: [{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:180}] },
-  // W6
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
-    stepsA: [{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:240},{type:'rest',dur:60},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:240}],
-    stepsB: [{type:'run',dur:420},{type:'rest',dur:90},{type:'run',dur:60},{type:'rest',dur:30},{type:'run',dur:420}] },
-  // W7
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
-    stepsA: [{type:'run',dur:480},{type:'rest',dur:90},{type:'run',dur:480}],
-    stepsB: [{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:300},{type:'rest',dur:60},{type:'run',dur:180},{type:'rest',dur:60},{type:'run',dur:300}] },
-  // W8 — Transition: distance-based + walk breaks
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida/Caminhada',
-    stepsA: [{type:'run',dur:0.75,isDist:true},{type:'rest',dur:60},{type:'run',dur:0.25,isDist:true},{type:'rest',dur:30},{type:'run',dur:0.75,isDist:true}],
-    stepsB: [{type:'run',dur:0.75,isDist:true},{type:'rest',dur:60},{type:'run',dur:0.75,isDist:true}] },
-  // W9
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
-    stepsA: [{type:'run',dur:1.25,isDist:true},{type:'rest',dur:60},{type:'run',dur:1.25,isDist:true}],
-    stepsB: [{type:'run',dur:1.75,isDist:true}] },
-  // W10
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
-    stepsA: [{type:'run',dur:1.5,isDist:true},{type:'rest',dur:60},{type:'run',dur:1.5,isDist:true}],
-    stepsB: [{type:'run',dur:2.25,isDist:true}] },
-  // W11
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
-    stepsA: [{type:'run',dur:1.75,isDist:true},{type:'rest',dur:60},{type:'run',dur:1.75,isDist:true}],
-    stepsB: [{type:'run',dur:2.75,isDist:true}] },
-  // W12 — Consolidation: mixed
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
-    stepsA: [{type:'run',dur:0.75,isDist:true},{type:'rest',dur:30},{type:'run',dur:1.5,isDist:true},{type:'rest',dur:60},{type:'run',dur:0.75,isDist:true}],
-    stepsB: [{type:'run',dur:2.5,isDist:true}] },
-  // W13
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
-    stepsA: [{type:'run',dur:2.0,isDist:true},{type:'rest',dur:60},{type:'run',dur:0.25,isDist:true},{type:'rest',dur:30},{type:'run',dur:2.0,isDist:true}],
-    stepsB: [{type:'run',dur:3.5,isDist:true}] },
-  // W14
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
-    stepsA: [{type:'run',dur:2.0,isDist:true},{type:'rest',dur:60},{type:'run',dur:2.0,isDist:true}],
-    stepsB: [{type:'run',dur:3.75,isDist:true}] },
-  // W15
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
-    stepsA: [{type:'run',dur:2.5,isDist:true},{type:'rest',dur:60},{type:'run',dur:2.5,isDist:true}],
-    stepsB: [{type:'run',dur:4.25,isDist:true}] },
-  // W16
-  { labelA: 'Corrida/Caminhada', labelB: 'Corrida contínua',
-    stepsA: [{type:'run',dur:1.25,isDist:true},{type:'rest',dur:30},{type:'run',dur:2.5,isDist:true},{type:'rest',dur:60},{type:'run',dur:1.25,isDist:true}],
-    stepsB: [{type:'run',dur:5.0,isDist:true}] },
+const BEGINNER_TABLE: [number, number, number, boolean][] = [
+  [2,   2,   4, false],   // W1
+  [3,   2,   4, false],   // W2
+  [4,   1.5, 4, false],   // W3
+  [3,   1,   4, true],    // W4 — recovery
+  [5,   1.5, 3, false],   // W5
+  [6,   1.5, 3, false],   // W6
+  [7,   1,   3, false],   // W7
+  [8,   1,   2, true],    // W8 — recovery (transição)
+  [10,  1,   2, false],   // W9
+  [12,  1,   2, false],   // W10
+  [10,  1,   2, true],    // W11 — recovery
+  [15,  1,   1, false],   // W12
 ];
-
-const toCanonicalIndex = (weekIdx: number, totalWeeks: number): number => {
-  const CANONICAL = CANONICAL_WEEKS.length;
-  if (totalWeeks <= 1) return 0;
-  const pos = weekIdx / (totalWeeks - 1);
-  return Math.min(CANONICAL - 1, Math.round(pos * (CANONICAL - 1)));
-};
-
-const isRecoveryWeek = (canIdx: number): boolean => {
-  return canIdx === 3 || canIdx === 7 || canIdx === 11;
-};
-
-const createRunStep = (dur: number, isDist: boolean | undefined, runPace: number): WorkoutStep => {
-  if (isDist) {
-    const distKm = dur;
-    const secs = Math.round(distKm * runPace * 60);
-    return {
-      id: uuidv4(), type: 'run',
-      durationSeconds: Math.max(30, secs),
-      targetPace: parseFloat(runPace.toFixed(2)),
-      targetDistance: parseFloat(distKm.toFixed(3)),
-      basis: 'distance',
-    };
-  }
-  return {
-    id: uuidv4(), type: 'run',
-    durationSeconds: Math.max(30, Math.round(dur)),
-    targetPace: parseFloat(runPace.toFixed(2)),
-    basis: 'time',
-  };
-};
-
-const createRestStep = (type: WorkoutStep['type'], dur: number, pace: number): WorkoutStep => ({
-  id: uuidv4(), type,
-  durationSeconds: Math.max(10, Math.round(dur)),
-  targetPace: parseFloat(pace.toFixed(2)),
-  basis: 'time',
-});
+// W13-W16: continuous runs (distância progressiva até 5km)
 
 const generateBeginnerProgram = (data: any, totalWeeks: number): TrainingProgram => {
-    const weeks: ProgramWeek[] = [];
     const runPace = data.goal.targetPace ?? 8;
-    const comfortPace = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
-    const walkPace = Math.max(12, comfortPace);
+    const walkPace = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
+    const goalDistKm = data.goal.raceDistance === 'none' ? 5 : parseInt(data.goal.raceDistance);
+    const maxWeeks = Math.min(totalWeeks, 16);
+    const continuousFactors = [0.30, 0.55, 0.80, 1.0];
 
-    for (let i = 0; i < totalWeeks; i++) {
+    const weeks: ProgramWeek[] = [];
+
+    for (let i = 0; i < maxWeeks; i++) {
         const weekNum = i + 1;
-        const canIdx = toCanonicalIndex(i, totalWeeks);
-        const cw = CANONICAL_WEEKS[canIdx];
-        const isRec = isRecoveryWeek(canIdx);
+        const isContinuous = i >= BEGINNER_TABLE.length;
 
         const plans: WorkoutPlan[] = data.daysOfWeek.map((day: number, idx: number) => {
-            const isSessionA = idx === 0 || (idx > 0 && idx % 2 === 0);
-            const def = isSessionA ? cw.stepsA : cw.stepsB;
-            const label = isSessionA ? cw.labelA : cw.labelB;
-
+            const volumeFactor = idx === 0 ? 1.0 : 0.85;
             const steps: WorkoutStep[] = [];
-            steps.push(createRestStep('warmup', 300, walkPace));
 
-            for (const sd of def) {
-              if (sd.type === 'run') {
-                steps.push(createRunStep(sd.dur, sd.isDist, runPace));
-              } else {
-                steps.push(createRestStep('rest', sd.dur, walkPace));
-              }
+            steps.push(createStep('warmup', 300, walkPace));
+
+            if (isContinuous) {
+                const ci = Math.min(3, i - BEGINNER_TABLE.length);
+                const distKm = goalDistKm * continuousFactors[ci];
+                const secs = Math.round(distKm * runPace * 60);
+                steps.push(createStep('run', Math.max(30, secs), runPace, 'distance'));
+            } else {
+                const [runMin, walkMin, reps, isRec] = BEGINNER_TABLE[i];
+                const recoveryFactor = isRec ? 0.75 : 1.0;
+                for (let r = 0; r < reps; r++) {
+                    const runSecs = Math.round(runMin * 60 * recoveryFactor * volumeFactor);
+                    steps.push(createStep('run', Math.max(30, runSecs), runPace));
+                    if (r < reps - 1) {
+                        const walkSecs = Math.round(walkMin * 60 * recoveryFactor * volumeFactor);
+                        steps.push(createStep('rest', Math.max(10, walkSecs), walkPace));
+                    }
+                }
             }
 
-            steps.push(createRestStep('cooldown', 300, walkPace));
+            steps.push(createStep('cooldown', 300, walkPace));
 
             return {
-              id: uuidv4(),
-              name: `Semana ${weekNum} — ${label}${idx > 0 && idx % 2 === 0 ? ' (2)' : ''}`,
-              steps,
-              programName: 'Plano Iniciante',
+                id: uuidv4(),
+                name: `Semana ${weekNum} — Corrida/Caminhada${idx > 0 ? ' (2)' : ''}`,
+                steps,
+                programName: 'Plano Iniciante',
             };
         });
 
+        const isRec = !isContinuous && BEGINNER_TABLE[i][3];
         weeks.push({ weekNumber: weekNum, phase: 'base', isRecoveryWeek: isRec, plans });
     }
+
     return {
-      id: uuidv4(), name: 'Plano Iniciante', goal: data.goal,
-      experienceLevel: data.experienceLevel, referenceRace: data.referenceRace,
-      daysOfWeek: data.daysOfWeek, mode: data.mode, raceDate: data.raceDate,
-      weeks, createdAt: Date.now(),
+        id: uuidv4(), name: 'Plano Iniciante', goal: data.goal,
+        experienceLevel: data.experienceLevel, referenceRace: data.referenceRace,
+        daysOfWeek: data.daysOfWeek, mode: data.mode, raceDate: data.raceDate,
+        weeks, createdAt: Date.now(),
     };
 };
 
