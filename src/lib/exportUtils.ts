@@ -7,7 +7,7 @@ export const generateTCX = (session: TrainingSession): string => {
     session.points.forEach(p => {
         let position = '';
         if (session.mode === 'outdoor' && p.lat !== undefined && p.lon !== undefined) {
-            position = `<Position><LatitudeDegrees>${p.lat}</LatitudeDegrees><LongitudeDegrees>${p.lon}</LongitudeDegrees></Position>`;
+            position = `<Position><LatitudeDegrees>${p.lat}</LatitudeDegrees><LongitudeDegrees>${p.lon}</LongitudeDegrees>${p.altitude !== undefined ? `<AltitudeMeters>${p.altitude.toFixed(1)}</AltitudeMeters>` : ''}</Position>`;
         }
         trackPoints += `
           <Trackpoint>
@@ -55,6 +55,7 @@ export const generateGPX = (session: TrainingSession): string => {
         if (p.lat !== undefined && p.lon !== undefined) {
             trackPoints += `
       <trkpt lat="${p.lat}" lon="${p.lon}">
+        <ele>${(p.altitude ?? 0).toFixed(1)}</ele>
         <time>${new Date(new Date(session.date).getTime() + p.timestampSeconds * 1000).toISOString()}</time>
         <extensions>
           <ns3:TrackPointExtension>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { WorkoutPlan, WorkoutStep, getStepTypeLabel } from '../types';
 import { Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { sanitizeText } from '../lib/sanitize';
 
 export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSave: (plan: WorkoutPlan) => void, onCancel: () => void, initialPlan?: WorkoutPlan }) {
     const [name, setName] = useState(initialPlan?.name || '');
@@ -37,8 +38,9 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
     };
 
     const handleSave = () => {
-        if (!name.trim() || steps.length === 0) return;
-        onSave({ id: initialPlan?.id || crypto.randomUUID(), name, steps, manual: true });
+        const safeName = sanitizeText(name, 100);
+        if (!safeName || steps.length === 0) return;
+        onSave({ id: initialPlan?.id || crypto.randomUUID(), name: safeName, steps, manual: true });
     };
 
     const paceToMmss = (pace: number | undefined) => {

@@ -1,18 +1,56 @@
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
 import { createServer as createViteServer } from "vite";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  const CSP_DIRECTIVES = {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'"],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    imgSrc: [
+      "'self'", "data:",
+      "https://*.tile.openstreetmap.org",
+      "https://*.basemaps.cartocdn.com",
+      "https://server.arcgisonline.com",
+    ],
+    connectSrc: [
+      "'self'",
+      "https://*.firebaseio.com",
+      "https://identitytoolkit.googleapis.com",
+      "https://*.googleapis.com",
+      "https://securetoken.googleapis.com",
+      "https://firestore.googleapis.com",
+      "https://firebasestorage.googleapis.com",
+      "wss://*.firebaseio.com",
+    ],
+    frameSrc: ["https://*.firebaseapp.com", "https://accounts.google.com"],
+    fontSrc: ["'self'"],
+    mediaSrc: ["'self'"],
+    formAction: ["'self'"],
+  };
+
   app.use(helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: { directives: CSP_DIRECTIVES },
     crossOriginEmbedderPolicy: false,
     crossOriginOpenerPolicy: false,
   }));
-  app.use(express.json());
+  app.use(cors({ origin: process.env.NODE_ENV === "production" ? "https://correlogo.sytes.net" : true }));
+  app.use(express.json({ limit: "100kb" }));
+
+  const limiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use(limiter);
 
   // API routes
   app.get("/api/health", (req, res) => {
@@ -27,7 +65,6 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // In production, server.cjs is in /dist, so serve from /dist
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {

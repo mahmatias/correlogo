@@ -109,7 +109,7 @@ export default function App() {
               localStorage.setItem(localPlansKey, JSON.stringify(merged));
               // Salva de volta no Firestore se houve merge
               if (merged.length !== remotePlans.length) {
-                setDoc(doc(db, 'users', user.uid, 'data', 'plans'), { plans: merged }).catch(() => {});
+                setDoc(doc(db, 'users', user.uid, 'data', 'plans'), { plans: merged }, { merge: true }).catch(() => {});
               }
             } else {
               setPlans(remotePlans);
@@ -347,7 +347,7 @@ export default function App() {
     if (user) {
         localStorage.setItem(`correlogo:plans:${user.uid}`, JSON.stringify(updatedPlans));
         try {
-            await setDoc(doc(getDb(), 'users', user.uid, 'data', 'plans'), { plans: updatedPlans });
+            await setDoc(doc(getDb(), 'users', user.uid, 'data', 'plans'), { plans: updatedPlans }, { merge: true });
             if (successMsg) showFeedback('success', successMsg);
         } catch (e) {
             console.error("Erro ao salvar planos no Firestore:", e);
