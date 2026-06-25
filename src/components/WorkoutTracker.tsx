@@ -14,10 +14,11 @@ interface Props {
       mode: 'treadmill' | 'outdoor'
   }) => void;
   totalWorkoutTime: number;
+  isFreeTraining?: boolean;
   key?: string;
 }
 
-export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime }: Props) {
+export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime, isFreeTraining }: Props) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedRef = useRef(0);
@@ -58,7 +59,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       
 		  // Announce start once
 		  if (countdown === 5) {
-			  speak("Iniciando Treino");
+			  speak("Iniciando Treino", true);
 		  }
 		  
 		  return () => clearTimeout(timer);
@@ -208,8 +209,10 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const playStartAnnouncedRef = useRef<boolean>(false);
   const workoutCompletedAnnouncedRef = useRef<boolean>(false);
   const lastKmStartTimeRef = useRef<number>(0); // Timestamp of start of current km
+  const almostThereAnnouncedRef = useRef<boolean>(false);
 
-  const speak = (text: string) => {
+  const speak = (text: string, force = false) => {
+    if (!force && isFreeTraining) return;
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
@@ -227,21 +230,57 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     }
   };
 
-  // Handle step progression & Lap announcement
-  useEffect(() => {
-    const currentStep = plan.steps[currentStepIndex];
-    if (!currentStep) return;
-    
-    // Announce step change ONLY if step index changed
-    if (currentStepIndex !== lastStepIndexRef.current) {
-        const ptType = currentStep.type === 'warmup' ? 'Aquecimento' : currentStep.type === 'run' ? 'Corrida' : currentStep.type === 'cooldown' ? 'Desaquecimento' : currentStep.type === 'rest' ? 'Descanso' : currentStep.type;
-        const targetDist = getStepTargetDistance(currentStep);
-        const speedKmh = 60 / (currentStep.targetPace || 1);
+  const formatDurationSpeech = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins === 0) return `${secs} segundos`;
+    if (secs === 0) return `${mins} minutos`;
+    return `${mins} minutos e ${secs} segundos`;
+  };
+
+    // Handle step progression & Lap announcement
+    useEffect(() => {
+        const currentStep = plan.steps[currentStepIndex];
+        if (!currentStep) return;
         
-        speak(`Volta atual ${formatDistance(targetDist)} de ${ptType} Pace ${currentStep.targetPace || 0}`);
-        
-        lastStepIndexRef.current = currentStepIndex;
-    }
+        // Announce step change ONLY if step index changed
+        if (currentStepIndex !== lastStepIndexRef.current) {
+            if (countdown > 0) return; // wait for countdown to finish
+            lastStepIndexRef.current = currentStepIndex;
+            almostThereAnnouncedRef.current = false;
+            const ptType = currentStep.type === 'warmup' ? 'Aquecimento' : currentStep.type === 'run' ? 'Corrida' : currentStep.type === 'cooldown' ? 'Desaquecimento' : currentStep.type === 'rest' ? 'Caminhada' : currentStep.type;
+            const stepDuration = getStepDurationSeconds(currentStep);
+            const targetDist = getStepTargetDistance(currentStep);
+            const speedKmh = 60 / (currentStep.targetPace || 1);
+            const isDistBasis = currentStep.basis === 'distance';
+            
+            speak(`Volta atual ${isDistBasis ? formatDistance(targetDist) : formatDurationSpeech(stepDuration)} de ${ptType} Pace ${currentStep.targetPace || 0}`);
+        }
+
+        // Almost-there announcement before step completes
+        const stepDur = getStepDurationSeconds(currentStep);
+        const isDist = currentStep.basis === 'distance' && currentStep.type === 'run';
+        let threshold = 0, prefix = '';
+        if (currentStep.type === 'run') { threshold = 15; prefix = 'Você está quase lá. '; }
+        else if (currentStep.type === 'warmup' || currentStep.type === 'rest' || currentStep.type === 'cooldown') { threshold = 10; }
+
+        if (threshold > 0 && currentStepIndex < plan.steps.length - 1 && !almostThereAnnouncedRef.current) {
+            let isClose = false;
+            if (isDist) {
+                const targetDist = getStepTargetDistance(currentStep);
+                isClose = targetDist - lapDistance <= 0.1 && targetDist - lapDistance > 0;
+            } else {
+                isClose = stepDur - lapSeconds <= threshold && stepDur - lapSeconds > 0 && stepDur > threshold + 5;
+            }
+            if (isClose) {
+                almostThereAnnouncedRef.current = true;
+                const next = plan.steps[currentStepIndex + 1];
+                const nextLabel = next.type === 'warmup' ? 'Aquecimento' : next.type === 'run' ? 'Corrida' : next.type === 'cooldown' ? 'Desaquecimento' : next.type === 'rest' ? 'Caminhada' : next.type;
+                const nextIsDist = next.basis === 'distance';
+                const nextObj = nextIsDist ? formatDistance(getStepTargetDistance(next)) : formatDurationSpeech(getStepDurationSeconds(next));
+                speak(`${prefix}Próxima volta: ${nextObj} de ${nextLabel} Pace ${next.targetPace || 0}`);
+            }
+        }
 
     let isCompleted = false;
 
@@ -269,7 +308,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       lapDistRef.current = 0; // Reset for next lap
       setLapDistance(0);
     }
-  }, [lapSeconds, lapDistance, currentStepIndex, plan.steps]);
+    }, [lapSeconds, lapDistance, currentStepIndex, plan.steps, countdown]);
 
   const step = plan.steps[currentStepIndex] || { type: 'Finalizado', durationSeconds: 0, targetPace: 1, basis: 'time' };
 
@@ -282,7 +321,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
 
   useEffect(() => {
     if (isWorkoutCompleted && !workoutCompletedAnnouncedRef.current) {
-        speak("Exercício Concluído. Parabéns!");
+        speak("Exercício Concluído. Parabéns!", true);
         workoutCompletedAnnouncedRef.current = true;
     }
   }, [isWorkoutCompleted]);
@@ -405,7 +444,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
              {/* Step objective */}
         <div className="relative bg-bg-elevated rounded p-1 mb-2 overflow-hidden w-full h-5">
             <div key={currentStepIndex} className={`absolute top-1/2 -translate-y-1/2 ${!isPaused && countdown === 0 ? 'animate-marquee' : ''} text-[10px] text-text-primary whitespace-nowrap`}>
-               {isDistanceStep ? formatDistance(stepTargetDistance) : formatDuration(step.durationSeconds)} {getStepTypeLabel(step.type)} @ { (60/(step.targetPace||1)).toFixed(1) } KM/h
+               {isFreeTraining ? 'Corrida Livre' : `${isDistanceStep ? formatDistance(stepTargetDistance) : formatDuration(step.durationSeconds)} ${getStepTypeLabel(step.type)} @ ${(60/(step.targetPace||1)).toFixed(1)} KM/h`}
             </div>
         </div>
 

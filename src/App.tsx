@@ -26,6 +26,7 @@ export default function App() {
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
   const [activePlan, setActivePlan] = useState<{plan: WorkoutPlan, mode: 'treadmill' | 'outdoor', sessionId: string} | null>(null);
+  const [isFreeTraining, setIsFreeTraining] = useState(false);
   const [workoutToStart, setWorkoutToStart] = useState<{plan: WorkoutPlan, mode?: 'treadmill' | 'outdoor'} | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [isLightMode, setIsLightMode] = useState(false);
@@ -102,6 +103,16 @@ export default function App() {
 
   const startWorkout = (plan: WorkoutPlan) => {
     setWorkoutToStart({ plan });
+  };
+
+  const startFreeTraining = () => {
+    const freePlan: WorkoutPlan = {
+      id: 'freetrain-' + crypto.randomUUID(),
+      name: 'Treino Livre',
+      steps: [{ id: crypto.randomUUID(), type: 'run', durationSeconds: 86400, targetPace: 20 }],
+    };
+    setIsFreeTraining(true);
+    startWorkout(freePlan);
   };
 
   const confirmWorkoutMode = (mode: 'treadmill' | 'outdoor') => {
@@ -217,10 +228,12 @@ export default function App() {
     }
 ) => {
     const plan = plans.find(p => p.id === id);
-    const updatedPlans = plans.map(p => p.id === id ? {...p, isCompleted: true} : p);
-    updatePlansState(updatedPlans);
+    if (plan) {
+        updatePlansState(plans.map(p => p.id === id ? {...p, isCompleted: true} : p));
+    }
     
-    if (user && plan) {
+    if (user) {
+        const planName = plan?.name || 'Treino Livre';
         const totalDistance = sessionStats.distanceKm;
         const totalSeconds = sessionStats.timeSeconds;
         const avgSpeed = totalSeconds > 0 ? (totalDistance / (totalSeconds / 3600)) : 0;
@@ -229,7 +242,7 @@ export default function App() {
             console.log("Salvando sessão no Firestore:", { planId: id, ...sessionStats });
             const sessionData: Omit<TrainingSession, 'id'> = {
                 planId: id,
-                planName: plan.name,
+                planName,
                 date: new Date().toISOString(),
                 mode: sessionStats.mode,
                 totalDurationSeconds: totalSeconds,
@@ -360,9 +373,10 @@ export default function App() {
                   key={activePlan.sessionId} 
                   plan={activePlan.plan} 
                   mode={activePlan.mode} 
-                  onStop={() => setActivePlan(null)} 
+                  onStop={() => { setActivePlan(null); setIsFreeTraining(false); }} 
                   markAsCompleted={markAsCompleted}
                   totalWorkoutTime={calculateTotalDuration(activePlan.plan)}
+                  isFreeTraining={isFreeTraining}
                 />
             ) : isEditing ? (
               <WorkoutEditor onSave={handleSaveManualPlan} onCancel={() => setIsEditing(false)} />
@@ -421,6 +435,12 @@ export default function App() {
                         Apagar Plano de Treino
                     </button>
                 )}
+                <button
+                    className="w-full mt-4 p-3 bg-accent text-white rounded-lg font-semibold"
+                    onClick={startFreeTraining}
+                >
+                    Treino Livre
+                </button>
                 <div className="space-y-4 pt-4">
                   {plans.length === 0 ? (
                     <p className="text-center text-text-muted">Nenhum plano carregado ainda.</p>
@@ -467,7 +487,7 @@ export default function App() {
                               {plan.steps.map((step, idx) => {
                                 const ptType = step.type === 'warmup' ? 'Aquecimento' : step.type === 'run' ? 'Corrida' : step.type === 'cooldown' ? 'Desaquecimento' : step.type === 'rest' ? 'Descanso' : step.type;
                                 return (
-                                  <li key={idx}>{ptType}: {formatDuration(step.durationSeconds)}min @ { (60/(step.targetPace||1)).toFixed(2) } KM/h (Ritmo {Math.floor(step.targetPace||0)}'{Math.round(((step.targetPace||0) % 1) * 60)}"/km)</li>
+                                  <li key={idx}>{ptType}: {formatDuration(step.durationSeconds)}min @ { (60/(step.targetPace||1)).toFixed(1) } KM/h (Ritmo {Math.floor(step.targetPace||0)}'{Math.round(((step.targetPace||0) % 1) * 60)}"/km)</li>
                                 );
                               })}
                             </ul>
