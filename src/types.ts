@@ -60,6 +60,7 @@ export interface WorkoutPlan {
   programName?: string;
   activityName?: string;
   activityNumber?: string;
+  manual?: boolean;
 }
 
 export interface ActivityPoint {

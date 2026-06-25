@@ -462,6 +462,7 @@ export default function App() {
                         <div className="flex justify-between items-center px-4 pb-4 bg-bg-surface">
                             <span className="text-xs text-text-muted">{formatTotalDuration(calculateTotalDuration(plan))}</span>
                             <div className='flex gap-2 items-center'>
+                                {plan.manual && (
                                 <button 
                                     className="p-2 text-text-muted hover:text-accent hover:bg-bg-elevated rounded-full"
                                     onClick={(e) => { e.stopPropagation(); setPlanToDelete(plan); }}
@@ -469,6 +470,7 @@ export default function App() {
                                 >
                                     <Trash2 size={20} />
                                 </button>
+                                )}
                                 <button 
                                     className={`p-2 text-accent-secondary hover:bg-bg-elevated rounded-full ${!sessions.some(s => s.planId === plan.id) ? 'opacity-30 cursor-not-allowed' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); setSelectedSession(sessions.find(s => s.planId === plan.id) || null); }}
