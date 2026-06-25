@@ -203,12 +203,12 @@ export default function App() {
 
   const handleImport = async (newPlans: WorkoutPlan[]) => {
     const updatedPlans = [...plans, ...newPlans];
-    updatePlansState(updatedPlans);
+    updatePlansState(updatedPlans, 'Planos importados com sucesso!');
   };
 
   const handleSaveManualPlan = (plan: WorkoutPlan) => {
     const updatedPlans = [...plans, plan];
-    updatePlansState(updatedPlans);
+    updatePlansState(updatedPlans, 'Plano manual salvo!');
     setIsEditing(false);
   };
 
@@ -227,6 +227,7 @@ export default function App() {
     
     updatePlansState(updatedPlans);
     setPlanToDelete(null);
+    showFeedback('success', 'Plano removido com sucesso!');
 
     // Delete associated sessions
     if (user && plansToDelete.length > 0) {
@@ -257,7 +258,7 @@ export default function App() {
         setPlanToUncomplete(plan);
     } else {
         const updatedPlans = plans.map(p => p.id === plan.id ? {...p, isCompleted: true} : p);
-        updatePlansState(updatedPlans);
+        updatePlansState(updatedPlans, 'Atividade concluída!');
     }
   }
 
@@ -341,13 +342,13 @@ export default function App() {
     }
   }
 
-  const updatePlansState = async (updatedPlans: WorkoutPlan[]) => {
+  const updatePlansState = async (updatedPlans: WorkoutPlan[], successMsg?: string) => {
     setPlans(updatedPlans);
     if (user) {
         localStorage.setItem(`correlogo:plans:${user.uid}`, JSON.stringify(updatedPlans));
         try {
             await setDoc(doc(getDb(), 'users', user.uid, 'data', 'plans'), { plans: updatedPlans });
-            showFeedback('success', 'Plano salvo com sucesso!');
+            if (successMsg) showFeedback('success', successMsg);
         } catch (e) {
             console.error("Erro ao salvar planos no Firestore:", e);
             showFeedback('error', 'Falha ao salvar no servidor. Dados mantidos localmente.');
@@ -386,6 +387,17 @@ export default function App() {
                 sessions={sessions} 
                 onClose={() => setShowHistory(false)} 
                 onSelectSession={(s) => {setSelectedSession(s); setShowHistory(false);}} 
+                onDeleteSession={(sessionId) => {
+                  setSessions(s => {
+                    const updated = s.filter(si => si.id !== sessionId);
+                    if (user) localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                    return updated;
+                  });
+                  if (user && !sessionId.startsWith('local-')) {
+                    deleteDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionId)).catch(() => {});
+                  }
+                  showFeedback('success', 'Sessão removida do histórico.');
+                }}
               />
             )}
             {selectedSession && (
@@ -398,7 +410,7 @@ export default function App() {
                   const updatedPlans = plans.map(p =>
                     p.id === selectedSession?.planId ? adjustedPlan : p
                   );
-                  updatePlansState(updatedPlans);
+                  updatePlansState(updatedPlans, 'Plano ajustado com sucesso!');
                   setSelectedSession(null);
                 }}
               />
@@ -479,7 +491,7 @@ export default function App() {
                 program={programToReview}
                 onConfirm={(finalProgram) => {
                   const allPlans = finalProgram.weeks.flatMap(week => week.plans);
-                  updatePlansState([...plans, ...allPlans]);
+                  updatePlansState([...plans, ...allPlans], 'Programa gerado com sucesso!');
                   setProgramToReview(null);
                 }}
                 onCancel={() => setProgramToReview(null)}

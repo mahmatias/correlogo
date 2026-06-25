@@ -11,6 +11,8 @@ const FIREBASE_ERRORS_PT: Record<string, string> = {
   'auth/network-request-failed': 'Sem conexão com a internet. Verifique sua rede.',
   'auth/too-many-requests': 'Muitas tentativas. Aguarde um momento e tente novamente.',
   'auth/requires-recent-login': 'Faça login novamente para continuar.',
+  'auth/missing-password': 'Digite sua senha.',
+  'auth/missing-email': 'Digite seu email.',
   'auth/expired-action-code': 'O link de redefinição expirou.',
   'auth/invalid-action-code': 'O link de redefinição é inválido.',
 };
