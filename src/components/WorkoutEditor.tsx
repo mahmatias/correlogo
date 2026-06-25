@@ -38,7 +38,7 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
 
     const handleSave = () => {
         if (!name.trim() || steps.length === 0) return;
-        onSave({ id: initialPlan?.id || crypto.randomUUID(), name, steps });
+        onSave({ id: initialPlan?.id || crypto.randomUUID(), name, steps, manual: true });
     };
 
     const paceToMmss = (pace: number | undefined) => {
