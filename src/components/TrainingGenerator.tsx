@@ -600,7 +600,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
             <h2 className="text-xl font-bold mb-4">Em quais dias costuma treinar?</h2>
             {[0,1,2,3,4,5,6].map(day => (
                 <label key={day} className="flex items-center gap-2">
-                    <input type="checkbox" onChange={e => {
+                    <input type="checkbox" checked={data.daysOfWeek.includes(day)} onChange={e => {
                         const newDays = e.target.checked ? [...data.daysOfWeek, day] : data.daysOfWeek.filter(d => d !== day);
                         setData({...data, daysOfWeek: newDays});
                     }} />
