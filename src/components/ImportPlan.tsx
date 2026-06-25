@@ -1,4 +1,4 @@
-import { useRef, ChangeEvent } from 'react';
+import { useRef, useState, ChangeEvent } from 'react';
 import { Download } from 'lucide-react';
 import { WorkoutPlan, WorkoutStep } from '../types';
 
@@ -38,6 +38,7 @@ const normalizeStepType = (rawType: string): WorkoutStep['type'] | null => {
 
 export default function ImportPlan({ onImport, plans }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importError, setImportError] = useState('');
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -66,7 +67,7 @@ export default function ImportPlan({ onImport, plans }: Props) {
         for (const plan of validatedPlans) {
             if (!Array.isArray(plan.steps)) {
                 console.error("Erro de validação: 'steps' não é uma lista.", plan);
-                alert("Formato de plano inválido: 'steps' deve ser uma lista.");
+                setImportError("Formato de plano inválido: 'steps' deve ser uma lista.");
                 return;
             }
         }
@@ -89,15 +90,16 @@ export default function ImportPlan({ onImport, plans }: Props) {
 
         if (unrecognizedTypes.size > 0) {
             console.error("Tipos de etapa não reconhecidos (mantidos como vieram):", Array.from(unrecognizedTypes));
-            alert(`Atenção: alguns tipos de etapa não foram reconhecidos e podem não funcionar corretamente: ${Array.from(unrecognizedTypes).join(', ')}`);
+            setImportError(`Atenção: alguns tipos de etapa não foram reconhecidos e podem não funcionar corretamente: ${Array.from(unrecognizedTypes).join(', ')}`);
         }
 
         console.log("Validação aprovada. Importando planos:", normalizedPlans.length);
         onImport(normalizedPlans);
+        setImportError('');
         console.log("Planos importados com sucesso!");
       } catch (error) {
         console.error("Erro fatal na leitura do JSON:", error);
-        alert("Erro ao ler o arquivo. Verifique o console para detalhes.");
+        setImportError("Erro ao ler o arquivo. Verifique o console para detalhes.");
       }
     };
     
@@ -118,6 +120,7 @@ export default function ImportPlan({ onImport, plans }: Props) {
         <Download size={20} />
         {plans.length > 0 ? "Substituir Plano de Treino" : "Importar Plano de Treino"}
       </button>
+      {importError && <p className="text-danger text-sm mt-2" role="alert">{importError}</p>}
       {plans.length > 0 && (
           <p className="text-center text-sm text-text-secondary my-4 font-semibold">
             Programa Atual: {plans[0].programName || "Desconhecido"}

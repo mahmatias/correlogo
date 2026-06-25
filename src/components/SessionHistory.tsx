@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, BarChart2 } from 'lucide-react';
+import { ArrowLeft, Calendar, BarChart2, ClipboardList } from 'lucide-react';
 import { TrainingSession, formatDistance, formatDuration } from '../types';
 
 interface Props {
@@ -16,7 +16,11 @@ export default function SessionHistory({ sessions, onClose, onSelectSession }: P
         <h2 className="text-2xl font-bold mb-6 text-center">Histórico de Treinos</h2>
         
         {sessions.length === 0 ? (
-            <p className="text-center text-text-muted">Nenhuma sessão encontrada.</p>
+            <div className="text-center text-text-muted py-16">
+              <ClipboardList className="mx-auto mb-2" size={40} />
+              <p>Nenhuma sessão encontrada.</p>
+              <p className="text-sm mt-1">Complete um treino para vê-lo aqui.</p>
+            </div>
         ) : (
             <div className="space-y-4">
                 {sessions.map(session => (

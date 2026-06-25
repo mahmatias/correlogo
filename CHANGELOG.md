@@ -1,5 +1,35 @@
 # Changelog
 
+## [2026-06-25]
+- **UI audit — 16 itens corrigidos (P0 a P3):**
+  - P0: Fontes aplicadas (Geologica em headings, IBM Plex Sans no body)
+  - P0: 18x `text-gray-500` → `text-text-muted`, 5x `text-gray-600` → `text-text-secondary` no TrainingGenerator
+  - P1: Cores hardcoded substituídas por tokens temáticos (`text-success`, `text-danger`, `text-warning`, `bg-bg-surface`)
+  - P1: Loading states — skeleton no carregamento Firestore, `disabled` + feedback em Login/Signup
+  - P1: Componente `<Modal>` extraído (backdrop centralizado, variantes dialog/alertdialog)
+  - P1: Componente `<Button>` extraído (variantes primary/secondary/ghost/danger, sizes sm/md/lg)
+  - P2: `text-[10px]` → `text-xs` no WorkoutTracker
+  - P2: Touch targets ≥ 44px (p-2 nos botões de toggle e mapa)
+  - P2: `truncate` em nomes de plano
+  - P2: `text-text-muted` → `text-text-secondary` nos labels de estatísticas
+  - P2: `opacity-50` → `opacity-70` em planos completos
+  - P3: Animação expand/collapse com `max-h` + `opacity` + `transition-all`
+  - P3: Empty states com ícone (`Clipboard`/`ClipboardList`) + CTA textual
+  - P3: `alert()` substituídos por inline errors em ImportPlan e Login
+  - P3: `max-w-lg` → `max-w-xl` no container principal
+  - P3: `onKeyDown`/`onKeyUp` nos botões de velocidade (Enter/Space)
+- **Performance:** `Promise.all` para carregar planos/sessões/settings em paralelo
+- **Performance:** `limit(50)` na query de sessões
+- **Performance:** Timeout de 5s nas queries Firestore com fallback para localStorage
+- **Performance:** Cache localStorage para sessões (além de planos e tema já existentes)
+- **Sync offline:** Dados criados enquanto offline (sessões com `local-*`) são automaticamente sincronizados ao Firestore quando a conexão volta
+- **Sync offline:** Planos locais são mesclados com remotos ao reconectar
+- **Segurança:** `firebase-applet-config.json` removido do git e adicionado ao `.gitignore`
+- **Segurança:** Analytics removido do `init()` do Firebase (carregamento sob demanda), desbloqueando a inicialização
+- **Firebase:** Logs de timing adicionados para diagnóstico (console `[timing]`)
+- **Firebase:** Firestore ativado no projeto `correlogo-dev-9a96a` (estava desligado)
+- **Infra:** `NODE_ENV=production` documentado em AGENTS.md com instruções de restart
+
 ## [2026-06-21]
 - Infra: Migrated production hosting to AWS EC2 (Ubuntu), domain `correlogo.sytes.net`.
 - Fixed: Node process was accidentally running in dev mode (missing `NODE_ENV=production`), causing `server.ts` to mount the Vite dev middleware/HMR instead of serving the static build.
