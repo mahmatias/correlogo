@@ -3,80 +3,58 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Corre Logo — Paletas Sport-Tech</title>
+<title>Corre Logo — Design System</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, sans-serif; background: #0D0D1A; color: #E8E4F0; padding: 60px 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0A0A14; color: #F0ECF5; padding: 60px 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
   .container { max-width: 640px; width: 100%; text-align: center; }
   h1 { font-size: 36px; margin-bottom: 8px; letter-spacing: -0.5px; }
-  .subtitle { color: #888; font-size: 16px; margin-bottom: 48px; line-height: 1.6; }
+  .subtitle { color: #7A7490; font-size: 16px; margin-bottom: 48px; line-height: 1.6; }
   .grid { display: flex; flex-direction: column; gap: 16px; }
-  .card { background: #1C1C35; border-radius: 20px; padding: 28px; border: 1px solid #2E2E4F; text-align: left; text-decoration: none; color: inherit; display: block; transition: all 0.2s; }
-  .card:hover { border-color: #555; background: #252542; transform: translateY(-2px); }
+  .card { background: #12122A; border-radius: 20px; padding: 28px; border: 1px solid #2A2A50; text-align: left; text-decoration: none; color: inherit; display: block; transition: all 0.2s; }
+  .card:hover { border-color: #FF006E60; background: #1C1C40; transform: translateY(-2px); }
   .card-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-  .card-desc { color: #888; font-size: 14px; margin-bottom: 16px; }
+  .card-desc { color: #7A7490; font-size: 14px; margin-bottom: 16px; }
   .mini-swatches { display: flex; gap: 6px; }
   .mini-swatches span { width: 28px; height: 28px; border-radius: 8px; }
   .tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-bottom: 12px; }
+  .status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; background: #FFBE0B20; color: #FFBE0B; }
+  .status.done { background: #2A9D8F20; color: #2A9D8F; }
 </style>
 </head>
 <body>
 <div class="container">
   <h1>🏃 Corre Logo</h1>
-  <p class="subtitle">Escolha a direção visual<br>Sport-Tech para o app</p>
+  <p class="subtitle">Sistema de Design — Pôr-do-Sol</p>
 
   <div class="grid">
-    <a href="paleta-01-fogo.html" class="card">
-      <div class="tag" style="background:#FF6B3520;color:#FF6B35">01</div>
-      <div class="card-title">🔥 Fogo &amp; Carvão</div>
-      <div class="card-desc">Laranja queimado + âmbar sobre preto. Energia explosiva.</div>
-      <div class="mini-swatches">
-        <span style="background:#FF6B35"></span>
-        <span style="background:#FFD166"></span>
-        <span style="background:#F7C59F"></span>
-        <span style="background:#2A1B14;border:1px solid #555"></span>
-        <span style="background:#1C1C35;border:1px solid #333"></span>
-      </div>
+    <a href="design-01-cores.html" class="card">
+      <div class="tag" style="background:#2A9D8F20;color:#2A9D8F">✔ 01</div>
+      <div class="card-title">🎨 Paleta de Cores</div>
+      <div class="card-desc">Cores, fundos, acentos, textos — dark + light.</div>
     </a>
 
-    <a href="paleta-02-neon.html" class="card">
-      <div class="tag" style="background:#7B2FBE40;color:#E0AAFF">02</div>
-      <div class="card-title">💠 Neon &amp; Roxo</div>
-      <div class="card-desc">Ciano elétrico + roxo profundo. Tech, noturno, moderno.</div>
-      <div class="mini-swatches">
-        <span style="background:#00F5FF"></span>
-        <span style="background:#7B2FBE"></span>
-        <span style="background:#E0AAFF"></span>
-        <span style="background:#1A0A2E;border:1px solid #555"></span>
-        <span style="background:#1C1C35;border:1px solid #333"></span>
-      </div>
+    <a href="design-02-componentes.html" class="card">
+      <div class="tag" style="background:#2A9D8F20;color:#2A9D8F">✔ 02</div>
+      <div class="card-title">🧩 Componentes</div>
+      <div class="card-desc">Botões, cards, inputs, badges, modais — dark + light.</div>
     </a>
 
-    <a href="paleta-03-sol.html" class="card">
-      <div class="tag" style="background:#FF006E20;color:#FF006E">03</div>
-      <div class="card-title">🌅 Pôr-do-Sol</div>
-      <div class="card-desc">Rosa neon → laranja → amarelo. Gradiente vibrante, energia máxima.</div>
-      <div class="mini-swatches">
-        <span style="background:#FF006E"></span>
-        <span style="background:#FFBE0B"></span>
-        <span style="background:#7209B7"></span>
-        <span style="background:#3A0CA3;border:1px solid #555"></span>
-        <span style="background:#1C1C35;border:1px solid #333"></span>
-      </div>
+    <a href="design-03-tipografia.html" class="card">
+      <div class="tag" style="background:#2A9D8F20;color:#2A9D8F">✔ 03</div>
+      <div class="card-title">🔤 Tipografia</div>
+      <div class="card-desc">Fontes, escala, espaçamento.</div>
     </a>
 
-    <a href="paleta-04-verde.html" class="card">
-      <div class="tag" style="background:#00F26020;color:#00F260">04</div>
-      <div class="card-title">⚡ Verde Elétrico &amp; Azul</div>
-      <div class="card-desc">Verde neon + azul cobalto. Fresco, performance atlética.</div>
-      <div class="mini-swatches">
-        <span style="background:#00F260"></span>
-        <span style="background:#0575E6"></span>
-        <span style="background:#80FFDB"></span>
-        <span style="background:#0A2E1A;border:1px solid #555"></span>
-        <span style="background:#1C1C35;border:1px solid #333"></span>
-      </div>
+    <a href="design-04-arquitetura.html" class="card">
+      <div class="tag" style="background:#FF006E20;color:#FF006E">04</div>
+      <div class="card-title">🏗️ Arquitetura</div>
+      <div class="card-desc">CSS Variables, plano de implementação passo a passo, antes/depois.</div>
     </a>
+  </div>
+
+  <div style="margin-top:32px;padding:20px;border-radius:12px;background:linear-gradient(135deg,#2A9D8F10,#FFBE0B10);border:1px solid #2A9D8F40">
+    <p style="font-size:14px;color:#7A7490">✅ Aprovado: Cores, Componentes, Tipografia.</p>
   </div>
 </div>
 </body>
