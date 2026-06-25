@@ -1,6 +1,6 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import { getAuth } from '../lib/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
 import { getFirebaseErrorPt } from '../lib/firebaseErrorsPtBr';
 
 interface Props {
@@ -13,13 +13,6 @@ export default function Login({ onSignupClick }: Props) {
     const [error, setError] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
     const [loading, setLoading] = useState(false);
-
-    // Handle redirect result (popup blocker fallback)
-    useEffect(() => {
-        const auth = getAuth();
-        if (!auth) return;
-        getRedirectResult(auth).catch(() => { /* ignora se não veio de redirect */ });
-    }, []);
 
     const handleLogin = async (e: FormEvent) => {
         e.preventDefault();
@@ -52,17 +45,10 @@ export default function Login({ onSignupClick }: Props) {
         try {
             await signInWithPopup(auth, provider);
         } catch (err: any) {
-            if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/popup-closed-by-user') {
-                try {
-                    await signInWithRedirect(auth, provider);
-                } catch (redirectErr: any) {
-                    setError(getFirebaseErrorPt(redirectErr));
-                    setLoading(false);
-                }
-            } else {
+            if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
                 setError(getFirebaseErrorPt(err));
-                setLoading(false);
             }
+            setLoading(false);
         }
     };
 

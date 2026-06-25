@@ -28,9 +28,9 @@ export default function App() {
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
-  const [activePlan, setActivePlan] = useState<{plan: WorkoutPlan, mode: 'treadmill' | 'outdoor', sessionId: string} | null>(null);
+  const [activePlan, setActivePlan] = useState<{plan: WorkoutPlan, mode: 'treadmill' | 'outdoor', sessionId: string, simulateGps?: boolean} | null>(null);
   const [isFreeTraining, setIsFreeTraining] = useState(false);
-  const [workoutToStart, setWorkoutToStart] = useState<{plan: WorkoutPlan, mode?: 'treadmill' | 'outdoor'} | null>(null);
+  const [workoutToStart, setWorkoutToStart] = useState<{plan: WorkoutPlan, mode?: 'treadmill' | 'outdoor', simulateGps?: boolean} | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [isLightMode, setIsLightMode] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
@@ -178,7 +178,7 @@ export default function App() {
       if (mode === 'outdoor') {
         navigator.geolocation.getCurrentPosition(() => {}, (err) => console.error(err));
       }
-      setActivePlan({ plan: workoutToStart.plan, mode, sessionId: `${workoutToStart.plan.id}-${Date.now()}` });
+      setActivePlan({ plan: workoutToStart.plan, mode, sessionId: `${workoutToStart.plan.id}-${Date.now()}`, simulateGps: workoutToStart.simulateGps });
       setWorkoutToStart(null);
     }
   };
@@ -458,7 +458,14 @@ export default function App() {
                            <button className={`flex-1 p-3 rounded-lg ${workoutToStart.mode === 'treadmill' ? 'bg-accent text-white' : 'bg-bg-elevated text-text-primary'}`} onClick={() => setWorkoutToStart({...workoutToStart, mode: 'treadmill'})}>Esteira</button>
                         </div>
                       </div>
-                      
+
+                      {workoutToStart.mode === 'outdoor' && (
+                        <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer mb-4">
+                          <input type="checkbox" checked={!!workoutToStart.simulateGps} onChange={(e) => setWorkoutToStart({...workoutToStart, simulateGps: e.target.checked})} className="accent-accent" />
+                          Simular GPS (dados fictícios para teste)
+                        </label>
+                      )}
+
                       <div className="flex gap-4">
                           <Button variant="secondary" className="flex-1" onClick={() => setWorkoutToStart(null)}>Voltar</Button>
                           <Button className="flex-1" disabled={!workoutToStart.mode} onClick={() => confirmWorkoutMode(workoutToStart.mode as 'treadmill' | 'outdoor')}>
@@ -474,6 +481,7 @@ export default function App() {
                   key={activePlan.sessionId} 
                   plan={activePlan.plan} 
                   mode={activePlan.mode} 
+                  simulateGps={activePlan.simulateGps}
                   onStop={() => { setActivePlan(null); setIsFreeTraining(false); }} 
                   markAsCompleted={markAsCompleted}
                   totalWorkoutTime={calculateTotalDuration(activePlan.plan)}
