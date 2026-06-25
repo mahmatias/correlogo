@@ -426,7 +426,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
     const pages = [
         <div key="page1">
             <h2 className="text-xl font-bold mb-4">Qual seu objetivo?</h2>
-            <select className="w-full p-2 border rounded" value={data.goal?.raceDistance} onChange={e => setData({...data, goal: {...data.goal, raceDistance: e.target.value as any}})}>
+            <select className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary" value={data.goal?.raceDistance} onChange={e => setData({...data, goal: {...data.goal, raceDistance: e.target.value as any}})}>
                 <option value="none">Condicionamento</option>
                 <option value="5k">5K</option>
                 <option value="10k">10K</option>
@@ -437,7 +437,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                 <>
                     <div className="mt-4">
                         <label>Data da prova:</label>
-                        <input type="date" className="w-full p-2 border rounded" onChange={e => setData({...data, raceDate: e.target.value})} />
+                        <input type="date" className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary" onChange={e => setData({...data, raceDate: e.target.value})} />
                     </div>
                     {data.goal.raceDistance === (data.referenceRace?.distanceKm + 'k') && (
                         <div className="mt-4">
@@ -453,7 +453,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                                             setTargetPaceMin(m);
                                             setData({...data, goal: {...data.goal, targetPace: m + (targetPaceSec ?? 0) / 60}});
                                         }}
-                                        className="w-full p-2 border rounded text-center"
+                                        className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary text-center"
                                     >
                                         {Array.from({length: 10}, (_, i) => i + 3).map(m => (
                                             <option key={m} value={m}>{m}</option>
@@ -470,7 +470,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                                             setTargetPaceSec(s);
                                             setData({...data, goal: {...data.goal, targetPace: (targetPaceMin ?? 7) + s / 60}});
                                         }}
-                                        className="w-full p-2 border rounded text-center"
+                                        className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary text-center"
                                     >
                                         {Array.from({length: 60}, (_, i) => i).map(s => (
                                             <option key={s} value={s}>{String(s).padStart(2, '0')}</option>
@@ -502,7 +502,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
             </label>
             {!useEstimation ? (
                 <>
-                    <input type="number" placeholder="Distância (km)" className="w-full p-2 border rounded mb-2" onChange={e => setData({...data, referenceRace: {...data.referenceRace!, distanceKm: Math.max(0, parseFloat(e.target.value) || 0)}})} />
+                    <input type="number" placeholder="Distância (km)" className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary mb-2" onChange={e => setData({...data, referenceRace: {...data.referenceRace!, distanceKm: Math.max(0, parseFloat(e.target.value) || 0)}})} />
                     <div className="flex gap-2 items-center mb-2">
                       <label className="text-sm text-gray-600 w-full">Tempo da corrida:</label>
                     </div>
@@ -516,7 +516,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                             setRefHours(h);
                             setData({...data, referenceRace: {...data.referenceRace!, timeSeconds: h * 3600 + refMinutes * 60 + refSeconds}});
                           }}
-                          className="w-full p-2 border rounded text-center"
+                          className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary text-center"
                         />
                         horas
                       </label>
@@ -529,7 +529,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                             setRefMinutes(m);
                             setData({...data, referenceRace: {...data.referenceRace!, timeSeconds: refHours * 3600 + m * 60 + refSeconds}});
                           }}
-                          className="w-full p-2 border rounded text-center"
+                          className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary text-center"
                         />
                         minutos
                       </label>
@@ -542,7 +542,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                             setRefSeconds(s);
                             setData({...data, referenceRace: {...data.referenceRace!, timeSeconds: refHours * 3600 + refMinutes * 60 + s}});
                           }}
-                          className="w-full p-2 border rounded text-center"
+                          className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary text-center"
                         />
                         segundos
                       </label>
@@ -563,7 +563,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                           setComfortPaceMin(m);
                           setData({...data, referenceRace: { distanceKm: 5, timeSeconds: (m + (comfortPaceSec ?? 0) / 60) * 5 * 60 }});
                         }}
-                        className="w-full p-2 border rounded text-center"
+                        className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary text-center"
                       >
                         {Array.from({length: 10}, (_, i) => i + 6).map(m => (
                           <option key={m} value={m}>{m}</option>
@@ -580,7 +580,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                           setComfortPaceSec(s);
                           setData({...data, referenceRace: { distanceKm: 5, timeSeconds: ((comfortPaceMin ?? 12) + s / 60) * 5 * 60 }});
                         }}
-                        className="w-full p-2 border rounded text-center"
+                        className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary text-center"
                       >
                         {Array.from({length: 60}, (_, i) => i).map(s => (
                           <option key={s} value={s}>{String(s).padStart(2, '0')}</option>
@@ -606,7 +606,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                           const targetPace = m + (beginnerTargetPaceSec ?? 0) / 60;
                           setData({...data, goal: {...data.goal, targetPace}});
                         }}
-                        className="w-full p-2 border rounded text-center"
+                        className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary text-center"
                       >
                         {Array.from({length: 9}, (_, i) => i + 3).map(m => (
                           <option key={m} value={m}>{m}</option>
@@ -624,7 +624,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                           const targetPace = (beginnerTargetPaceMin ?? 8) + s / 60;
                           setData({...data, goal: {...data.goal, targetPace}});
                         }}
-                        className="w-full p-2 border rounded text-center"
+                        className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary text-center"
                       >
                         {Array.from({length: 60}, (_, i) => i).map(s => (
                           <option key={s} value={s}>{String(s).padStart(2, '0')}</option>
@@ -651,7 +651,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                                     const p = m + (estimationPaceSec ?? 0) / 60;
                                     setData({...data, referenceRace: { distanceKm: 5, timeSeconds: p * 5 * 60 }});
                                 }}
-                                className="w-full p-2 border rounded text-center"
+                                className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary text-center"
                             >
                                 {Array.from({length: 10}, (_, i) => i + 6).map(m => (
                                     <option key={m} value={m}>{m}</option>
@@ -669,7 +669,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                                     const p = (estimationPaceMin ?? 9) + s / 60;
                                     setData({...data, referenceRace: { distanceKm: 5, timeSeconds: p * 5 * 60 }});
                                 }}
-                                className="w-full p-2 border rounded text-center"
+                                className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary text-center"
                             >
                                 {Array.from({length: 60}, (_, i) => i).map(s => (
                                     <option key={s} value={s}>{String(s).padStart(2, '0')}</option>
@@ -694,7 +694,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                 </label>
             ))}
             <h2 className="text-xl font-bold mt-4 mb-2">Modo de treino</h2>
-            <select className="w-full p-2 border rounded" value={data.mode} onChange={e => setData({...data, mode: e.target.value as any})}>
+            <select className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary" value={data.mode} onChange={e => setData({...data, mode: e.target.value as any})}>
                 <option value="outdoor">Rua</option>
                 <option value="treadmill">Esteira</option>
                 <option value="both">Ambos</option>
@@ -702,7 +702,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
         </div>,
         <div key="page4">
             <h2 className="text-xl font-bold mb-4">Nível de experiência</h2>
-            <select className="w-full p-2 border rounded" value={data.experienceLevel} onChange={e => setData({...data, experienceLevel: e.target.value as any})}>
+            <select className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary" value={data.experienceLevel} onChange={e => setData({...data, experienceLevel: e.target.value as any})}>
                 <option value="beginner">Iniciante</option>
                 <option value="intermediate">Intermediário</option>
                 <option value="advanced">Avançado</option>
@@ -711,14 +711,14 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
     ];
 
     return (
-        <div className="p-6 bg-selenite rounded-xl relative">
-            <button onClick={onCancel} className="absolute top-2 right-2 text-gray-500"><X size={20} /></button>
+        <div className="p-6 bg-bg-surface rounded-xl border border-border relative">
+            <button onClick={onCancel} className="absolute top-2 right-2 text-text-muted"><X size={20} /></button>
             {pages[page]}
             <div className="flex justify-between mt-6">
-                <button disabled={page === 0} onClick={() => setPage(page - 1)} className="p-2 bg-gray-300 rounded">Voltar</button>
+                <button disabled={page === 0} onClick={() => setPage(page - 1)} className="p-2 bg-bg-elevated text-text-primary rounded">Voltar</button>
                 {page < pages.length - 1 ? 
-                    <button disabled={page === 0 && isDeadlineRisky()} onClick={() => setPage(page + 1)} className="p-2 bg-amethyst text-white rounded">Próximo</button> :
-                    <button onClick={() => onGenerate(generateProgram(data))} className="p-2 bg-amethyst text-white rounded">Gerar</button>
+                    <button disabled={page === 0 && isDeadlineRisky()} onClick={() => setPage(page + 1)} className="p-2 bg-accent text-white rounded">Próximo</button> :
+                    <button onClick={() => onGenerate(generateProgram(data))} className="p-2 bg-accent text-white rounded">Gerar</button>
                 }
             </div>
         </div>

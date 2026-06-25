@@ -5,12 +5,11 @@ interface Props {
   sessions: TrainingSession[];
   onClose: () => void;
   onSelectSession: (session: TrainingSession) => void;
-  isDarkMode: boolean;
 }
 
-export default function SessionHistory({ sessions, onClose, onSelectSession, isDarkMode }: Props) {
+export default function SessionHistory({ sessions, onClose, onSelectSession }: Props) {
   return (
-    <div className={`fixed inset-0 z-50 flex flex-col p-6 overflow-y-auto ${isDarkMode ? 'bg-bg-deep' : 'bg-agate-cream'} text-${isDarkMode ? 'text-text-primary' : 'obsidian'}`}>
+    <div className="fixed inset-0 z-50 flex flex-col p-6 overflow-y-auto">
         <button onClick={onClose} className="mb-6 flex items-center gap-2">
             <ArrowLeft /> Voltar
         </button>
@@ -23,7 +22,7 @@ export default function SessionHistory({ sessions, onClose, onSelectSession, isD
                 {sessions.map(session => (
                     <div 
                         key={session.id} 
-                        className={`p-4 rounded-xl cursor-pointer ${isDarkMode ? 'bg-bg-bedrock' : 'bg-selenite'}`}
+                        className="p-4 rounded-xl cursor-pointer bg-bg-surface"
                         onClick={() => onSelectSession(session)}
                     >
                         <div className="flex justify-between items-center mb-2">

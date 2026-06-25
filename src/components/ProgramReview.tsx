@@ -31,7 +31,7 @@ export default function ProgramReview({ program, onConfirm, onCancel }: ProgramR
   }
 
   return (
-    <div className="p-6 bg-selenite rounded-xl">
+    <div className="p-6 bg-bg-surface rounded-xl border border-border">
       <h2 className="text-2xl font-bold mb-4">Revisar Plano: {localProgram.name}</h2>
       
       <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-yellow-800 text-sm mb-6">
@@ -40,7 +40,7 @@ export default function ProgramReview({ program, onConfirm, onCancel }: ProgramR
 
       <div className="space-y-4">
         {localProgram.weeks.map((week, weekIndex) => (
-          <div key={week.weekNumber} className="border rounded-lg p-4 bg-white">
+          <div key={week.weekNumber} className="border border-border rounded-lg p-4 bg-bg-elevated">
             <button 
               className="w-full text-left font-semibold"
               onClick={() => setExpandedWeek(expandedWeek === weekIndex ? null : weekIndex)}
@@ -51,11 +51,11 @@ export default function ProgramReview({ program, onConfirm, onCancel }: ProgramR
             {expandedWeek === weekIndex && (
               <div className="mt-4 space-y-2">
                 {week.plans.map((plan, sessionIndex) => (
-                  <div key={plan.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                  <div key={plan.id} className="flex justify-between items-center p-2 bg-bg-elevated rounded">
                     <span>{plan.name}</span>
                     <div className="flex gap-2">
                       <button 
-                        className="text-amethyst text-sm"
+                        className="text-accent-secondary text-sm"
                         onClick={() => setEditingSession({ weekIndex, sessionIndex, plan })}
                       >
                         Editar
@@ -82,8 +82,8 @@ export default function ProgramReview({ program, onConfirm, onCancel }: ProgramR
       </div>
       
       <div className="flex justify-between gap-4 mt-6">
-        <button onClick={onCancel} className="p-2 bg-gray-300 rounded">Cancelar</button>
-        <button onClick={() => onConfirm(localProgram)} className="p-2 bg-amethyst text-white rounded">Confirmar e salvar plano</button>
+        <button onClick={onCancel} className="p-2 bg-bg-elevated text-text-primary rounded">Cancelar</button>
+        <button onClick={() => onConfirm(localProgram)} className="p-2 bg-accent text-white rounded">Confirmar e salvar plano</button>
       </div>
     </div>
   );

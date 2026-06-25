@@ -112,14 +112,14 @@ export default function ImportPlan({ onImport, plans }: Props) {
     <>
       <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
       <button 
-        className="flex items-center justify-center gap-2 w-full bg-gray-100 py-3 rounded-lg hover:bg-gray-200 transition text-gray-700"
+        className="flex items-center justify-center gap-2 w-full bg-bg-elevated py-3 rounded-lg hover:opacity-80 transition text-text-primary"
         onClick={() => fileInputRef.current?.click()}
       >
         <Download size={20} />
         {plans.length > 0 ? "Substituir Plano de Treino" : "Importar Plano de Treino"}
       </button>
       {plans.length > 0 && (
-          <p className="text-center text-sm text-gray-600 my-4 font-semibold">
+          <p className="text-center text-sm text-text-secondary my-4 font-semibold">
             Programa Atual: {plans[0].programName || "Desconhecido"}
           </p>
       )}

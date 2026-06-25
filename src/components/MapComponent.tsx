@@ -43,12 +43,18 @@ function MapBounds({ path }: { path: { lat: number; lng: number }[] }) {
     return null;
 }
 
-export default function MapComponent({ coords, path, isDarkMode }: { coords: { lat: number; lng: number } | null, path: { lat: number; lng: number }[], isDarkMode: boolean }) {
-    const [layerType, setLayerType] = useState<'light' | 'dark' | 'satellite'>(isDarkMode ? 'dark' : 'light');
+const getIsDark = () => !document.documentElement.classList.contains('light');
+
+export default function MapComponent({ coords, path }: { coords: { lat: number; lng: number } | null, path: { lat: number; lng: number }[] }) {
+    const [layerType, setLayerType] = useState<'light' | 'dark' | 'satellite'>(getIsDark() ? 'dark' : 'light');
     
     useEffect(() => {
-        setLayerType(isDarkMode ? 'dark' : 'light');
-    }, [isDarkMode]);
+        const observer = new MutationObserver(() => {
+            setLayerType(getIsDark() ? 'dark' : 'light');
+        });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        return () => observer.disconnect();
+    }, []);
 
     const layer = layers[layerType];
 
@@ -69,7 +75,7 @@ export default function MapComponent({ coords, path, isDarkMode }: { coords: { l
                     url={layer.url}
                     attribution={layer.attribution}
                 />
-                <Polyline positions={path.map(p => [p.lat, p.lng] as [number, number])} color={isDarkMode ? '#FBC02D' : '#4285F4'} weight={4} />
+                <Polyline positions={path.map(p => [p.lat, p.lng] as [number, number])} color={layerType === 'dark' ? '#FBC02D' : '#4285F4'} weight={4} />
                 {coords && <Marker position={[coords.lat, coords.lng]} />}
                 <MapBounds path={path} />
             </MapContainer>

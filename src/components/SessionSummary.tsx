@@ -11,10 +11,9 @@ interface Props {
   plan?: WorkoutPlan;
   onClose: () => void;
   onSuggestAdjustment?: (adjustedPlan: WorkoutPlan) => void;
-  isDarkMode: boolean;
 }
 
-export default function SessionSummary({ session, plan, onClose, onSuggestAdjustment, isDarkMode }: Props) {
+export default function SessionSummary({ session, plan, onClose, onSuggestAdjustment }: Props) {
   const [viewMode, setViewMode] = useState<'km' | 'lap'>('km');
 
   // Basic stats
@@ -56,7 +55,7 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
   const exportGPX = () => downloadFile(generateGPX(session), `session_${session.id}.gpx`, 'application/gpx+xml');
 
   return (
-    <div className={`fixed inset-0 z-50 flex flex-col p-6 overflow-y-auto ${isDarkMode ? 'bg-bg-deep' : 'bg-agate-cream'} text-${isDarkMode ? 'text-text-primary' : 'obsidian'}`}>
+    <div className="fixed inset-0 z-50 flex flex-col p-6 overflow-y-auto">
         <button onClick={onClose} className="mb-4 flex items-center gap-2">
             <ArrowLeft /> Voltar
         </button>
@@ -64,39 +63,39 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
         <h2 className="text-2xl font-bold mb-6 text-center">Resumo da Sessão</h2>
 
         <div className="flex gap-2 mb-6 justify-center">
-            <button onClick={exportTCX} className="px-4 py-2 bg-tourmaline text-selenite rounded-lg text-sm font-bold">Exportar .TCX</button>
+            <button onClick={exportTCX} className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-bold">Exportar .TCX</button>
             {session.mode === 'outdoor' && (
-                <button onClick={exportGPX} className="px-4 py-2 bg-tourmaline text-selenite rounded-lg text-sm font-bold">Exportar .GPX</button>
+                <button onClick={exportGPX} className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-bold">Exportar .GPX</button>
             )}
         </div>
 
         {path.length > 0 && (
             <div className="w-full mb-6 h-64">
-                <MapComponent coords={null} path={path} isDarkMode={isDarkMode} />
+                <MapComponent coords={null} path={path} />
             </div>
         )}
 
         <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-bg-bedrock' : 'bg-selenite'}`}>
+            <div className="p-4 rounded-xl bg-bg-surface">
                 <div className="text-sm text-text-muted">Total Distância</div>
                 <div className="text-xl font-bold">{formatDistance(session.totalDistanceKm)}</div>
             </div>
-            <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-bg-bedrock' : 'bg-selenite'}`}>
+            <div className="p-4 rounded-xl bg-bg-surface">
                 <div className="text-sm text-text-muted">Total Tempo</div>
                 <div className="text-xl font-bold">{formatDuration(session.totalDurationSeconds)}</div>
             </div>
-            <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-bg-bedrock' : 'bg-selenite'}`}>
+            <div className="p-4 rounded-xl bg-bg-surface">
                 <div className="text-sm text-text-muted">Pace Médio</div>
                 <div className="text-xl font-bold">{formatDuration(Math.round(avgPace))} /km</div>
             </div>
-            <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-bg-bedrock' : 'bg-selenite'}`}>
+            <div className="p-4 rounded-xl bg-bg-surface">
                 <div className="text-sm text-text-muted">Melhor Pace</div>
                 <div className="text-xl font-bold">{formatDuration(Math.round(bestPace))} /km</div>
             </div>
         </div>
         
         {evaluation && (
-          <div className={`p-4 rounded-xl mb-6 ${isDarkMode ? 'bg-bg-bedrock' : 'bg-selenite'}`}>
+          <div className="p-4 rounded-xl mb-6 bg-bg-surface">
             <h3 className="font-bold mb-4">Desempenho vs Plano</h3>
             <div className="text-sm mb-2">{evaluation.completionRate.toFixed(0)}% dos steps concluídos no pace alvo</div>
             <div className="space-y-2 mb-4">
@@ -123,7 +122,7 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
         )}
 
         {pacePoints.length > 0 && (
-            <div className={`p-4 rounded-xl mb-6 ${isDarkMode ? 'bg-bg-bedrock' : 'bg-selenite'}`}>
+            <div className="p-4 rounded-xl mb-6 bg-bg-surface">
                 <h3 className="font-bold mb-4">Variação de Pace</h3>
                 <div className="relative h-48 min-h-[192px]">
                     <ResponsiveContainer width="100%" height="100%">
