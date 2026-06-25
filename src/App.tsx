@@ -463,6 +463,13 @@ export default function App() {
                             <span className="text-xs text-text-muted">{formatTotalDuration(calculateTotalDuration(plan))}</span>
                             <div className='flex gap-2 items-center'>
                                 <button 
+                                    className="p-2 text-text-muted hover:text-accent hover:bg-bg-elevated rounded-full"
+                                    onClick={(e) => { e.stopPropagation(); setPlanToDelete(plan); }}
+                                    aria-label="Apagar atividade"
+                                >
+                                    <Trash2 size={20} />
+                                </button>
+                                <button 
                                     className={`p-2 text-accent-secondary hover:bg-bg-elevated rounded-full ${!sessions.some(s => s.planId === plan.id) ? 'opacity-30 cursor-not-allowed' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); setSelectedSession(sessions.find(s => s.planId === plan.id) || null); }}
                                     disabled={!sessions.some(s => s.planId === plan.id)}
@@ -487,7 +494,7 @@ export default function App() {
                               {plan.steps.map((step, idx) => {
                                 const ptType = step.type === 'warmup' ? 'Aquecimento' : step.type === 'run' ? 'Corrida' : step.type === 'cooldown' ? 'Desaquecimento' : step.type === 'rest' ? 'Descanso' : step.type;
                                 return (
-                                  <li key={idx}>{ptType}: {formatDuration(step.durationSeconds)}min @ { (60/(step.targetPace||1)).toFixed(1) } KM/h (Ritmo {Math.floor(step.targetPace||0)}'{Math.round(((step.targetPace||0) % 1) * 60)}"/km)</li>
+                                  <li key={idx}>{ptType}: {formatDuration(step.durationSeconds)}min{step.targetPace ? ` @ ${(60/step.targetPace).toFixed(1)} KM/h (Ritmo ${Math.floor(step.targetPace)}'${Math.round((step.targetPace % 1) * 60)}"/km)` : ''}</li>
                                 );
                               })}
                             </ul>

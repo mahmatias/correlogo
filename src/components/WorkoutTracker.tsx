@@ -254,7 +254,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
             const speedKmh = 60 / (currentStep.targetPace || 1);
             const isDistBasis = currentStep.basis === 'distance';
             
-            speak(`Volta atual ${isDistBasis ? formatDistance(targetDist) : formatDurationSpeech(stepDuration)} de ${ptType} Pace ${currentStep.targetPace || 0}`);
+             speak(`Volta atual ${isDistBasis ? formatDistance(targetDist) : formatDurationSpeech(stepDuration)} de ${ptType}${currentStep.targetPace ? ` Pace ${currentStep.targetPace}` : ''}`);
         }
 
         // Almost-there announcement before step completes
@@ -278,7 +278,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                 const nextLabel = next.type === 'warmup' ? 'Aquecimento' : next.type === 'run' ? 'Corrida' : next.type === 'cooldown' ? 'Desaquecimento' : next.type === 'rest' ? 'Caminhada' : next.type;
                 const nextIsDist = next.basis === 'distance';
                 const nextObj = nextIsDist ? formatDistance(getStepTargetDistance(next)) : formatDurationSpeech(getStepDurationSeconds(next));
-                speak(`${prefix}Próxima volta: ${nextObj} de ${nextLabel} Pace ${next.targetPace || 0}`);
+                speak(`${prefix}Próxima volta: ${nextObj} de ${nextLabel}${next.targetPace ? ` Pace ${next.targetPace}` : ''}`);
             }
         }
 
@@ -444,7 +444,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
              {/* Step objective */}
         <div className="relative bg-bg-elevated rounded p-1 mb-2 overflow-hidden w-full h-5">
             <div key={currentStepIndex} className={`absolute top-1/2 -translate-y-1/2 ${!isPaused && countdown === 0 ? 'animate-marquee' : ''} text-[10px] text-text-primary whitespace-nowrap`}>
-               {isFreeTraining ? 'Corrida Livre' : `${isDistanceStep ? formatDistance(stepTargetDistance) : formatDuration(step.durationSeconds)} ${getStepTypeLabel(step.type)} @ ${(60/(step.targetPace||1)).toFixed(1)} KM/h`}
+                {isFreeTraining ? 'Corrida Livre' : `${isDistanceStep ? formatDistance(stepTargetDistance) : formatDuration(step.durationSeconds)} ${getStepTypeLabel(step.type)}${step.targetPace ? ` @ ${(60/step.targetPace).toFixed(1)} KM/h` : ''}`}
             </div>
         </div>
 
