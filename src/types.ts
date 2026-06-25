@@ -44,7 +44,7 @@ export interface WorkoutStep {
 const STEP_TYPE_LABELS_PT: Record<WorkoutStep['type'], string> = {
   warmup: 'Aquecimento',
   run: 'Corrida',
-  rest: 'Intervalo',
+  rest: 'Caminhada',
   cooldown: 'Desaquecimento',
 };
 
