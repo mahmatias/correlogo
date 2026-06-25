@@ -8,3 +8,5 @@ coverage/
 !.env.example
 install.sh
 firebase-applet-config.json
+.superpowers/
+opencode.json
