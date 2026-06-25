@@ -352,7 +352,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
                         <label>Data da prova:</label>
                         <input type="date" className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary" onChange={e => setData({...data, raceDate: e.target.value})} />
                     </div>
-                    {data.goal.raceDistance === (data.referenceRace?.distanceKm + 'k') && (
+                    {data.goal.raceDistance !== 'none' && (
                         <div className="mt-4">
                             <label className="text-sm text-gray-600 block mb-2">
                                 Qual seu pace alvo para esse programa (min/km)?
