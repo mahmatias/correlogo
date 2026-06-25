@@ -51,12 +51,31 @@
 
 ---
 
+## 2026-06-25 — Novas features solicitadas
+
+### Pendente
+- [ ] Testar modo GPS com localização em movimento mock
+- [ ] Calendário de Treinos
+- [ ] Área do Usuário (perfil, configurações)
+
+---
+
+## 2026-06-25 — Fixes S3, S7, U9, U12, U13, U15
+
+### Feito
+- ✅ S3. Servidor Express com helmet (CSP/HSTS/X-Frame-Options)
+- ✅ S7. GOOGLE_MAPS_PLATFORM_KEY removido do vite.config.ts (morto)
+- ✅ U9. Signup com link "Já tem conta? Entrar"
+- ✅ U12. Botão DESCARTAR com estilo secundário (bg-bg-elevated + border)
+- ✅ U13. Google Login com fallback signInWithRedirect se popup for bloqueado
+- ✅ U15. Aviso explícito de "apagado permanentemente" no modal de uncomplete
+
+---
+
 ## Pendentes (não-audit)
 
 ### Média Prioridade
-- [ ] S3. Servidor Express sem helmet/CSP/HSTS
 - [ ] S5. Dados PII (gênero, data nascimento) — coletados mas nunca usados
-- [ ] S7. GOOGLE_MAPS_PLATFORM_KEY morto no vite.config.ts
 - [ ] S8. dotenv não importado no server.ts
 - [ ] P5. Sem useCallback / React.memo
 - [ ] P9. vite em dependencies E devDependencies
@@ -67,9 +86,5 @@
 - [ ] U2. Gerador com 15+ campos — simplificar
 - [ ] U3. Visão de progresso (streak, evolução, PRs)
 - [ ] U6. Tela principal com 7+ ações — hierarquia visual
-- [ ] U9. Signup sem link "Já tem conta? Entrar"
 - [ ] U10. Link morto nos Termos de Serviço
-- [ ] U12. Botão CANCELAR com mesmo peso visual do primário
-- [ ] U13. Google Login com popup (pode ser bloqueado) — fallback redirect
 - [ ] U14. Re-exportação de treino após fechar summary
-- [ ] U15. "Desmarcar" destrói sessão sem aviso

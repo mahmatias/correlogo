@@ -5,7 +5,11 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { getFirebaseErrorPt } from '../lib/firebaseErrorsPtBr';
 
-export default function Signup() {
+interface SignupProps {
+  onLoginClick?: () => void;
+}
+
+export default function Signup({ onLoginClick }: SignupProps) {
     const [formData, setFormData] = useState({
         name: '', surname: '', gender: '', otherGender: '', dob: '',
         email: '', confirmEmail: '', password: '', confirmPassword: '', termsAccepted: false
@@ -114,7 +118,8 @@ export default function Signup() {
             </label>
 
             {error && <p className="text-danger mb-2" role="alert">{error}</p>}
-            <button type="submit" disabled={loading} className="bg-accent disabled:opacity-50 text-white p-2 rounded w-full">{loading ? 'Cadastrando…' : 'Cadastrar'}</button>
+            <button type="submit" disabled={loading} className="bg-accent disabled:opacity-50 text-white p-2 rounded w-full mb-2">{loading ? 'Cadastrando…' : 'Cadastrar'}</button>
+            {onLoginClick && <button type="button" onClick={onLoginClick} className="text-accent-secondary w-full">Já tem conta? Entrar</button>}
         </form>
     );
 }
