@@ -437,6 +437,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                     onTouchStart={(e) => { e.preventDefault(); if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
                     onTouchEnd={stopAdjusting}
                     className="p-4 rounded-lg bg-bg-elevated"
+                    aria-label="Diminuir velocidade"
                 >
                     <Minus />
                 </button>
@@ -451,6 +452,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                     onTouchStart={(e) => { e.preventDefault(); if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(0.1); } }}
                     onTouchEnd={stopAdjusting}
                     className="p-4 rounded-lg bg-bg-elevated"
+                    aria-label="Aumentar velocidade"
                 >
                     <Plus />
                 </button>
@@ -467,7 +469,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                 className="w-full flex items-center justify-center gap-2 bg-accent text-white py-4 rounded-full font-bold mb-4 uppercase relative overflow-hidden"
             >
                 <div className="absolute inset-0 bg-white opacity-20" style={{ width: `${finishProgress}%` }}></div>
-                <Square /> Finalizar treino
+                <Square aria-hidden="true" /> Finalizar treino
             </button>
         ) : (
             <button 
@@ -475,15 +477,15 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                 disabled={currentStepIndex >= plan.steps.length - 1}
                 className={`w-full flex items-center justify-center gap-2 bg-bg-elevated text-text-primary py-4 rounded-full font-bold mb-4 uppercase ${currentStepIndex >= plan.steps.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-                <SkipForward /> Próxima volta
+                <SkipForward aria-hidden="true" /> Próxima volta
             </button>
         )}
         <button onClick={() => setIsPaused(!isPaused)} className="w-full flex items-center justify-center gap-2 bg-accent-secondary text-white py-4 rounded-full font-bold uppercase mb-4">
-            {isPaused ? <Play /> : <Pause />} {isPaused ? 'Continuar' : 'Pausar'}
+            {isPaused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />} {isPaused ? 'Continuar' : 'Pausar'}
         </button>
 
         {isWorkoutCompleted && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70" role="dialog" aria-modal="true" aria-label="Treino finalizado">
                 <div className="p-8 rounded-3xl shadow-2xl w-full max-w-sm bg-bg-surface border border-border">
                     <h2 className="text-2xl font-bold mb-8 text-center text-text-primary">Treino Finalizado</h2>
                     <div className="flex flex-col gap-4">

@@ -56,7 +56,9 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
     return (
         <div className="p-6 bg-bg-surface rounded-xl border border-border">
             <h2 className="text-2xl font-bold mb-4">{initialPlan ? 'Editar Sessão' : 'Novo Plano de Treino'}</h2>
+            <label htmlFor="workout-name" className="sr-only">Nome do treino</label>
             <input 
+                id="workout-name"
                 type="text" 
                 placeholder="Nome do treino" 
                 value={name} 
@@ -68,9 +70,9 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
                 <div key={step.id} className="flex flex-col gap-2 mb-4 p-3 bg-bg-elevated rounded">
                     <div className="flex gap-2 items-center">
                         <span className="flex-1 font-semibold">{getStepTypeLabel(step.type)}</span>
-                        <button onClick={() => moveStep(index, 'up')}><ArrowUp size={16} /></button>
-                        <button onClick={() => moveStep(index, 'down')}><ArrowDown size={16} /></button>
-                        <button onClick={() => removeStep(step.id)} className="text-red-500"><Trash2 size={16} /></button>
+                        <button onClick={() => moveStep(index, 'up')} aria-label="Mover passo para cima"><ArrowUp size={16} /></button>
+                        <button onClick={() => moveStep(index, 'down')} aria-label="Mover passo para baixo"><ArrowDown size={16} /></button>
+                        <button onClick={() => removeStep(step.id)} className="text-red-500" aria-label="Remover passo"><Trash2 size={16} /></button>
                     </div>
                     {step.type === 'run' ? (
                         <div className="flex flex-col gap-2 text-sm">

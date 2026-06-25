@@ -304,18 +304,21 @@ export default function App() {
                 <button 
                   onClick={() => setShowHistory(true)}
                   className="p-2 rounded-full bg-bg-elevated text-accent-secondary"
+                  aria-label="Histórico de treinos"
                 >
                   <BarChart2 size={20} />
                 </button>
                 <button 
                   onClick={handleLogout}
                   className="p-2 rounded-full bg-bg-elevated text-accent"
+                  aria-label="Sair"
                 >
                   <LogOut size={20} />
                 </button>
                 <button 
                   onClick={toggleDarkMode}
                   className="p-2 rounded-full bg-bg-elevated text-accent-secondary"
+                  aria-label={isLightMode ? 'Alternar para modo escuro' : 'Alternar para modo claro'}
                 >
                   {isLightMode ? '🌙' : '☀️'}
                 </button>
@@ -324,7 +327,7 @@ export default function App() {
             )}
             
             {workoutToStart && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-label="Configurar treino">
                 <div className="p-6 rounded-2xl shadow-xl w-full max-w-sm bg-bg-surface border border-border">
                     <h2 className="text-xl font-bold mb-6 text-text-primary">Configurar Treino</h2>
                     
@@ -429,8 +432,9 @@ export default function App() {
                           onClick={() => togglePlanExpansion(plan.id)}
                         >
                           <div className='flex gap-2 items-center'>
-                            <button onClick={(e) => { e.stopPropagation(); toggleComplete(plan); }}>
+                            <button onClick={(e) => { e.stopPropagation(); toggleComplete(plan); }} aria-label={plan.isCompleted ? 'Marcar como não realizado' : 'Marcar como realizado'}>
                                 {plan.isCompleted ? <CheckCircle className='text-accent-secondary' /> : <Circle className='text-text-muted' />}
+                                <span className="sr-only">{plan.isCompleted ? 'Concluído' : 'Pendente'}</span>
                             </button>
                             <span className="font-medium text-text-primary">{plan.activityName || plan.name || 'Plano sem nome'}</span>
                           </div>
@@ -442,6 +446,7 @@ export default function App() {
                                     className={`p-2 text-accent-secondary hover:bg-bg-elevated rounded-full ${!sessions.some(s => s.planId === plan.id) ? 'opacity-30 cursor-not-allowed' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); setSelectedSession(sessions.find(s => s.planId === plan.id) || null); }}
                                     disabled={!sessions.some(s => s.planId === plan.id)}
+                                    aria-label="Histórico desta atividade"
                                 >
                                     <BarChart2 size={20} />
                                 </button>
@@ -449,6 +454,7 @@ export default function App() {
                                     className={`p-2 text-accent hover:bg-bg-elevated rounded-full ${plan.isCompleted ? 'cursor-not-allowed opacity-30' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); if (!plan.isCompleted) startWorkout(plan); }}
                                     disabled={plan.isCompleted}
+                                    aria-label={plan.isCompleted ? 'Atividade já concluída' : 'Iniciar atividade'}
                                 >
                                     <Play size={20} />
                                 </button>
@@ -474,7 +480,7 @@ export default function App() {
               </div>
             )}
             {planToUncomplete && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70">
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70" role="alertdialog" aria-modal="true" aria-label="Confirmar desmarcar atividade">
                 <div className="p-8 rounded-3xl shadow-2xl w-full max-w-sm bg-bg-surface border border-border">
                     <h2 className="text-xl font-bold mb-4 text-center text-text-primary">Confirmar</h2>
                     <p className="mb-8 text-center text-text-secondary">
@@ -499,7 +505,7 @@ export default function App() {
               </div>
             )}
             {planToDelete && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70">
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70" role="alertdialog" aria-modal="true" aria-label="Confirmar exclusão">
                 <div className="p-8 rounded-3xl shadow-2xl w-full max-w-sm bg-bg-surface border border-border">
                     <h2 className="text-xl font-bold mb-4 text-center text-text-primary">Confirmar Exclusão</h2>
                     <p className="mb-8 text-center text-text-secondary">

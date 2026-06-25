@@ -9,7 +9,7 @@ interface Props {
 
 export default function SessionHistory({ sessions, onClose, onSelectSession }: Props) {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col p-6 overflow-y-auto bg-bg-deep text-text-primary">
+    <div className="fixed inset-0 z-50 flex flex-col p-6 overflow-y-auto bg-bg-deep text-text-primary" role="dialog" aria-modal="true" aria-label="Histórico de treinos">
         <button onClick={onClose} className="mb-6 flex items-center gap-2">
             <ArrowLeft /> Voltar
         </button>

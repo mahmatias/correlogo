@@ -712,7 +712,7 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
 
     return (
         <div className="p-6 bg-bg-surface rounded-xl border border-border relative">
-            <button onClick={onCancel} className="absolute top-2 right-2 text-text-muted"><X size={20} /></button>
+            <button onClick={onCancel} className="absolute top-2 right-2 text-text-muted" aria-label="Fechar"><X size={20} /></button>
             {pages[page]}
             <div className="flex justify-between mt-6">
                 <button disabled={page === 0} onClick={() => setPage(page - 1)} className="p-2 bg-bg-elevated text-text-primary rounded">Voltar</button>
