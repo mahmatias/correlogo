@@ -79,6 +79,7 @@ export interface TrainingSession {
   id: string;
   planId: string;
   planName: string;
+  planSteps?: WorkoutStep[];
   date: string;
   mode: 'treadmill' | 'outdoor';
   trainingType?: 'time' | 'distance'; // mantido para compatibilidade com sessões antigas
