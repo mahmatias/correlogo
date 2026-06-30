@@ -32,7 +32,10 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
   const validPaces = (pacePoints || []).filter(h => h.pace > 0).map(h => h.pace);
   const bestPace = validPaces.length > 0 ? Math.min(...validPaces) * 60 : avgPace;
   
-  const evaluation = plan ? evaluateSessionPerformance(plan, session) : null;
+  const evalPlan: WorkoutPlan | null = session.planSteps
+    ? { id: session.planId, name: session.planName, steps: session.planSteps }
+    : plan;
+  const evaluation = evalPlan ? evaluateSessionPerformance(evalPlan, session) : null;
 
   const path = (session.points || []).filter(p => p.lat !== undefined && p.lon !== undefined).map(p => ({
       lat: p.lat!,
@@ -61,7 +64,8 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
             <ArrowLeft /> Voltar
         </button>
 
-        <h2 className="text-2xl font-bold mb-6 text-center">Resumo da Sessão</h2>
+        <h2 className="text-2xl font-bold mb-1 text-center">Resumo da Sessão</h2>
+        <p className="text-xs text-text-muted text-center mb-6">ID: {session.id}</p>
 
         <div className="flex gap-2 mb-6 justify-center">
             <button onClick={exportTCX} className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-bold">Exportar .TCX</button>

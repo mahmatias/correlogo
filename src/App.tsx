@@ -307,6 +307,7 @@ export default function App() {
         const sessionData: Omit<TrainingSession, 'id'> = {
             planId: id,
             planName,
+            planSteps: plan?.steps ? plan.steps.map(s => ({ ...s })) : [],
             date: new Date().toISOString(),
             mode: sessionStats.mode,
             totalDurationSeconds: totalSeconds,

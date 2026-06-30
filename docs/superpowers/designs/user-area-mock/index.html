@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Área do Usuário — mockups comparativos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<style>
+  :root {
+    /* SUNSET PALETTE — extracted from src/index.css */
+    --accent: #FF006E;
+    --accent-secondary: #FFBE0B;
+    --accent-tertiary: #7209B7;
+    --gradient-start: #FF006E;
+    --gradient-end: #FFBE0B;
+
+    /* DARK (default) */
+    --bg-deep: #0A0A14;
+    --bg-surface: #12122A;
+    --bg-elevated: #1C1C40;
+    --border: #2A2A50;
+    --text-primary: #F0ECF5;
+    --text-secondary: #B0A8C8;
+    --text-muted: #7A7490;
+
+    --success: #22C55E;
+    --danger: #EF4444;
+    --warning: #FFBE0B;
+
+    --radius: 12px;
+    --radius-lg: 18px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  h1, h2, h3, h4 { font-family: "Geologica", sans-serif; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  button { font-family: inherit; cursor: pointer; }
+
+  /* Page chrome */
+  .page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  .page-header h1 {
+    font-size: 28px;
+    background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 8px;
+  }
+  .page-header p {
+    color: var(--text-secondary);
+    max-width: 720px;
+    margin: 0 0 24px;
+  }
+  .page-header .meta {
+    display: inline-flex;
+    gap: 16px;
+    color: var(--text-muted);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+  }
+  .page-header .meta strong { color: var(--text-primary); font-weight: 500; }
+
+  /* Vote banner */
+  .vote-banner {
+    position: sticky;
+    top: 16px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 18px;
+    margin: 24px 0 32px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(8px);
+  }
+  .vote-banner .label { color: var(--text-secondary); font-size: 13px; }
+  .vote-banner .picked { color: var(--accent-secondary); font-weight: 600; }
+  .vote-banner button {
+    padding: 8px 14px;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .vote-banner button:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+  /* Comparison grid */
+  .compare {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  @media (max-width: 1100px) {
+    .compare { grid-template-columns: 1fr; }
+  }
+
+  .option {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .option-header h2 {
+    font-size: 16px;
+    color: var(--text-primary);
+  }
+  .option-header .badge {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .option-summary {
+    color: var(--text-secondary);
+    font-size: 13px;
+    min-height: 40px;
+  }
+
+  /* Phone shell */
+  .phone {
+    width: 100%;
+    max-width: 340px;
+    margin: 0 auto;
+    aspect-ratio: 9 / 19;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: 36px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .phone .notch {
+    height: 22px;
+    background: var(--bg-deep);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .phone .notch::after {
+    content: "";
+    width: 80px;
+    height: 6px;
+    background: var(--bg-elevated);
+    border-radius: 3px;
+  }
+  .phone .status {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 22px 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-family: "IBM Plex Mono", monospace;
+    flex-shrink: 0;
+  }
+  .phone .screen {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--bg-deep);
+    position: relative;
+  }
+  .phone .screen::-webkit-scrollbar { width: 4px; }
+  .phone .screen::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* App bar (shared) */
+  .appbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-deep);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .appbar .left, .appbar .right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .appbar h1 {
+    font-size: 16px;
+    color: var(--text-primary);
+  }
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    color: var(--text-secondary);
+  }
+  .icon-btn:hover { color: var(--text-primary); background: var(--bg-elevated); }
+  .icon-btn svg { width: 20px; height: 20px; }
+
+  /* Section heading */
+  .section-label {
+    font-family: "Geologica", sans-serif;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding: 18px 16px 6px;
+  }
+  .card {
+    margin: 0 12px 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .row:first-child { border-top: 0; }
+  .row .label { color: var(--text-primary); font-size: 14px; }
+  .row .sub { color: var(--text-muted); font-size: 12px; }
+  .row .value { color: var(--text-secondary); font-size: 13px; }
+  .row.danger .label { color: var(--danger); }
+  .row .chevron { color: var(--text-muted); }
+  .row .chevron svg { width: 16px; height: 16px; }
+
+  /* Toggle */
+  .toggle {
+    width: 38px;
+    height: 22px;
+    background: var(--bg-elevated);
+    border-radius: 12px;
+    position: relative;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+  .toggle.on { background: var(--accent); border-color: var(--accent); }
+  .toggle.on::after { left: 18px; background: white; }
+
+  /* Segmented control */
+  .seg {
+    display: inline-flex;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2px;
+    font-size: 12px;
+  }
+  .seg button {
+    padding: 4px 10px;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    color: var(--text-secondary);
+  }
+  .seg button.active {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+
+  /* Avatar */
+  .avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: "Geologica", sans-serif;
+    font-size: 32px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .profile-block {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 16px;
+  }
+  .profile-block .name { font-size: 18px; font-weight: 500; }
+  .profile-block .sub { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+  .profile-block .edit {
+    margin-left: auto;
+    color: var(--accent);
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  /* Vote footer */
+  .vote {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .vote label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+  .vote input[type=radio] { accent-color: var(--accent); }
+  .vote.picked { border-color: var(--accent); }
+  .vote.picked label { color: var(--text-primary); font-weight: 500; }
+
+  /* ----- MOCK 1: one scroll ----- */
+  .m1 .stats {
+    display: flex;
+    justify-content: space-around;
+    padding: 16px 8px;
+    text-align: center;
+  }
+  .m1 .stat .n { font-size: 20px; font-family: "Geologica", sans-serif; color: var(--text-primary); }
+  .m1 .stat .l { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* ----- MOCK 2: tabs ----- */
+  .m2 .tabs {
+    display: flex;
+    padding: 8px 12px;
+    gap: 4px;
+    background: var(--bg-deep);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+  .m2 .tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+  }
+  .m2 .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* ----- MOCK 3: iOS-style sheet navigation ----- */
+  .m3 .screen { background: var(--bg-deep); }
+  .m3 .list-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .m3 .list-row:first-child { border-top: 0; }
+  .m3 .list-row .icon-wrap {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+  }
+  .m3 .list-row .icon-wrap svg { width: 18px; height: 18px; }
+  .m3 .icon-pink { background: var(--accent); }
+  .m3 .icon-purple { background: var(--accent-tertiary); }
+  .m3 .icon-yellow { background: var(--accent-secondary); color: #1A1826; }
+  .m3 .icon-red { background: var(--danger); }
+  .m3 .list-row .l { font-size: 15px; }
+  .m3 .list-row .chev { color: var(--text-muted); }
+  .m3 .list-row .chev svg { width: 16px; height: 16px; }
+
+  .m3 .subnav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-deep);
+    flex-shrink: 0;
+  }
+  .m3 .subnav .back {
+    color: var(--accent);
+    background: transparent;
+    border: 0;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .m3 .subnav .back svg { width: 16px; height: 16px; }
+  .m3 .subnav .title { font-size: 14px; font-weight: 500; }
+
+  .m3 .fields-card { margin: 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .m3 .field { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-top: 1px solid var(--border); }
+  .m3 .field:first-child { border-top: 0; }
+  .m3 .field .k { color: var(--text-secondary); font-size: 13px; }
+  .m3 .field .v { color: var(--text-primary); font-size: 13px; }
+
+  /* Trade-offs box */
+  .tradeoffs {
+    margin-top: 32px;
+    padding: 18px 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .tradeoffs h3 { font-size: 14px; margin-bottom: 8px; color: var(--accent-secondary); }
+  .tradeoffs ul { margin: 0; padding-left: 18px; color: var(--text-secondary); }
+  .tradeoffs li { margin: 4px 0; }
+  .tradeoffs code { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--text-primary); background: var(--bg-elevated); padding: 1px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Área do Usuário — escolha de estrutura</h1>
+      <p>Três opções de como organizar a tela. Todas usam a mesma paleta Pôr-do-Sol e o mesmo conjunto de campos. A diferença é <strong>como o usuário navega</strong> até cada seção.</p>
+      <div class="meta">
+        <span><strong>Escopo:</strong> Completo (perfil + dados + conta)</span>
+        <span><strong>Padrão:</strong> Dark mode (default do app)</span>
+      </div>
+    </div>
+
+    <div class="vote-banner" id="banner">
+      <div>
+        <div class="label">Sua escolha:</div>
+        <div class="picked" id="picked">nenhuma ainda</div>
+      </div>
+      <button onclick="resetVote()">limpar voto</button>
+    </div>
+
+    <div class="compare">
+
+      <!-- ============ MOCK 1: ONE SCROLL ============ -->
+      <div class="option">
+        <div class="option-header">
+          <h2>Opção 1 · Tela única com seções</h2>
+          <span class="badge">opção A</span>
+        </div>
+        <div class="option-summary">Tudo numa só página. Scroll vertical revela Perfil → Configurações → Meus Dados → Conta.</div>
+
+        <div class="phone m1">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><span>● ●●● 100%</span></div>
+          <div class="screen">
+            <div class="appbar">
+              <div class="left">
+                <button class="icon-btn" aria-label="Voltar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                </button>
+                <h1>Área do Usuário</h1>
+              </div>
+              <div class="right">
+                <button class="icon-btn" aria-label="Sair">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="profile-block">
+              <div class="avatar">M</div>
+              <div>
+                <div class="name">Maria Silva</div>
+                <div class="sub">maria@exemplo.com</div>
+              </div>
+              <button class="edit">Editar</button>
+            </div>
+
+            <div class="section-label">Perfil</div>
+            <div class="card">
+              <div class="row"><span class="label">Nome</span><span class="value">Maria Silva</span></div>
+              <div class="row"><span class="label">Email</span><span class="value">maria@exemplo.com</span></div>
+              <div class="row"><span class="label">Gênero</span><span class="value">Feminino</span></div>
+              <div class="row"><span class="label">Nascimento</span><span class="value">15/03/1992</span></div>
+            </div>
+
+            <div class="section-label">Configurações</div>
+            <div class="card">
+              <div class="row">
+                <span class="label">Tema</span>
+                <div class="seg"><button class="active">Escuro</button><button>Claro</button><button>Sistema</button></div>
+              </div>
+              <div class="row">
+                <span class="label">Unidades</span>
+                <div class="seg"><button class="active">km</button><button>mi</button></div>
+              </div>
+              <div class="row">
+                <span class="label">Anúncios de voz</span>
+                <div class="toggle on"></div>
+              </div>
+            </div>
+
+            <div class="section-label">Meus Dados</div>
+            <div class="card">
+              <div class="row"><span class="label">Exportar meus dados</span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span></div>
+              <div class="row"><span class="label">Limpar sessões &gt; 90 dias</span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span></div>
+            </div>
+            <div class="card">
+              <div class="stats">
+                <div class="stat"><div class="n">3</div><div class="l">Planos</div></div>
+                <div class="stat"><div class="n">27</div><div class="l">Sessões</div></div>
+                <div class="stat"><div class="n">142</div><div class="l">km</div></div>
+              </div>
+            </div>
+
+            <div class="section-label">Conta</div>
+            <div class="card">
+              <div class="row"><span class="label">Alterar senha</span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span></div>
+              <div class="row danger"><span class="label">Excluir conta</span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span></div>
+            </div>
+
+            <div style="height:24px"></div>
+          </div>
+        </div>
+
+        <div class="vote" data-id="A" data-name="Tela única com seções scrolláveis">
+          <label><input type="radio" name="vote" value="A" /> Votar nesta opção</label>
+        </div>
+      </div>
+
+      <!-- ============ MOCK 2: TABS ============ -->
+      <div class="option">
+        <div class="option-header">
+          <h2>Opção 2 · Abas (tabs)</h2>
+          <span class="badge">opção B</span>
+        </div>
+        <div class="option-summary">Top bar com 4 abas (Perfil, Config, Dados, Conta). Conteúdo da aba ativa troca embaixo.</div>
+
+        <div class="phone m2">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><span>● ●●● 100%</span></div>
+          <div class="screen">
+            <div class="appbar">
+              <div class="left">
+                <button class="icon-btn" aria-label="Voltar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                </button>
+                <h1>Área do Usuário</h1>
+              </div>
+            </div>
+            <div class="tabs">
+              <button class="tab active">Perfil</button>
+              <button class="tab">Config.</button>
+              <button class="tab">Dados</button>
+              <button class="tab">Conta</button>
+            </div>
+
+            <div style="padding-top: 8px;">
+              <div class="profile-block">
+                <div class="avatar">M</div>
+                <div>
+                  <div class="name">Maria Silva</div>
+                  <div class="sub">maria@exemplo.com</div>
+                </div>
+                <button class="edit">Editar</button>
+              </div>
+
+              <div class="section-label" style="padding-top:0">Identidade</div>
+              <div class="card">
+                <div class="row"><span class="label">Nome</span><span class="value">Maria Silva</span></div>
+                <div class="row"><span class="label">Email</span><span class="value">maria@exemplo.com</span></div>
+                <div class="row"><span class="label">Gênero</span><span class="value">Feminino</span></div>
+                <div class="row"><span class="label">Nascimento</span><span class="value">15/03/1992</span></div>
+              </div>
+
+              <div class="section-label">Aparência</div>
+              <div class="card">
+                <div class="row">
+                  <span class="label">Tema</span>
+                  <div class="seg"><button class="active">Escuro</button><button>Claro</button></div>
+                </div>
+                <div class="row">
+                  <span class="label">Unidades</span>
+                  <div class="seg"><button class="active">km</button><button>mi</button></div>
+                </div>
+              </div>
+
+              <div class="section-label">Sessão</div>
+              <div class="card">
+                <div class="row">
+                  <span class="label">Anúncios de voz</span>
+                  <div class="toggle on"></div>
+                </div>
+                <div class="row danger"><span class="label">Sair de todas as sessões</span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span></div>
+              </div>
+
+              <div style="height:24px"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="vote" data-id="B" data-name="Abas (tabs) por seção">
+          <label><input type="radio" name="vote" value="B" /> Votar nesta opção</label>
+        </div>
+      </div>
+
+      <!-- ============ MOCK 3: SHEET NAVIGATION ============ -->
+      <div class="option">
+        <div class="option-header">
+          <h2>Opção 3 · Navegação em sheet (estilo iOS)</h2>
+          <span class="badge">opção C</span>
+        </div>
+        <div class="option-summary">Lista raiz com 4 itens grandes coloridos. Cada item abre uma sub-tela com back button.</div>
+
+        <div class="phone m3">
+          <div class="notch"></div>
+          <div class="status"><span>9:41</span><span>● ●●● 100%</span></div>
+          <div class="screen">
+            <div class="appbar">
+              <div class="left">
+                <button class="icon-btn" aria-label="Voltar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                </button>
+                <h1>Configurações</h1>
+              </div>
+            </div>
+
+            <!-- Root list -->
+            <div class="profile-block">
+              <div class="avatar">M</div>
+              <div>
+                <div class="name">Maria Silva</div>
+                <div class="sub">maria@exemplo.com</div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:0">
+              <div class="list-row">
+                <div class="icon-wrap icon-pink">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
+                </div>
+                <span class="l">Perfil</span>
+                <span class="chev" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+              </div>
+              <div class="list-row">
+                <div class="icon-wrap icon-purple">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </div>
+                <span class="l">Aparência &amp; som</span>
+                <span class="chev" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+              </div>
+              <div class="list-row">
+                <div class="icon-wrap icon-yellow">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 5-5"/></svg>
+                </div>
+                <span class="l">Meus dados</span>
+                <span class="chev" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+              </div>
+              <div class="list-row">
+                <div class="icon-wrap icon-red">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
+                <span class="l">Conta &amp; segurança</span>
+                <span class="chev" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+              </div>
+            </div>
+
+            <div style="height: 18px; border-top: 1px solid var(--border);"></div>
+
+            <!-- Preview of sub-screen -->
+            <div class="subnav">
+              <button class="back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Configurações
+              </button>
+              <span class="title" style="margin-left:auto; padding-right:8px">Perfil</span>
+            </div>
+            <div style="padding: 4px 0;">
+              <div class="fields-card">
+                <div class="field"><span class="k">Nome</span><span class="v">Maria</span></div>
+                <div class="field"><span class="k">Sobrenome</span><span class="v">Silva</span></div>
+                <div class="field"><span class="k">Email</span><span class="v">maria@exemplo.com</span></div>
+                <div class="field"><span class="k">Gênero</span><span class="v">Feminino</span></div>
+                <div class="field"><span class="k">Nascimento</span><span class="v">15/03/1992</span></div>
+              </div>
+            </div>
+
+            <div style="height:24px"></div>
+          </div>
+        </div>
+
+        <div class="vote" data-id="C" data-name="Navegação em sheet (estilo iOS)">
+          <label><input type="radio" name="vote" value="C" /> Votar nesta opção</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="tradeoffs">
+      <h3>Comparativo rápido</h3>
+      <ul>
+        <li><code>Opção A</code> — menos cliques, mais scroll. 1 tela, 1 state, mais simples de implementar. Bom para mobile (1 dedo).</li>
+        <li><code>Opção B</code> — separação clara, mas 4 estados de aba. Bom se cada seção ficar grande. Risco de poluir a tab bar.</li>
+        <li><code>Opção C</code> — mais telas (1 raiz + N sub-telas), mais cliques. Visual mais "app nativo". Mais código (rotas/sub-nav).</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    const radios = document.querySelectorAll('input[type=radio][name=vote]');
+    const banner = document.getElementById('picked');
+    const boxes = document.querySelectorAll('.vote');
+
+    function update() {
+      const v = document.querySelector('input[name=vote]:checked');
+      boxes.forEach(b => b.classList.remove('picked'));
+      if (v) {
+        const box = v.closest('.vote');
+        box.classList.add('picked');
+        banner.textContent = box.dataset.name;
+        try { localStorage.setItem('user-area-mock-vote', v.value); } catch (e) {}
+      } else {
+        banner.textContent = 'nenhuma ainda';
+      }
+    }
+    function resetVote() {
+      radios.forEach(r => r.checked = false);
+      update();
+      try { localStorage.removeItem('user-area-mock-vote'); } catch (e) {}
+    }
+    radios.forEach(r => r.addEventListener('change', update));
+    try {
+      const saved = localStorage.getItem('user-area-mock-vote');
+      if (saved) {
+        const r = document.querySelector(`input[name=vote][value="${saved}"]`);
+        if (r) { r.checked = true; update(); }
+      }
+    } catch (e) {}
+  </script>
+</body>
+</html>
