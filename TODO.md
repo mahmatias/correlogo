@@ -5,6 +5,13 @@
 
 ---
 
+## 2026-06-26 — Novas features
+
+### Pendente
+- [ ] Função de Repetição na criação manual de treino
+
+---
+
 ## 2026-06-25 — Pendências do audit (todas concluídas)
 
 ### Feito
