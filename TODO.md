@@ -88,3 +88,6 @@
 - [ ] U6. Tela principal com 7+ ações — hierarquia visual
 - [ ] U10. Link morto nos Termos de Serviço
 - [ ] U14. Re-exportação de treino após fechar summary
+- [ ] Áudio Ducking Android: é possível?
+- [ ] Sessões de análise pós treino, origem das informações 
+- [ ] Continuar como treino livre após objetivo 
