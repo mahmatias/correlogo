@@ -8,7 +8,8 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
     const [steps, setSteps] = useState<WorkoutStep[]>(initialPlan?.steps || []);
 
     const addStep = (type: WorkoutStep['type']) => {
-        const pace = 5; // pace in min/km
+        const pace = 5; // pace in min/km (corrida)
+        const walkPace = 12; // pace in min/km (caminhada = 5 km/h)
         const dist = 1; // distance in km
         const duration = (dist / (60 / pace)) * 3600;
 
@@ -17,7 +18,7 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
             type, 
             durationSeconds: type !== 'run' ? 300 : duration,
             targetDistance: type === 'run' ? dist : undefined,
-            targetPace: type === 'run' ? pace : undefined
+            targetPace: type === 'run' ? pace : walkPace,
         }]);
     };
 

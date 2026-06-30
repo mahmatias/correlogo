@@ -163,6 +163,22 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
                 </div>
             </div>
         )}
+
+        {session.mode === 'outdoor' && (session.points || []).filter(p => p.altitude !== undefined).length > 1 && (
+            <div className="p-4 rounded-xl mb-6 bg-bg-surface">
+                <h3 className="font-bold mb-4">Perfil de Elevação</h3>
+                <div className="relative h-48 min-h-[192px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={(session.points || []).filter(p => p.altitude !== undefined)}>
+                            <XAxis dataKey="distanceKm" tickFormatter={(km) => `${km.toFixed(1)}km`} domain={['auto', 'auto']} />
+                            <YAxis domain={['auto', 'auto']} tickFormatter={(m) => `${m.toFixed(0)}m`} />
+                            <Tooltip labelFormatter={(km: number) => `${km.toFixed(2)} km`} formatter={(value: number) => [`${value.toFixed(1)} m`, 'Altitude']} />
+                            <Line type="monotone" dataKey="altitude" stroke="#ff7300" strokeWidth={2} dot={false} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        )}
         
     </div>
   );

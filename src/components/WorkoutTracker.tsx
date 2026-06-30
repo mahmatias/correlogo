@@ -180,7 +180,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
             const paceMins = Math.floor(paceMinPerKm);
             const paceSecs = Math.round((paceMinPerKm - paceMins) * 60);
             
-            speak(`Quilômetro ${currentKm} completado. Último quilômetro em ${paceMins} minutos e ${paceSecs} segundos`);
+            speak(`Quilômetro ${currentKm} completado. Último quilômetro em ${paceMins} minutos e ${paceSecs} segundos`, true);
             lastKmAnnouncedRef.current = currentKm;
             lastKmStartTimeRef.current = elapsedRef.current;
           }
@@ -227,6 +227,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const workoutCompletedAnnouncedRef = useRef<boolean>(false);
   const lastKmStartTimeRef = useRef<number>(0); // Timestamp of start of current km
   const almostThereAnnouncedRef = useRef<boolean>(false);
+  const speedTouchRef = useRef(false); // blocks synthesized mouse events on mobile
 
   const speak = (text: string, force = false) => {
     if (!force && isFreeTraining) return;
@@ -487,14 +488,15 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
         {mode === 'treadmill' && (
             <div className="flex items-center justify-between bg-bg-elevated rounded-xl p-2 mb-6">
                 <button 
-                    onMouseDown={() => { if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
-                    onMouseUp={stopAdjusting}
-                    onMouseLeave={stopAdjusting}
-                    onTouchStart={(e) => { e.preventDefault(); if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
-                    onTouchEnd={stopAdjusting}
+                    onMouseDown={() => { if (speedTouchRef.current) return; if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
+                    onMouseUp={() => { stopAdjusting(); }}
+                    onMouseLeave={() => { stopAdjusting(); }}
+                    onTouchStart={(e) => { speedTouchRef.current = true; e.preventDefault(); if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
+                    onTouchEnd={() => { stopAdjusting(); setTimeout(() => { speedTouchRef.current = false; }, 100); }}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startAdjusting(-0.1); } }}
                     onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') stopAdjusting(); }}
                     className="p-4 rounded-lg bg-bg-elevated"
+                    style={{ touchAction: 'manipulation' }}
                     aria-label="Diminuir velocidade"
                 >
                     <Minus />
@@ -504,14 +506,15 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                     <div className="text-xs text-text-muted uppercase">Velocidade</div>
                 </div>
                 <button 
-                    onMouseDown={() => { if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(0.1); } }}
-                    onMouseUp={stopAdjusting}
-                    onMouseLeave={stopAdjusting}
-                    onTouchStart={(e) => { e.preventDefault(); if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(0.1); } }}
-                    onTouchEnd={stopAdjusting}
+                    onMouseDown={() => { if (speedTouchRef.current) return; if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(0.1); } }}
+                    onMouseUp={() => { stopAdjusting(); }}
+                    onMouseLeave={() => { stopAdjusting(); }}
+                    onTouchStart={(e) => { speedTouchRef.current = true; e.preventDefault(); if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(0.1); } }}
+                    onTouchEnd={() => { stopAdjusting(); setTimeout(() => { speedTouchRef.current = false; }, 100); }}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startAdjusting(0.1); } }}
                     onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') stopAdjusting(); }}
                     className="p-4 rounded-lg bg-bg-elevated"
+                    style={{ touchAction: 'manipulation' }}
                     aria-label="Aumentar velocidade"
                 >
                     <Plus />
