@@ -28,6 +28,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const [lapDistance, setLapDistance] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isWorkoutCompleted, setIsWorkoutCompleted] = useState(false);
+  const [isExtended, setIsExtended] = useState(false);
   const [currentSpeed, setCurrentSpeed] = useState(10); // km/h
   const [countdown, setCountdown] = useState(5);
   const [finishProgress, setFinishProgress] = useState(0);
@@ -230,7 +231,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const speedTouchRef = useRef(false); // blocks synthesized mouse events on mobile
 
   const speak = (text: string, force = false) => {
-    if (!force && isFreeTraining) return;
+    if (!force && (isFreeTraining || isExtended)) return;
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
@@ -316,8 +317,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     const isLastStep = currentStepIndex >= plan.steps.length - 1;
 
     if (isLastStep) {
-      setIsWorkoutCompleted(true);
-      setIsPaused(true);
+      setIsExtended(true);
     } else {
       const nextIndex = currentStepIndex + 1;
       setStepSpeed(nextIndex);
@@ -443,7 +443,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       )}
       <div className="w-full max-w-md">
         <div className="text-center text-text-secondary text-sm uppercase tracking-wider mb-1">Atual</div>
-        <div className="text-center text-3xl font-bold text-accent-secondary mb-6 uppercase">{getStepTypeLabel(step.type)}</div>
+        <div className="text-center text-3xl font-bold text-accent-secondary mb-6 uppercase">{isExtended ? 'Corrida Livre' : getStepTypeLabel(step.type)}</div>
         
         <div className="grid grid-cols-3 gap-2 text-center mb-4">
           <div>
@@ -522,7 +522,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
             </div>
         )}
 
-        {isPaused ? (
+        {isPaused || isExtended ? (
             <button 
                 onMouseDown={startFinish}
                 onMouseUp={stopFinish}
