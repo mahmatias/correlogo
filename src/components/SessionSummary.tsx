@@ -1,7 +1,7 @@
 import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle } from 'lucide-react';
 import { formatDistance, formatDuration, TrainingSession, WorkoutPlan, getStepTypeLabel } from '../types';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { useState, useEffect, lazy, Suspense, useRef } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 
 const MapComponent = lazy(() => import('./MapComponent'));
 import { generateTCX, generateGPX } from '../lib/exportUtils';
