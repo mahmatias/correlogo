@@ -6,6 +6,12 @@ export interface StepEvaluation {
   targetPace: number;
   actualAvgPace: number;
   completed: boolean;
+  distanceCovered: number;
+  avgSpeedKmh: number;
+  durationInStep: number;
+  targetDistance?: number;
+  targetDuration: number;
+  progressPct: number;
 }
 
 export interface PerformanceEvaluation {
@@ -25,26 +31,55 @@ export const evaluateSessionPerformance = (plan: WorkoutPlan, session: TrainingS
 
   runStepsWithOrigIdx.forEach(({ step, originalIdx }) => {
     const points = session.points.filter(p => p.stepIndex === originalIdx);
-    
+
     if (points.length === 0) {
-      stepResults.push({ stepIndex: originalIdx, type: 'run', targetPace: step.targetPace || 0, actualAvgPace: 0, completed: false });
+      stepResults.push({
+        stepIndex: originalIdx,
+        type: 'run',
+        targetPace: step.targetPace || 0,
+        actualAvgPace: 0,
+        completed: false,
+        distanceCovered: 0,
+        avgSpeedKmh: 0,
+        durationInStep: 0,
+        targetDistance: step.targetDistance,
+        targetDuration: step.durationSeconds,
+        progressPct: 0,
+      });
       return;
     }
 
     const avgSpeedKmh = points.reduce((acc, p) => acc + p.speedKmh, 0) / points.length;
     const actualAvgPace = avgSpeedKmh > 0 ? (60 / avgSpeedKmh) : 0;
-    
+
+    const firstPoint = points[0];
+    const lastPoint = points[points.length - 1];
+    const distanceCovered = Math.max(0, lastPoint.distanceKm - firstPoint.distanceKm);
+    const durationInStep = Math.max(0, lastPoint.timestampSeconds - firstPoint.timestampSeconds);
+
+    let progressPct = 0;
+    if (step.basis === 'distance' && step.targetDistance && step.targetDistance > 0) {
+      progressPct = Math.min(100, (distanceCovered / step.targetDistance) * 100);
+    } else if (step.durationSeconds && step.durationSeconds > 0) {
+      progressPct = Math.min(100, (durationInStep / step.durationSeconds) * 100);
+    }
+
     const targetPace = step.targetPace || 0;
     const completed = actualAvgPace > 0 && actualAvgPace <= targetPace * 1.10;
-    
     if (completed) completedRunSteps++;
-    
+
     stepResults.push({
       stepIndex: originalIdx,
       type: 'run',
       targetPace,
       actualAvgPace,
-      completed
+      completed,
+      distanceCovered,
+      avgSpeedKmh,
+      durationInStep,
+      targetDistance: step.targetDistance,
+      targetDuration: step.durationSeconds,
+      progressPct,
     });
   });
 
@@ -55,7 +90,7 @@ export const evaluateSessionPerformance = (plan: WorkoutPlan, session: TrainingS
     totalRunSteps: runStepsWithOrigIdx.length,
     completedRunSteps,
     completionRate,
-    needsAdjustment: runStepsWithOrigIdx.length > 0 && completionRate < 80
+    needsAdjustment: runStepsWithOrigIdx.length > 0 && completionRate < 80,
   };
 };
 
