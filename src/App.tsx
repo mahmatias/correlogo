@@ -17,7 +17,7 @@ import Login from './components/Login';
 import Modal from './components/Modal';
 import Button from './components/Button';
 import { getAuth, getDb } from './lib/firebase';
-import { onAuthStateChanged, User, signOut, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
 
 function stripUndefined<T>(obj: T): T {
