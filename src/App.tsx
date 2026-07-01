@@ -17,7 +17,7 @@ import Login from './components/Login';
 import Modal from './components/Modal';
 import Button from './components/Button';
 import { getAuth, getDb } from './lib/firebase';
-import { onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
 
 function stripUndefined<T>(obj: T): T {
@@ -65,6 +65,13 @@ export default function App() {
 
   useEffect(() => {
     const t0 = performance.now();
+
+    getRedirectResult(getAuth()).catch((err) => {
+      if (err?.code !== 'auth/credential-already-in-use') {
+        console.warn('[auth] redirect result error:', err?.code);
+      }
+    });
+
     const unsub = onAuthStateChanged(getAuth(), async (user) => {
       console.log(`[timing] onAuthStateChanged fired at ${(performance.now() - t0).toFixed(0)}ms, user=`, !!user);
       setUser(user);
