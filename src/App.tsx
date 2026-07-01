@@ -153,11 +153,15 @@ export default function App() {
           for (const sess of toSync) {
             try {
               const { id: _, ...data } = sess;
-                  const docRef = await addDoc(collection(getDb(), 'users', user.uid, 'sessions'), stripUndefined(data));
-              const current = JSON.parse(localStorage.getItem(localSessionsKey) || '[]');
-              const merged = current.map((s: TrainingSession) => s.id === sess.id ? { ...s, id: docRef.id } : s);
-              localStorage.setItem(localSessionsKey, JSON.stringify(merged));
-              setSessions(merged);
+              const docRef = await addDoc(collection(getDb(), 'users', user.uid, 'sessions'), stripUndefined(data));
+              // Re-read current list (may have been overwritten with remote-only data)
+              const current: TrainingSession[] = JSON.parse(localStorage.getItem(localSessionsKey) || '[]');
+              const updated = current.filter(s => s.id !== sess.id);
+              if (!updated.find(s => s.id === docRef.id)) {
+                updated.unshift({ ...sess, id: docRef.id });
+              }
+              localStorage.setItem(localSessionsKey, JSON.stringify(updated));
+              setSessions(updated);
             } catch { /* tenta na próxima inicialização */ }
           }
           setIsLoading(false);
