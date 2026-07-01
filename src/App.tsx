@@ -20,6 +20,16 @@ import { getAuth, getDb } from './lib/firebase';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
 
+function stripUndefined<T>(obj: T): T {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(stripUndefined) as unknown as T;
+  const clean: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) clean[k] = stripUndefined(v);
+  }
+  return clean as T;
+}
+
 const SessionSummary = lazy(() => import('./components/SessionSummary'));
 
 export default function App() {
@@ -110,7 +120,7 @@ export default function App() {
               localStorage.setItem(localPlansKey, JSON.stringify(merged));
               // Salva de volta no Firestore se houve merge
               if (merged.length !== remotePlans.length) {
-                setDoc(doc(db, 'users', user.uid, 'data', 'plans'), { plans: merged }, { merge: true }).catch(() => {});
+                setDoc(doc(db, 'users', user.uid, 'data', 'plans'), { plans: stripUndefined(merged) }, { merge: true }).catch(() => {});
               }
             } else {
               setPlans(remotePlans);
@@ -143,7 +153,7 @@ export default function App() {
           for (const sess of toSync) {
             try {
               const { id: _, ...data } = sess;
-              const docRef = await addDoc(collection(getDb(), 'users', user.uid, 'sessions'), data);
+                  const docRef = await addDoc(collection(getDb(), 'users', user.uid, 'sessions'), stripUndefined(data));
               const current = JSON.parse(localStorage.getItem(localSessionsKey) || '[]');
               const merged = current.map((s: TrainingSession) => s.id === sess.id ? { ...s, id: docRef.id } : s);
               localStorage.setItem(localSessionsKey, JSON.stringify(merged));
@@ -325,7 +335,7 @@ export default function App() {
         
         try {
             console.log("Salvando sessão no Firestore:", { planId: id, ...sessionStats });
-            const docRef = await addDoc(collection(getDb(), 'users', user.uid, 'sessions'), sessionData);
+            const docRef = await addDoc(collection(getDb(), 'users', user.uid, 'sessions'), stripUndefined(sessionData));
             showFeedback('success', 'Treino salvo com sucesso!');
             const newSession: TrainingSession = { id: docRef.id, ...sessionData };
             setSessions(s => {
@@ -354,7 +364,7 @@ export default function App() {
     if (user) {
         localStorage.setItem(`correlogo:plans:${user.uid}`, JSON.stringify(updatedPlans));
         try {
-            await setDoc(doc(getDb(), 'users', user.uid, 'data', 'plans'), { plans: updatedPlans }, { merge: true });
+            await setDoc(doc(getDb(), 'users', user.uid, 'data', 'plans'), { plans: stripUndefined(updatedPlans) }, { merge: true });
             if (successMsg) showFeedback('success', successMsg);
         } catch (e) {
             console.error("Erro ao salvar planos no Firestore:", e);
