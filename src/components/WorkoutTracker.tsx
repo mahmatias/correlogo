@@ -141,6 +141,8 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   }, []);
 
   // Main timer
+  const stepIndexRef = useRef(0);
+
   useEffect(() => {
     if (!isPaused && countdown === 0) {
         intervalRef.current = setInterval(() => {
@@ -160,7 +162,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
               timestampSeconds: elapsedRef.current,
               speedKmh: speedRef.current,
               distanceKm: distRef.current,
-              stepIndex: currentStepIndex,
+              stepIndex: stepIndexRef.current,
           };
           
           if (coordsRef.current) {
@@ -322,6 +324,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       const nextIndex = currentStepIndex + 1;
       setStepSpeed(nextIndex);
       setCurrentStepIndex(nextIndex);
+      stepIndexRef.current = nextIndex;
       setLapSeconds(0);
       lapDistRef.current = 0; // Reset for next lap
       setLapDistance(0);
@@ -361,6 +364,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       const nextIndex = currentStepIndex + 1;
       setStepSpeed(nextIndex);
       setCurrentStepIndex(nextIndex);
+      stepIndexRef.current = nextIndex;
       setLapSeconds(0);
       lapDistRef.current = 0;
       setLapDistance(0);
