@@ -1,7 +1,7 @@
 import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle } from 'lucide-react';
-import { formatDistance, formatDuration, TrainingSession, WorkoutPlan } from '../types';
+import { formatDistance, formatDuration, TrainingSession, WorkoutPlan, getStepTypeLabel } from '../types';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useRef } from 'react';
 
 const MapComponent = lazy(() => import('./MapComponent'));
 import { generateTCX, generateGPX } from '../lib/exportUtils';
@@ -12,6 +12,26 @@ interface Props {
   plan?: WorkoutPlan;
   onClose: () => void;
   onSuggestAdjustment?: (adjustedPlan: WorkoutPlan) => void;
+}
+
+function ScrollHint({ visible }: { visible: boolean }) {
+  const [show, setShow] = useState(true);
+
+  useEffect(() => {
+    if (!visible) { setShow(false); return; }
+    const timer = setTimeout(() => setShow(false), 3000);
+    return () => clearTimeout(timer);
+  }, [visible]);
+
+  if (!show) return null;
+
+  return (
+    <div className="text-center text-xs text-text-muted mb-2 animate-pulse flex items-center justify-center gap-2">
+      <span>◀</span>
+      <span>deslize para ver mais steps →</span>
+      <span style={{ transform: 'scaleX(-1)' }}>◀</span>
+    </div>
+  );
 }
 
 export default function SessionSummary({ session, plan, onClose, onSuggestAdjustment }: Props) {
@@ -104,21 +124,87 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
         {evaluation && (
           <div className="p-4 rounded-xl mb-6 bg-bg-surface">
             <h3 className="font-bold mb-4">Desempenho vs Plano</h3>
-            <div className="text-sm mb-2">{evaluation.completionRate.toFixed(0)}% dos steps concluídos no pace alvo</div>
-            <div className="space-y-2 mb-4">
-              {evaluation.stepResults.map(res => (
-                <div key={res.stepIndex} className="flex justify-between items-center text-sm">
-                  <span>Step {res.stepIndex + 1}</span>
-                  <div className="flex gap-4">
-                    <span>Alvo: {res.targetPace.toFixed(2)}</span>
-                    <span>Real: {res.actualAvgPace.toFixed(2)}</span>
-                    {res.completed ? <CheckCircle className="text-success w-4 h-4" /> : <XCircle className="text-danger w-4 h-4" />}
+            <div className="text-sm mb-3">{evaluation.completionRate.toFixed(0)}% dos steps concluídos no pace alvo</div>
+
+            {/* scroll hint */}
+            <ScrollHint visible={evaluation.stepResults.length > 1} />
+
+            {/* carousel track */}
+            <div
+              className="flex gap-3 overflow-x-auto pb-3"
+              style={{ scrollSnapType: 'x mandatory' }}
+            >
+              {evaluation.stepResults.map((res) => {
+                const stepName = getStepTypeLabel(res.type);
+
+                const barColor = res.completed
+                  ? 'bg-success'
+                  : res.actualAvgPace > 0 && res.actualAvgPace <= (res.targetPace || 0) * 1.25
+                    ? 'bg-warning'
+                    : 'bg-text-muted';
+
+                return (
+                  <div
+                    key={res.stepIndex}
+                    className="flex-shrink-0 w-[220px] rounded-xl bg-bg-elevated p-4 border border-border"
+                    style={{ scrollSnapAlign: 'start' }}
+                  >
+                    <div className="text-xs text-text-muted uppercase mb-1">Step {res.stepIndex + 1}</div>
+                    <div className="text-base font-bold text-text-primary mb-3">{stepName}</div>
+
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                      <div>
+                        <div className="text-[10px] text-text-muted">Distância</div>
+                        <div className="font-semibold text-text-primary">{formatDistance(res.distanceCovered)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-text-muted">Veloc. Média</div>
+                        <div className="font-semibold text-text-primary">
+                          {res.avgSpeedKmh > 0 ? `${res.avgSpeedKmh.toFixed(1)} km/h` : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-text-muted">Ritmo Médio</div>
+                        <div className="font-semibold text-text-primary">
+                          {res.actualAvgPace > 0 ? `${formatDuration(Math.round(res.actualAvgPace * 60))} /km` : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-text-muted">Duração</div>
+                        <div className="font-semibold text-text-primary">
+                          {res.durationInStep > 0 ? formatDuration(Math.round(res.durationInStep)) : '—'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* progress bar */}
+                    <div className="mt-3">
+                      <div className="flex justify-between text-[10px] text-text-muted mb-1">
+                        <span>Progresso</span>
+                        <span>{Math.round(res.progressPct)}%</span>
+                      </div>
+                      <div className="h-1.5 bg-bg-deep rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${barColor} transition-all duration-300`}
+                          style={{ width: `${res.progressPct}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* status icon */}
+                    <div className="mt-2 flex justify-end">
+                      {res.completed
+                        ? <CheckCircle className="text-success w-4 h-4" />
+                        : <XCircle className="text-danger w-4 h-4" />
+                      }
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+
             {evaluation.needsAdjustment && (
-              <div className="bg-warning/10 p-3 rounded-lg text-warning text-sm mb-3">
+              <div className="bg-warning/10 p-3 rounded-lg text-warning text-sm mt-3">
                 A progressão atual parece acelerada para você. Deseja que os próximos treinos sejam ajustados?
                 <button onClick={() => plan && onSuggestAdjustment?.(suggestAdjustment(plan))} className="block mt-2 font-bold underline">
                   Sugerir ajuste nos próximos treinos
