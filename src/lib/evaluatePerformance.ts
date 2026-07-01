@@ -65,7 +65,7 @@ export const evaluateSessionPerformance = (plan: WorkoutPlan, session: TrainingS
     }
 
     const targetPace = step.targetPace || 0;
-    const completed = actualAvgPace > 0 && actualAvgPace <= targetPace * 1.10;
+    const completed = actualAvgPace > 0 && actualAvgPace <= targetPace * (1 / 0.9);
     if (completed) completedRunSteps++;
 
     stepResults.push({
