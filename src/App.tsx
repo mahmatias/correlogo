@@ -118,6 +118,9 @@ export default function App() {
           }
 
           const remoteSessions = qs.docs.map(doc => ({ id: doc.id, ...doc.data() } as TrainingSession));
+          // Preserva sessões locais ANTES de sobrescrever o localStorage
+          const prevSessionsRaw = localStorage.getItem(localSessionsKey);
+          const prevSessions: TrainingSession[] = prevSessionsRaw ? JSON.parse(prevSessionsRaw) : [];
           setSessions(remoteSessions);
           localStorage.setItem(localSessionsKey, JSON.stringify(remoteSessions));
 
@@ -126,24 +129,28 @@ export default function App() {
             applyThemeClass(!remoteDarkMode);
             localStorage.setItem(localThemeKey, String(remoteDarkMode));
           }
-
-          // Sync: sobe para o Firestore dados que foram criados localmente enquanto offline
-          const cachedSessionsRaw = localStorage.getItem(localSessionsKey);
-          if (cachedSessionsRaw) {
-            const allLocalSessions: TrainingSession[] = JSON.parse(cachedSessionsRaw);
-            const localOnlySessions = allLocalSessions.filter(s => s.id.startsWith('local-') && !remoteSessions.find(rs => rs.id === s.id));
-            for (const localSess of localOnlySessions) {
-              try {
-                const { id: _, ...data } = localSess;
-                const docRef = await addDoc(collection(db, 'users', user.uid, 'sessions'), data);
-                const updatedSessions = allLocalSessions.map(s => s.id === localSess.id ? { ...s, id: docRef.id } : s);
-                localStorage.setItem(localSessionsKey, JSON.stringify(updatedSessions));
-              } catch { /* se falhar na sync, tenta na próxima vez */ }
-            }
-          }
         } catch (e) {
           console.warn("Rodando no localStorage — Firestore indisponível.", e);
         } finally {
+          // Sync: sobe sessões locais (local-*) para o Firestore, mesmo que o fetch inicial tenha falhado
+          (async () => {
+            const syncKey = localSessionsKey;
+            const syncRaw = localStorage.getItem(syncKey);
+            if (syncRaw) {
+              const allSync: TrainingSession[] = JSON.parse(syncRaw);
+              const localOnly = allSync.filter(s => s.id.startsWith('local-'));
+              for (const sess of localOnly) {
+                try {
+                  const { id: _, ...data } = sess;
+                  const db2 = getDb();
+                  const docRef = await addDoc(collection(db2, 'users', user!.uid, 'sessions'), data);
+                  const merged = allSync.map(s => s.id === sess.id ? { ...s, id: docRef.id } : s);
+                  localStorage.setItem(syncKey, JSON.stringify(merged));
+                  setSessions(merged);
+                } catch { /* tenta na próxima inicialização */ }
+              }
+            }
+          })();
           setIsLoading(false);
           setInitialized(true);
           console.log(`[timing] Total load: ${(performance.now() - t0).toFixed(0)}ms`);
