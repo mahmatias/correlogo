@@ -16,20 +16,21 @@ interface Props {
 
 function ScrollHint({ visible }: { visible: boolean }) {
   const [show, setShow] = useState(true);
+  const [fading, setFading] = useState(false);
 
   useEffect(() => {
     if (!visible) { setShow(false); return; }
-    const timer = setTimeout(() => setShow(false), 3000);
-    return () => clearTimeout(timer);
+    const fadeTimer = setTimeout(() => setFading(true), 2500);
+    const hideTimer = setTimeout(() => setShow(false), 3000);
+    return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
   }, [visible]);
 
   if (!show) return null;
 
   return (
-    <div className="text-center text-xs text-text-muted mb-2 animate-pulse flex items-center justify-center gap-2">
+    <div className={`text-center text-xs text-text-muted mb-2 animate-pulse flex items-center justify-center gap-2${fading ? ' opacity-0 transition-opacity duration-500' : ''}`}>
       <span>◀</span>
       <span>deslize para ver mais steps →</span>
-      <span style={{ transform: 'scaleX(-1)' }}>◀</span>
     </div>
   );
 }
