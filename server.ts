@@ -12,8 +12,8 @@ async function startServer() {
 
   const CSP_DIRECTIVES = {
     defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "'unsafe-inline'"],
-    styleSrc: ["'self'", "'unsafe-inline'"],
+    scriptSrc: ["'self'", "'unsafe-inline'", "https://apis.google.com"],
+    styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
     imgSrc: [
       "'self'", "data:",
       "https://*.tile.openstreetmap.org",
@@ -31,7 +31,7 @@ async function startServer() {
       "wss://*.firebaseio.com",
     ],
     frameSrc: ["https://*.firebaseapp.com", "https://accounts.google.com"],
-    fontSrc: ["'self'"],
+    fontSrc: ["'self'", "https://fonts.gstatic.com"],
     mediaSrc: ["'self'"],
     formAction: ["'self'"],
   };
