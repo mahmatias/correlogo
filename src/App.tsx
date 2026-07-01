@@ -50,6 +50,7 @@ export default function App() {
   const [planToDelete, setPlanToDelete] = useState<WorkoutPlan | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [saveFeedback, setSaveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const showFeedback = (type: 'success' | 'error', message: string) => {
@@ -65,17 +66,43 @@ export default function App() {
 
   useEffect(() => {
     const t0 = performance.now();
+    const auth = getAuth();
+    let redirectDone = false;
+    let authStateFired = false;
+    let foundUser = false;
 
-    getRedirectResult(getAuth()).catch((err) => {
-      if (err?.code !== 'auth/credential-already-in-use') {
-        console.warn('[auth] redirect result error:', err?.code);
+    const finalizeAuth = () => {
+      if (redirectDone && authStateFired) {
+        if (!foundUser) {
+          setPlans([]);
+          setSessions([]);
+          applyThemeClass();
+          setInitialized(true);
+          setIsLoading(false);
+        }
+        setCheckingAuth(false);
       }
+    };
+
+    getRedirectResult(auth).then((result) => {
+      if (result?.user) {
+        console.log('[auth] redirect sign-in successful for', result.user.email);
+        foundUser = true;
+      }
+    }).catch((err) => {
+      console.warn('[auth] redirect result error:', err?.code || err?.message);
+    }).finally(() => {
+      redirectDone = true;
+      finalizeAuth();
     });
 
-    const unsub = onAuthStateChanged(getAuth(), async (user) => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
       console.log(`[timing] onAuthStateChanged fired at ${(performance.now() - t0).toFixed(0)}ms, user=`, !!user);
       setUser(user);
+      authStateFired = true;
       if (user) {
+        foundUser = true;
+        finalizeAuth();
         const localPlansKey = `correlogo:plans:${user.uid}`;
         const localSessionsKey = `correlogo:sessions:${user.uid}`;
         const localThemeKey = `correlogo:darkMode:${user.uid}`;
@@ -175,7 +202,7 @@ export default function App() {
           setInitialized(true);
           console.log(`[timing] Total load: ${(performance.now() - t0).toFixed(0)}ms`);
         }
-      } else {
+      } else if (redirectDone) {
         setPlans([]);
         setSessions([]);
         applyThemeClass();
@@ -400,8 +427,14 @@ export default function App() {
         </div>
       )}
       <main className="w-full max-w-xl mx-auto p-4 pt-8">
-        {!user ? (
-          showSignup ? <Signup onLoginClick={() => setShowSignup(false)} /> : <Login onSignupClick={() => setShowSignup(true)} />
+        {checkingAuth || !user ? (
+          checkingAuth ? (
+            <div className="flex flex-col gap-4 pt-8">
+              <div className="h-8 w-48 bg-bg-elevated rounded animate-pulse" />
+              <div className="h-40 bg-bg-elevated rounded animate-pulse" />
+              <div className="h-40 bg-bg-elevated rounded animate-pulse" />
+            </div>
+          ) : showSignup ? <Signup onLoginClick={() => setShowSignup(false)} /> : <Login onSignupClick={() => setShowSignup(true)} />
         ) : isLoading ? (
           <div className="flex flex-col gap-4 pt-8">
             <div className="h-8 w-48 bg-bg-elevated rounded animate-pulse" />
