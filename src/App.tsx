@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { Play, LogOut, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, User as UserIcon } from 'lucide-react';
+import { Play, LogOut, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard } from 'lucide-react';
 import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData } from './types';
 import WorkoutTracker from './components/WorkoutTracker';
 import ImportPlan from './components/ImportPlan';
@@ -179,8 +179,11 @@ export default function App() {
             const remoteDarkMode = settingsDoc.data().isDarkMode;
             applyThemeClass(!remoteDarkMode);
             localStorage.setItem(localThemeKey, String(remoteDarkMode));
+          }
+
+          if (settingsDoc.exists()) {
             setSettings({
-              isDarkMode: remoteDarkMode,
+              isDarkMode: settingsDoc.data().isDarkMode ?? false,
               distanceUnit: (settingsDoc.data() as any).distanceUnit || 'km',
               paceUnit: (settingsDoc.data() as any).paceUnit || 'per_km',
               weightUnit: (settingsDoc.data() as any).weightUnit || 'kg',
@@ -193,6 +196,14 @@ export default function App() {
           }
         } catch (e) {
           console.warn("Rodando no localStorage — Firestore indisponível.", e);
+          const cachedProfile = localStorage.getItem(`correlogo:profile:${user.uid}`);
+          if (cachedProfile) {
+            try { setProfile(JSON.parse(cachedProfile)); } catch { /* corrupt cache */ }
+          }
+          const cachedSettings = localStorage.getItem(`correlogo:settings:${user.uid}`);
+          if (cachedSettings) {
+            try { setSettings(JSON.parse(cachedSettings)); } catch { /* corrupt cache */ }
+          }
         } finally {
           // Sync local sessions even if fetch failed (localSessionsToSync stays empty on failure,
           // but localStorage was NOT overwritten — read directly from it)
@@ -447,6 +458,21 @@ export default function App() {
           {saveFeedback.message}
         </div>
       )}
+      {user && (
+        <button
+          onClick={() => setShowUserProfile(true)}
+          className="fixed top-4 left-4 z-40 w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center shadow-lg hover:opacity-90 transition-opacity"
+          aria-label="Perfil do usuário"
+        >
+          {user.photoURL ? (
+            <img src={user.photoURL} alt="" className="w-10 h-10 rounded-full object-cover" />
+          ) : (
+            <span className="text-sm font-bold">
+              {(profile?.displayName || user.email || '?')[0].toUpperCase()}
+            </span>
+          )}
+        </button>
+      )}
       <main className="w-full max-w-xl mx-auto p-4 pt-8">
         {checkingAuth || !user ? (
           checkingAuth ? (
@@ -502,14 +528,6 @@ export default function App() {
               <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-bold text-text-primary">Corre Logo 🏃</h1>
                 <div className='flex gap-2'>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowUserProfile(true)}
-                  aria-label="Perfil do usuário"
-                >
-                  <UserIcon size={20} />
-                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
