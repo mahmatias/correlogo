@@ -1,5 +1,14 @@
 # Changelog
 
+## [2026-07-02]
+- **Calendário de treinos:** página reformulada com layout centrado no calendário semanal
+- **Novos componentes:** `WeekCalendar` (semana horizontal, 7 dias, bolinhas de status), `BottomSheet` (menu deslizante de ações de plano)
+- **Saudação personalizada:** "Olá, {displayName}" extraído do perfil do usuário
+- **Planos com data:** campo `scheduledDate` adicionado ao `WorkoutPlan`; planos manuais, importados e de programa ganham data automaticamente
+- **Lista vinculada:** planos filtrados por dia selecionado no calendário; navegação entre semanas
+- **Export JSON:** atalho removido da UI (função mantida como dead code)
+- **Deploy:** `a9f80b1` → produção (correlogo.sytes.net)
+
 ## [2026-06-25]
 - **UI audit — 16 itens corrigidos (P0 a P3):**
   - P0: Fontes aplicadas (Geologica em headings, IBM Plex Sans no body)
