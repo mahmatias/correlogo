@@ -194,6 +194,11 @@ export default function App() {
             setProfile(profileDoc.data() as ProfileData);
             localStorage.setItem(`correlogo:profile:${user.uid}`, JSON.stringify(profileDoc.data()));
           }
+
+          // Sync Google profile photo to Firestore if available and not yet stored
+          if (user.photoURL && (!profileDoc.exists() || !(profileDoc.data() as any).photoURL)) {
+            setDoc(doc(db, 'users', user.uid, 'data', 'profile'), { photoURL: user.photoURL, updatedAt: Date.now() }, { merge: true }).catch(() => {});
+          }
         } catch (e) {
           console.warn("Rodando no localStorage — Firestore indisponível.", e);
           const cachedProfile = localStorage.getItem(`correlogo:profile:${user.uid}`);
