@@ -4,6 +4,9 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { getFirebaseErrorPt } from '../lib/firebaseErrorsPtBr';
 import { sanitizeText, sanitizeEmail } from '../lib/sanitize';
+import { getDb } from '../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { ProfileData } from '../types';
 
 interface SignupProps {
   onLoginClick?: () => void;
@@ -50,6 +53,17 @@ export default function Signup({ onLoginClick }: SignupProps) {
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, formData.password);
             await updateProfile(userCredential.user, { displayName: `${name} ${surname}` });
+            const profileData: ProfileData = {
+                displayName: `${name} ${surname}`,
+                dob: formData.dob || null,
+                gender: formData.gender === 'Outro' ? formData.otherGender || null : formData.gender || null,
+                city: null,
+                state: null,
+                photoURL: null,
+                weightInKg: null,
+                updatedAt: Date.now(),
+            };
+            await setDoc(doc(getDb(), 'users', userCredential.user.uid, 'data', 'profile'), profileData);
         } catch (err: any) {
             setError(getFirebaseErrorPt(err));
             setLoading(false);
