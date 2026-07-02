@@ -141,6 +141,6 @@ export const BRAZILIAN_STATES = [
 ] as const;
 
 export const GENDER_OPTIONS = [
-  'masculino','feminino','nao-binario','agenero','prefiro-nao-informar','outro'
+  'Masculino','Feminino','Não-binário','Agênero','Prefiro não informar','Outro'
 ] as const;
 
