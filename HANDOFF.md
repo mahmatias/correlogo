@@ -1,6 +1,6 @@
 # Handoff
 
-## Current Functional State (2026-06-25)
+## Current Functional State (2026-07-02)
 
 ### Loading & Sync
 - App carrega em <1.2s (cache localStorage instantâneo + Firestore paralelo com timeout de 5s)
@@ -16,20 +16,28 @@
 ### UI Components
 - `<Button>` — variantes: `primary`, `secondary`, `ghost`, `danger`; sizes: `sm`, `md`, `lg`
 - `<Modal>` — backdrop centralizado com `role="dialog"` ou `role="alertdialog"`
-- Ambos em `src/components/`
+- `<BottomSheet>` — painel que desliza de baixo com overlay (ações de plano)
+- `<WeekCalendar>` — semana horizontal com 7 dias, navegação, bolinhas de status
+- Todos em `src/components/`
 
 ### Known Issues
 - Firestore no dev `correlogo-dev-9a96a` expira modo teste em 2026-07-25 — atualizar regras antes
 - Skeleton de carregamento aparece enquanto Firestore não responde (até 5s) — reduzir timeout se necessário
 - `favicon.ico` retorna 404 (cosmético, sem impacto)
+- **UX regression:** novos usuários sem planos veem "Nenhum treino programado para este dia" sem o onboarding anterior que explicava como começar — pendente de follow-up
 
 ## Key Considerations for Future Agent
 - `App.tsx` gerencia todo o estado global (plans, sessions, user, theme) — persistência centralizada
 - `WorkoutTracker` usa `key={sessionId}` para re-inicialização correta
 - `isFreeTraining` flag + `speak(text, force)` controlam anúncios de voz no Treino Livre
 - `manual: true` em planos criados no WorkoutEditor controla visibilidade do botão de deletar
+- `scheduledDate?: string` ("YYYY-MM-DD") adicionado ao `WorkoutPlan` — planos sem data recebem data atual na carga
+- `WeekCalendar` recebe `plannedDates`/`completedDates` como `Set<string>` (chaves "YYYY-MM-DD")
+- Planos de programa ganham `scheduledDate` baseado em `raceDate` ou data atual + número da semana
+- Ações de plano movidas para `BottomSheet` (Novo Treino Manual, Treino Livre, Gerador Automático, Carregar/Substituir, Apagar)
+- Export JSON removido da UI (atalho); função `handleExportJson` mantida como dead code
 - Sempre usar `limit(50)` em queries de sessões — documentado como regra
-- Cache localStorage: chaves `correlogo:plans:{uid}`, `correlogo:sessions:{uid}`, `correlogo:darkMode:{uid}`
+- Cache localStorage: chaves `correlogo:plans:{uid}`, `correlogo:sessions:{uid}`, `correlogo:darkMode:{uid}`, `correlogo:profile:{uid}`, `correlogo:settings:{uid}`
 
 ## Production Deployment State (as of 2026-06-21)
 
