@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { User } from 'firebase/auth';
+import { User, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import Modal from './Modal';
 import Button from './Button';
 import { ProfileData, SettingsData, BRAZILIAN_STATES, GENDER_OPTIONS } from '../types';
@@ -79,7 +80,7 @@ export default function UserProfile({
         if (newUnit === 'lb') {
           setWeightInput((val * 2.20462).toFixed(1));
         } else {
-          setWeightInput(val.toFixed(1));
+          setWeightInput((val / 2.20462).toFixed(1));
         }
       }
     }
@@ -113,12 +114,10 @@ export default function UserProfile({
         weightUnit,
       };
 
-      const { doc, setDoc } = await import('firebase/firestore');
       const db = getDb();
       await setDoc(doc(db, 'users', user.uid, 'data', 'profile'), profile, { merge: true });
       await setDoc(doc(db, 'users', user.uid, 'data', 'settings'), settings, { merge: true });
 
-      const { updateProfile } = await import('firebase/auth');
       await updateProfile(user, { displayName });
 
       localStorage.setItem(`correlogo:profile:${user.uid}`, JSON.stringify(profile));
