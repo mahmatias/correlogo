@@ -4,8 +4,8 @@
  */
 
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { Play, LogOut, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard } from 'lucide-react';
-import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram } from './types';
+import { Play, LogOut, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, User as UserIcon } from 'lucide-react';
+import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData } from './types';
 import WorkoutTracker from './components/WorkoutTracker';
 import ImportPlan from './components/ImportPlan';
 import WorkoutEditor from './components/WorkoutEditor';
@@ -16,6 +16,7 @@ import Signup from './components/Signup';
 import Login from './components/Login';
 import Modal from './components/Modal';
 import Button from './components/Button';
+import UserProfile from './components/UserProfile';
 import { getAuth, getDb } from './lib/firebase';
 import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
@@ -52,6 +53,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [saveFeedback, setSaveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [settings, setSettings] = useState<SettingsData | null>(null);
 
   const showFeedback = (type: 'success' | 'error', message: string) => {
     setSaveFeedback({ type, message });
@@ -130,12 +134,13 @@ export default function App() {
             getDoc(doc(db, 'users', user.uid, 'data', 'plans')),
             getDocs(query(collection(db, 'users', user.uid, 'sessions'), orderBy('date', 'desc'), limit(50))),
             getDoc(doc(db, 'users', user.uid, 'data', 'settings')),
+            getDoc(doc(db, 'users', user.uid, 'data', 'profile')),
           ]);
           // Timeout de 5s — se o Firestore não responder, cai no catch e usa cache local
           const timeout = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('Firestore timeout after 5s')), 5000)
           );
-          const [plansDoc, qs, settingsDoc] = await Promise.race([firestorePromise, timeout]);
+          const [plansDoc, qs, settingsDoc, profileDoc] = await Promise.race([firestorePromise, timeout]);
           console.log(`[timing] Firestore reads done at ${(performance.now() - t1).toFixed(0)}ms`);
 
           if (plansDoc.exists()) {
@@ -174,6 +179,17 @@ export default function App() {
             const remoteDarkMode = settingsDoc.data().isDarkMode;
             applyThemeClass(!remoteDarkMode);
             localStorage.setItem(localThemeKey, String(remoteDarkMode));
+            setSettings({
+              isDarkMode: remoteDarkMode,
+              distanceUnit: (settingsDoc.data() as any).distanceUnit || 'km',
+              paceUnit: (settingsDoc.data() as any).paceUnit || 'per_km',
+              weightUnit: (settingsDoc.data() as any).weightUnit || 'kg',
+            });
+          }
+
+          if (profileDoc.exists()) {
+            setProfile(profileDoc.data() as ProfileData);
+            localStorage.setItem(`correlogo:profile:${user.uid}`, JSON.stringify(profileDoc.data()));
           }
         } catch (e) {
           console.warn("Rodando no localStorage — Firestore indisponível.", e);
@@ -415,6 +431,11 @@ export default function App() {
     signOut(getAuth());
   };
 
+  const handleProfileSaved = (newProfile: ProfileData, newSettings: SettingsData) => {
+    setProfile(newProfile);
+    setSettings(newSettings);
+  };
+
   const calculateTotalDuration = (plan: WorkoutPlan) => {
     return plan.steps.reduce((acc, step) => acc + getStepDurationSeconds(step), 0);
   }
@@ -481,6 +502,14 @@ export default function App() {
               <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-bold text-text-primary">Corre Logo 🏃</h1>
                 <div className='flex gap-2'>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowUserProfile(true)}
+                  aria-label="Perfil do usuário"
+                >
+                  <UserIcon size={20} />
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -717,6 +746,17 @@ export default function App() {
                 </Modal>
             )}
           </>
+        )}
+        {showUserProfile && (
+          <UserProfile
+            open={showUserProfile}
+            onClose={() => setShowUserProfile(false)}
+            user={user!}
+            initialProfile={profile}
+            initialSettings={settings}
+            showFeedback={showFeedback}
+            onSaved={handleProfileSaved}
+          />
         )}
       </main>
     </div>
