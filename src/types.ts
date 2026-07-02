@@ -116,3 +116,31 @@ export interface TrainingProgram {
   createdAt: number;
 }
 
+export interface ProfileData {
+  displayName: string;
+  dob: string | null;
+  gender: string | null;
+  city: string | null;
+  state: string | null;
+  photoURL: string | null;
+  weightInKg: number | null;
+  updatedAt?: number;
+}
+
+export interface SettingsData {
+  isDarkMode: boolean;
+  distanceUnit: 'km' | 'mi';
+  paceUnit: 'per_km' | 'per_mi';
+  weightUnit: 'kg' | 'lb';
+}
+
+export const BRAZILIAN_STATES = [
+  'AC','AL','AP','AM','BA','CE','DF','ES','GO',
+  'MA','MT','MS','MG','PA','PB','PR','PE','PI',
+  'RJ','RN','RS','RO','RR','SC','SP','SE','TO'
+] as const;
+
+export const GENDER_OPTIONS = [
+  'masculino','feminino','nao-binario','agenero','prefiro-nao-informar','outro'
+] as const;
+
