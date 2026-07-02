@@ -666,7 +666,7 @@ export default function App() {
                                 </button>
                             </div>
                         </div>
-                        <div className={`overflow-hidden transition-all duration-300 ${expandedPlanId === plan.id ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                        <div className={`overflow-y-auto transition-all duration-300 ${expandedPlanId === plan.id ? 'max-h-[80vh] opacity-100' : 'max-h-0 opacity-0'}`}>
                           <div className="p-4 border-t border-border text-text-secondary text-sm">
                             <h4 className="font-semibold mb-2">Passos:</h4>
                             <ul className="space-y-1">
