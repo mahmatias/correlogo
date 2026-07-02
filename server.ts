@@ -19,6 +19,7 @@ async function startServer() {
       "https://*.tile.openstreetmap.org",
       "https://*.basemaps.cartocdn.com",
       "https://server.arcgisonline.com",
+      "https://lh3.googleusercontent.com",
     ],
     connectSrc: [
       "'self'",
