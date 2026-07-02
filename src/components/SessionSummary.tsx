@@ -86,7 +86,12 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
         </button>
 
         <h2 className="text-2xl font-bold mb-1 text-center">Resumo da Sessão</h2>
-        <p className="text-xs text-text-muted text-center mb-6">ID: {session.id}</p>
+        <p className="text-xs text-text-muted text-center">ID: {session.id}</p>
+        {session.date && (
+          <p className="text-xs text-text-muted text-center mb-6">
+            Realizada em: {new Date(session.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })} às {new Date(session.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </p>
+        )}
 
         <div className="flex gap-2 mb-6 justify-center">
             <button onClick={exportTCX} className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-bold">Exportar .TCX</button>
