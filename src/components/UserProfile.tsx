@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { User, updateProfile } from 'firebase/auth';
+import { User, updateProfile, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import Modal from './Modal';
 import Button from './Button';
 import { ProfileData, SettingsData, BRAZILIAN_STATES, GENDER_OPTIONS } from '../types';
-import { getDb } from '../lib/firebase';
+import { getAuth, getDb } from '../lib/firebase';
 
 interface UserProfileProps {
   open: boolean;
@@ -248,6 +248,7 @@ export default function UserProfile({
         </div>
       </div>
 
+      <Button variant="danger" className="w-full mt-4" onClick={() => { signOut(getAuth()); }}>Sair da conta</Button>
       <Button variant="primary" className="w-full mt-4" onClick={handleSave}>Salvar</Button>
     </Modal>
   );

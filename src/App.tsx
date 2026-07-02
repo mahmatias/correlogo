@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { Play, LogOut, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard } from 'lucide-react';
+import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard } from 'lucide-react';
 import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData } from './types';
 import WorkoutTracker from './components/WorkoutTracker';
 import ImportPlan from './components/ImportPlan';
@@ -463,21 +463,6 @@ export default function App() {
           {saveFeedback.message}
         </div>
       )}
-      {user && (
-        <button
-          onClick={() => setShowUserProfile(true)}
-          className="fixed top-4 left-4 z-40 w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center shadow-lg hover:opacity-90 transition-opacity"
-          aria-label="Perfil do usuário"
-        >
-          {user.photoURL ? (
-            <img src={user.photoURL} alt="" className="w-10 h-10 rounded-full object-cover" />
-          ) : (
-            <span className="text-sm font-bold">
-              {(profile?.displayName || user.email || '?')[0].toUpperCase()}
-            </span>
-          )}
-        </button>
-      )}
       <main className="w-full max-w-xl mx-auto p-4 pt-8">
         {checkingAuth || !user ? (
           checkingAuth ? (
@@ -536,26 +521,31 @@ export default function App() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowHistory(true)}
-                  aria-label="Histórico de treinos"
-                >
-                  <BarChart2 size={20} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  aria-label="Sair"
-                >
-                  <LogOut size={20} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
                   onClick={toggleDarkMode}
                   aria-label={isLightMode ? 'Alternar para modo escuro' : 'Alternar para modo claro'}
                 >
                   {isLightMode ? '🌙' : '☀️'}
+                </Button>
+                <button
+                  onClick={() => setShowUserProfile(true)}
+                  className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center hover:opacity-90 transition-opacity overflow-hidden"
+                  aria-label="Perfil do usuário"
+                >
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs font-bold">
+                      {(profile?.displayName || user.email || '?')[0].toUpperCase()}
+                    </span>
+                  )}
+                </button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowHistory(true)}
+                  aria-label="Histórico de treinos"
+                >
+                  <BarChart2 size={20} />
                 </Button>
                 </div>
               </div>
