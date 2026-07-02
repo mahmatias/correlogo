@@ -1,10 +1,10 @@
 # Corre Logo 🏃
 
-App de treinos de corrida com planos personalizados por VDOT, gerador Runna Couch-to-5K para iniciantes, e exportação TCX/FIT/GPX. PWA com suporte offline.
+App de treinos de corrida com planos personalizados por VDOT, gerador Couch-to-5K para iniciantes, e exportação TCX/FIT/GPX. PWA com suporte offline.
 
 ## Features
 
-- **Gerador de treinos**: 3 perfis — Runna Couch-to-5K (iniciante), melhora de pace (interpolação VDOT), periodização padrão
+- **Gerador de treinos**: 3 perfis —  Couch-to-5K (iniciante), melhora de pace (interpolação VDOT), periodização padrão
 - **Workout tracker**: Esteira e GPS, anúncios de voz ("Caminhada", "Quase lá"), modo Treino Livre
 - **Histórico completo**: Sessões salvas no Firestore com fallback localStorage
 - **Exportação**: TCX, GPX e FIT (compatível com Strava)
