@@ -61,6 +61,7 @@ export interface WorkoutPlan {
   activityName?: string;
   activityNumber?: string;
   manual?: boolean;
+  scheduledDate?: string; // "YYYY-MM-DD"
 }
 
 export interface ActivityPoint {
