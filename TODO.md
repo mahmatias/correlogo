@@ -12,8 +12,7 @@
 - [ ] Painel deslizante de steps do treino: garantir texto totalmente visível ou scroll vertical interno
 
 ### Média
-- [ ] Calendário de Treinos
-- [ ] Área do Usuário (perfil, configurações)
+- [ ] Onboarding para novos usuários (vazio do calendário sem planos) — perdido na refatoração
 - [ ] S5. Dados PII (gênero, data nascimento) — coletados mas nunca usados
 - [ ] S8. dotenv não importado no server.ts
 - [ ] P5. Sem useCallback / React.memo
@@ -24,7 +23,6 @@
 - [ ] D8. Sem onSnapshot — abas dessincronizadas
 - [ ] U2. Gerador com 15+ campos — simplificar
 - [ ] U3. Visão de progresso (streak, evolução, PRs)
-- [ ] U6. Tela principal com 7+ ações — hierarquia visual
 - [ ] U10. Link morto nos Termos de Serviço
 - [ ] U14. Re-exportação de treino após fechar summary
 
@@ -34,6 +32,15 @@
 ---
 
 ## Concluídos
+
+### 2026-07-02 — Calendário de Treinos
+- ✅ Calendário semanal horizontal (WeekCalendar) com navegação entre semanas
+- ✅ BottomSheet para ações de plano (Novo Treino Manual, Treino Livre, Gerador Automático, Carregar/Substituir, Apagar)
+- ✅ `scheduledDate` adicionado ao WorkoutPlan; datas atribuídas automaticamente em todos os fluxos de criação
+- ✅ Lista de treinos vinculada ao dia selecionado no calendário
+- ✅ Saudação personalizada ("Olá, {nome}")
+- ✅ Export JSON removido da UI (atalho)
+- ✅ Deploy para produção (`a9f80b1`)
 
 ### 2026-07-01 — Google Auth + CSP
 - ✅ Testar modo GPS com localização em movimento mock
