@@ -248,8 +248,8 @@ export default function UserProfile({
         </div>
       </div>
 
-      <Button variant="danger" className="w-full mt-4" onClick={() => { signOut(getAuth()); }}>Sair da conta</Button>
       <Button variant="primary" className="w-full mt-4" onClick={handleSave}>Salvar</Button>
+      <Button variant="danger" className="w-full mt-4" onClick={() => { signOut(getAuth()); }}>Sair da conta</Button>
     </Modal>
   );
 }

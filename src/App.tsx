@@ -526,6 +526,14 @@ export default function App() {
                 >
                   {isLightMode ? '🌙' : '☀️'}
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowHistory(true)}
+                  aria-label="Histórico de treinos"
+                >
+                  <BarChart2 size={20} />
+                </Button>
                 <button
                   onClick={() => setShowUserProfile(true)}
                   className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center hover:opacity-90 transition-opacity overflow-hidden"
@@ -539,14 +547,6 @@ export default function App() {
                     </span>
                   )}
                 </button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowHistory(true)}
-                  aria-label="Histórico de treinos"
-                >
-                  <BarChart2 size={20} />
-                </Button>
                 </div>
               </div>
             )}
