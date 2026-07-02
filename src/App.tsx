@@ -508,11 +508,14 @@ export default function App() {
       const dayPlans = plans.filter(p => p.scheduledDate === key);
       if (dayPlans.length > 0) planned.add(key);
       if (dayPlans.some(p => p.isCompleted)) completed.add(key);
+      if (sessions.some(s => s.date?.startsWith(key))) completed.add(key);
     }
     return { plannedDates: planned, completedDates: completed };
-  }, [plans, weekStart]);
+  }, [plans, sessions, weekStart]);
 
   const dayPlansCount = plansForSelectedDate.length;
+  const remainingCount = plans.filter(p => !p.isCompleted).length;
+  const isTodaySelected = selectedDate.toDateString() === new Date().toDateString();
   const greetingName = profile?.displayName || user?.displayName || 'Corredor';
 
   return (
@@ -693,7 +696,7 @@ export default function App() {
               >
                 <span className="font-semibold text-text-primary">Planos</span>
                 <span className="flex items-center gap-2">
-                  <span className="bg-accent text-white text-xs px-2 py-0.5 rounded-full">{dayPlansCount}</span>
+                  <span className="bg-accent text-white text-xs px-2 py-0.5 rounded-full">{isTodaySelected ? `${remainingCount} restantes` : dayPlansCount}</span>
                   <ChevronUp size={20} className="text-text-muted" />
                 </span>
               </button>

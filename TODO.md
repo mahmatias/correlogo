@@ -33,13 +33,16 @@
 
 ## Concluídos
 
-### 2026-07-02 — Calendário de Treinos
+### 2026-07-02 — Calendário de Treinos + Fixes
 - ✅ Calendário semanal horizontal (WeekCalendar) com navegação entre semanas
 - ✅ BottomSheet para ações de plano (Novo Treino Manual, Treino Livre, Gerador Automático, Carregar/Substituir, Apagar)
 - ✅ `scheduledDate` adicionado ao WorkoutPlan; datas atribuídas automaticamente em todos os fluxos de criação
 - ✅ Lista de treinos vinculada ao dia selecionado no calendário
 - ✅ Saudação personalizada ("Olá, {nome}")
 - ✅ Export JSON removido da UI (atalho)
+- ✅ Fix: completed plans sem `scheduledDate` aparecem com bolinha verde via `TrainingSession.date`
+- ✅ Badge "X restantes" quando hoje está selecionado (total de planos incompletos)
+- ✅ "Realizada em DD/MM/AAAA às HH:MM:SS" no SessionSummary
 - ✅ Deploy para produção (`a9f80b1`)
 
 ### 2026-07-01 — Google Auth + CSP

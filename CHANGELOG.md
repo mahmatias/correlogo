@@ -8,6 +8,7 @@
 - **Lista vinculada:** planos filtrados por dia selecionado no calendário; navegação entre semanas
 - **Export JSON:** atalho removido da UI (função mantida como dead code)
 - **Deploy:** `a9f80b1` → produção (correlogo.sytes.net)
+- **Fixes:** completed plans sem `scheduledDate` agora mostram bolinha verde via session date; badge mostra "X restantes" quando hoje está selecionado; "Realizada em" adicionado ao SessionSummary
 
 ## [2026-06-25]
 - **UI audit — 16 itens corrigidos (P0 a P3):**
