@@ -269,6 +269,8 @@ export default function App() {
         applyThemeClass();
         setInitialized(true);
         setIsLoading(false);
+        setShowUserProfile(false);
+        finalizeAuth();
       }
     });
     return () => { unsub(); };
