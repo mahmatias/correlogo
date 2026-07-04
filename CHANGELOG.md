@@ -4,6 +4,7 @@
 ## [2026-07-04b]
 - **Calendário mensal expansível:** componente `MonthCalendar` com grade completa do mês, navegação < > entre meses, bolinhas de status (accent=planejado, accent-secondary=completo, amber=prova), indicador do dia atual e selecionado. Toggle v/^ abaixo da linha de semana com animação expand/collapse.
 - **Export iCal:** `src/lib/ical.ts` gera arquivo .ics válido (formato RFC 5545) com VEVENT para cada plano com `scheduledDate`. Botão "Exportar para Calendário (.ics)" no menu de Planos.
+- **Cores Opção 1 (acessibilidade):** selected state troca `bg-accent` por `border-2 border-accent` + `bg-bg-elevated` — bolinha programado fica visível. Barra progresso do Finalizar: `bg-accent-secondary/45` (âmbar) em vez de `bg-white opacity-20`. Light mode: accent `#C70048`, accent-secondary `#D49400`.
 
 ## [2026-07-04]
 - **Gerador iniciante adaptável:** tabela runna de 16 semanas agora escala para qualquer duração (6-52 sem). `mapTableIndex` interpola linearmente os índices da tabela para N semanas; fim de plano com data de prova insere marcador 🏁 no calendário
