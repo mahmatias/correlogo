@@ -1,6 +1,6 @@
 # Handoff
 
-## Current Functional State (2026-07-02)
+## Current Functional State (2026-07-04)
 
 ### Loading & Sync
 - App carrega em <1.2s (cache localStorage instantâneo + Firestore paralelo com timeout de 5s)
@@ -24,7 +24,24 @@
 - Firestore no dev `correlogo-dev-9a96a` expira modo teste em 2026-07-25 — atualizar regras antes
 - Skeleton de carregamento aparece enquanto Firestore não responde (até 5s) — reduzir timeout se necessário
 - `favicon.ico` retorna 404 (cosmético, sem impacto)
-- **UX regression:** novos usuários sem planos veem "Nenhum treino programado para este dia" sem o onboarding anterior que explicava como começar — pendente de follow-up
+- Geradores Standard/ImprovePace também devem escalar duração mínima (clampedWeeks do iniciante) — pendente
+
+### Calendar & Plan Rendering
+- `WeekCalendar` recebe `plannedDates`, `completedDates`, `raceDates` como `Set<string>`
+- Marcador de prova usa bolinha `amber-500` com legenda "Prova" no calendário
+- `isRaceMarker?: true` no `WorkoutPlan` oculta botões de ação, duração e input de data no card
+- Planos com `isRaceMarker` mostram apenas nome "🏁 Prova" sem ações — não é clicável para iniciar/completar
+
+### Beginner Generator Scaling
+- `mapTableIndex` mapeia o índice da semana (0..N-1) para a tabela runna de 16 semanas usando interpolação linear: `Math.round(weekIdx / (totalWeeks - 1) * 15)`
+- Duração mínima: 6 semanas (clamped), máxima: 52 semanas
+- Para durações > 16 sem: a tabela de 16 semanas é esticada proporcionalmente ao número de semanas
+- Carga regenerativa (sessões extras para dias além dos 2 da tabela runna) mantida
+- Marcador de prova injetado em `generateProgram` após `assignScheduledDates`, com `scheduledDate = data.raceDate`
+
+### Date Input
+- `onKeyDown={(e) => e.preventDefault()}` no input `type="date"` dos cards de plano bloqueia digitação manual
+- Usuário só pode alterar data via o date picker nativo do browser
 
 ## Key Considerations for Future Agent
 - `App.tsx` gerencia todo o estado global (plans, sessions, user, theme) — persistência centralizada
