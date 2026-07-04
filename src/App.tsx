@@ -58,6 +58,7 @@ export default function App() {
   const [showGenerator, setShowGenerator] = useState(false);
   const [programToReview, setProgramToReview] = useState<TrainingProgram | null>(null);
   const [planToDelete, setPlanToDelete] = useState<WorkoutPlan | null>(null);
+  const [reschedulePlanId, setReschedulePlanId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -764,17 +765,6 @@ export default function App() {
                       {!plan.isRaceMarker && (
                       <div className="flex justify-between items-center px-4 pb-4 bg-bg-surface">
                           <span className="text-xs text-text-secondary">{formatTotalDuration(calculateTotalDuration(plan))}</span>
-                          <div className="flex-1 flex justify-center px-2">
-                            <input
-                              type="date"
-                              value={plan.scheduledDate || ''}
-                              onChange={(e) => handleDateChange(plan.id, e.target.value)}
-                              onClick={(e) => e.stopPropagation()}
-                              onKeyDown={(e) => e.preventDefault()}
-                              style={{ colorScheme: 'dark', width: '75px' }}
-                              className="text-xs text-text-muted bg-transparent border border-border rounded px-1 py-0.5 cursor-pointer hover:border-accent focus:outline-none focus:border-accent [&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:hover:opacity-100"
-                            />
-                          </div>
                           <div className='flex gap-2 items-center'>
                               {plan.manual && (
                               <button 
@@ -815,6 +805,12 @@ export default function App() {
                               );
                             })}
                           </ul>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setReschedulePlanId(plan.id); }}
+                            className="mt-3 text-xs text-accent border border-accent rounded px-3 py-1.5 hover:bg-accent hover:text-white transition-colors"
+                          >
+                            Reagendar
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -853,6 +849,29 @@ export default function App() {
                         </Button>
                     </div>
                 </Modal>
+            )}
+            {reschedulePlanId && (
+              <Modal open={!!reschedulePlanId} onClose={() => setReschedulePlanId(null)} title="Reagendar Treino">
+                <div className="flex flex-col items-center gap-6">
+                  <p className="text-text-secondary text-sm text-center">
+                    Selecione a nova data para este treino.
+                  </p>
+                  <input
+                    type="date"
+                    defaultValue={plans.find(p => p.id === reschedulePlanId)?.scheduledDate || ''}
+                    autoFocus
+                    onChange={(e) => {
+                      handleDateChange(reschedulePlanId, e.target.value);
+                      setReschedulePlanId(null);
+                    }}
+                    style={{ colorScheme: 'dark' }}
+                    className="w-full p-3 border border-border rounded-lg bg-bg-elevated text-text-primary text-base focus:outline-none focus:border-accent cursor-pointer"
+                  />
+                  <Button variant="secondary" className="w-full" onClick={() => setReschedulePlanId(null)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </Modal>
             )}
           </>
         )}
