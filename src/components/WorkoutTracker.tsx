@@ -259,6 +259,17 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     return `${mins} minutos e ${secs} segundos`;
   };
 
+  const formatDurationTts = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')} minutos`;
+  };
+
+  const formatDistanceTts = (distKm: number) => {
+    if (distKm < 1) return `${Math.round(distKm * 1000)}m`;
+    return `${distKm.toFixed(2).replace('.', ',')}km`;
+  };
+
     // Handle step progression & Lap announcement
     useEffect(() => {
         const currentStep = plan.steps[currentStepIndex];
@@ -275,7 +286,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
             const speedKmh = 60 / (currentStep.targetPace || 1);
             const isDistBasis = currentStep.basis === 'distance';
             
-             speak(`Volta atual ${isDistBasis ? formatDistance(targetDist) : formatDurationSpeech(stepDuration)} de ${ptType}${currentStep.targetPace ? ` Pace ${currentStep.targetPace}` : ''}`);
+             speak(`Volta atual ${isDistBasis ? formatDistanceTts(targetDist) : formatDurationTts(stepDuration)} de ${ptType}${currentStep.targetPace ? ` Pace ${currentStep.targetPace}` : ''}`);
         }
 
         // Almost-there announcement before step completes
@@ -298,7 +309,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                 const next = plan.steps[currentStepIndex + 1];
                 const nextLabel = next.type === 'warmup' ? 'Aquecimento' : next.type === 'run' ? 'Corrida' : next.type === 'cooldown' ? 'Desaquecimento' : next.type === 'rest' ? 'Caminhada' : next.type;
                 const nextIsDist = next.basis === 'distance';
-                const nextObj = nextIsDist ? formatDistance(getStepTargetDistance(next)) : formatDurationSpeech(getStepDurationSeconds(next));
+                const nextObj = nextIsDist ? formatDistanceTts(getStepTargetDistance(next)) : formatDurationTts(getStepDurationSeconds(next));
                 speak(`${prefix}Próxima volta: ${nextObj} de ${nextLabel}${next.targetPace ? ` Pace ${next.targetPace}` : ''}`);
             }
         }
@@ -481,12 +492,23 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
 
         {mode === 'outdoor' && !isWorkoutCompleted && countdown === 0 && <div className="w-full mb-6 h-64"><MapComponent coords={coords} path={path} /></div>}
 
-        {/* Step Distance and Time */}
+        {/* Step Distance and Time — countdown mode */}
         <div className="text-center mb-2 p-4 bg-bg-surface border border-border rounded-xl">
-            <div className="text-4xl font-bold">{formatDistance(lapDistance)}</div>
-            <div className="text-text-secondary uppercase tracking-widest text-xs">Dist. da Volta</div>
-            <div className="text-2xl font-bold mt-2">{formatTime(lapSeconds)}</div>
-            <div className="text-text-secondary uppercase tracking-widest text-xs">Tempo da Volta</div>
+            {isDistanceStep ? (
+                <>
+                    <div className="text-4xl font-bold">{formatDistance(Math.max(0, stepTargetDistance - lapDistance))}</div>
+                    <div className="text-text-secondary uppercase tracking-widest text-xs">Dist. restante</div>
+                    <div className="text-2xl font-bold mt-2">{formatTime(lapSeconds)}</div>
+                    <div className="text-text-secondary uppercase tracking-widest text-xs">Tempo da Volta</div>
+                </>
+            ) : (
+                <>
+                    <div className="text-4xl font-bold">{formatDistance(lapDistance)}</div>
+                    <div className="text-text-secondary uppercase tracking-widest text-xs">Dist. da Volta</div>
+                    <div className="text-2xl font-bold mt-2">{formatTime(Math.max(0, step.durationSeconds - lapSeconds))}</div>
+                    <div className="text-text-secondary uppercase tracking-widest text-xs">Tempo restante</div>
+                </>
+            )}
         </div>
 
         {mode === 'treadmill' && (

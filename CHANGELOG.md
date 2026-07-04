@@ -9,6 +9,11 @@
 - **Export JSON:** atalho removido da UI (função mantida como dead code)
 - **Deploy:** `a9f80b1` → produção (correlogo.sytes.net)
 - **Fixes:** completed plans sem `scheduledDate` agora mostram bolinha verde via session date; badge mostra "X restantes" quando hoje está selecionado; "Realizada em" adicionado ao SessionSummary
+- **Countdown na atividade:** tempo da volta exibido de forma decrescente em etapas por tempo; distância decrescente em etapas por distância; TTS adaptado ("2:30 minutos" / "1,75km")
+- **Data programada editável:** input `type="date"` em cada card de plano; mudar a data reposiciona o plano no calendário automaticamente
+- **Gerador com startDate:** usuário escolhe data de início; `calculateTotalWeeks` usa `startDate` em vez de `Date.now()`; `assignScheduledDates` distribui sessões no calendário conforme `daysOfWeek`
+- **Controle de carga:** iniciante com mais de 2 dias/semana ganha sessões regenerativas (caminhada 15 min + trote curto) nos dias extras
+- **Onboarding:** tela de boas-vindas com Rocket + CTAs para novos usuários sem planos
 
 ## [2026-06-25]
 - **UI audit — 16 itens corrigidos (P0 a P3):**

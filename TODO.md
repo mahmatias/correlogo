@@ -9,7 +9,6 @@
 
 ### Alta
 - [ ] Função de Repetição na criação manual de treino
-- [ ] Painel deslizante de steps do treino: garantir texto totalmente visível ou scroll vertical interno
 
 ### Média
 - [ ] Onboarding para novos usuários (vazio do calendário sem planos) — perdido na refatoração
@@ -43,6 +42,10 @@
 - ✅ Fix: completed plans sem `scheduledDate` aparecem com bolinha verde via `TrainingSession.date`
 - ✅ Badge "X restantes" quando hoje está selecionado (total de planos incompletos)
 - ✅ "Realizada em DD/MM/AAAA às HH:MM:SS" no SessionSummary
+- ✅ Data programada editável (input date em cada card de plano)
+- ✅ Gerador com startDate + distribuição automática de scheduledDate no calendário
+- ✅ Controle de carga: sessões regenerativas para iniciante em dias excedentes a daysOfWeek
+- ✅ Onboarding para novos usuários (tela de boas-vindas com CTAs)
 - ✅ Deploy para produção (`a9f80b1`)
 
 ### 2026-07-01 — Google Auth + CSP

@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
-import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp } from 'lucide-react';
+import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, Rocket } from 'lucide-react';
 import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData } from './types';
 import WorkoutTracker from './components/WorkoutTracker';
 import ImportPlan from './components/ImportPlan';
@@ -489,6 +489,11 @@ export default function App() {
     setSettings(newSettings);
   };
 
+  const handleDateChange = (planId: string, newDate: string) => {
+    const updated = plans.map(p => p.id === planId ? { ...p, scheduledDate: newDate || undefined } : p);
+    updatePlansState(updated);
+  };
+
   const calculateTotalDuration = (plan: WorkoutPlan) => {
     return plan.steps.reduce((acc, step) => acc + getStepDurationSeconds(step), 0);
   }
@@ -626,17 +631,7 @@ export default function App() {
               <ProgramReview
                 program={programToReview}
                 onConfirm={(finalProgram) => {
-                  const raceDateStr = finalProgram.raceDate;
-                  const raceDate = raceDateStr ? new Date(raceDateStr) : null;
-                  const allPlans = finalProgram.weeks.flatMap(week => {
-                    const weekDate = raceDate
-                      ? new Date(raceDate.getTime() - (finalProgram.weeks.length - week.weekNumber) * 7 * 86400000)
-                      : new Date(Date.now() + (week.weekNumber - 1) * 7 * 86400000);
-                    return week.plans.map(p => ({
-                      ...p,
-                      scheduledDate: formatDateKey(weekDate),
-                    }));
-                  });
+                  const allPlans = finalProgram.weeks.flatMap(w => w.plans);
                   updatePlansState([...plans, ...allPlans], 'Programa gerado com sucesso!');
                   setProgramToReview(null);
                 }}
@@ -726,7 +721,23 @@ export default function App() {
               </BottomSheet>
 
               <div className="space-y-4 mt-4">
-                {plansForSelectedDate.length === 0 ? (
+                {plans.length === 0 ? (
+                  <div className="flex flex-col items-center py-12 text-center">
+                    <Rocket size={48} className="text-accent mb-4" />
+                    <h2 className="text-xl font-bold text-text-primary mb-2">Bem-vindo ao Corre Logo!</h2>
+                    <p className="text-text-secondary mb-6 max-w-xs">
+                      Seu assistente pessoal de treinos de corrida. Crie planos, acompanhe seu progresso e atinja suas metas.
+                    </p>
+                    <div className="flex flex-col gap-3 w-full max-w-xs">
+                      <Button size="lg" onClick={() => { setShowPlanSheet(true); }}>
+                        Criar Primeiro Treino
+                      </Button>
+                      <Button variant="secondary" size="lg" onClick={() => { setShowGenerator(true); }}>
+                        Gerar Programa Automático
+                      </Button>
+                    </div>
+                  </div>
+                ) : plansForSelectedDate.length === 0 ? (
                   <p className="text-center text-text-muted py-8">Nenhum treino programado para este dia</p>
                 ) : (
                   plansForSelectedDate.map((plan, index) => (
@@ -745,6 +756,15 @@ export default function App() {
                       </div>
                       <div className="flex justify-between items-center px-4 pb-4 bg-bg-surface">
                           <span className="text-xs text-text-secondary">{formatTotalDuration(calculateTotalDuration(plan))}</span>
+                          <div className="flex-1 flex justify-center px-2">
+                            <input
+                              type="date"
+                              value={plan.scheduledDate || ''}
+                              onChange={(e) => handleDateChange(plan.id, e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs text-text-muted bg-transparent border border-border rounded px-1 py-0.5 w-28 cursor-pointer hover:border-accent focus:outline-none focus:border-accent"
+                            />
+                          </div>
                           <div className='flex gap-2 items-center'>
                               {plan.manual && (
                               <button 
