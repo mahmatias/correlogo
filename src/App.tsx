@@ -796,6 +796,14 @@ export default function App() {
                       )}
                       <div className={`overflow-y-auto transition-all duration-300 ${expandedPlanId === plan.id ? 'max-h-[80vh] opacity-100' : 'max-h-0 opacity-0'}`}>
                         <div className="p-4 border-t border-border text-text-secondary text-sm">
+                          <div className="flex justify-end mb-3">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setReschedulePlanId(plan.id); }}
+                              className="text-xs text-accent border border-accent rounded px-3 py-1.5 hover:bg-accent hover:text-white transition-colors"
+                            >
+                              Reagendar
+                            </button>
+                          </div>
                           <h4 className="font-semibold mb-2">Passos:</h4>
                           <ul className="space-y-1">
                             {plan.steps.map((step, idx) => {
@@ -805,12 +813,6 @@ export default function App() {
                               );
                             })}
                           </ul>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setReschedulePlanId(plan.id); }}
-                            className="mt-3 text-xs text-accent border border-accent rounded px-3 py-1.5 hover:bg-accent hover:text-white transition-colors"
-                          >
-                            Reagendar
-                          </button>
                         </div>
                       </div>
                     </div>
