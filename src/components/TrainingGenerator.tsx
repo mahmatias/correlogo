@@ -12,9 +12,30 @@ const calcVO2 = (vMperMin: number) =>
 
 const vToPace = (vMperMin: number) => 1000 / vMperMin;
 
+const formatDateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const assignScheduledDates = (program: TrainingProgram, startDate: string, daysOfWeek: number[]): TrainingProgram => {
+    if (!startDate || daysOfWeek.length === 0) return program;
+    const sortedDays = [...new Set(daysOfWeek)].sort((a, b) => a - b);
+    const start = new Date(startDate + 'T12:00:00');
+    const weekStart = new Date(start);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const weeks = program.weeks.map((week, w) => {
+        const plans = week.plans.map((plan, s) => {
+            const targetDay = sortedDays[s % sortedDays.length];
+            const planDate = new Date(weekStart);
+            planDate.setDate(weekStart.getDate() + w * 7 + targetDay);
+            if (planDate < start) planDate.setDate(planDate.getDate() + 7);
+            return { ...plan, scheduledDate: formatDateKey(planDate) };
+        });
+        return { ...week, plans };
+    });
+    return { ...program, weeks };
+};
+
 const calculateTotalWeeks = (data: any) => 
-    data.raceDate
-        ? Math.min(24, Math.max(4, Math.round((new Date(data.raceDate).getTime() - Date.now()) / (7 * 24 * 60 * 60 * 1000))))
+    data.raceDate && data.startDate
+        ? Math.min(24, Math.max(4, Math.round((new Date(data.raceDate).getTime() - new Date(data.startDate).getTime()) / (7 * 24 * 60 * 60 * 1000))))
         : 8;
 
 const isPaceGoalUnrealistic = (data: any, totalWeeks: number) => {
@@ -137,6 +158,43 @@ const generateBeginnerProgram = (data: any, totalWeeks: number): TrainingProgram
             const totalMin = steps.filter(s => s.t === 'run').reduce((a, s) => a + (s.min ?? 0), 0);
             return { id: crypto.randomUUID(), name: `Semana ${i + 1} — Treino ${si + 1} (${Math.round(totalMin)}min de corrida)`, steps: planSteps, programName: 'Plano Iniciante' };
         });
+
+        // Load management: generate regenerative sessions interleaved with main sessions
+        const extraDayCount = Math.max(0, (data.daysOfWeek?.length || 0) - sessions.length);
+        if (extraDayCount > 0) {
+            const allRunSteps = plans.flatMap(p => p.steps.filter(s => s.type === 'run'));
+            const lightestRunSecs = allRunSteps.length > 0
+                ? Math.min(...allRunSteps.map(s => s.durationSeconds))
+                : 180;
+            const jogSecs = Math.round(lightestRunSecs / 2);
+
+            const regenSessions: WorkoutPlan[] = [];
+            for (let e = 0; e < extraDayCount; e++) {
+                const lmSteps: WorkoutStep[] = [
+                    createStep('warmup', 900, walkPace),
+                ];
+                if (jogSecs >= 60) {
+                    lmSteps.push(createStep('run', jogSecs, runPace));
+                }
+                lmSteps.push(createStep('cooldown', 300, walkPace));
+                regenSessions.push({
+                    id: crypto.randomUUID(),
+                    name: `Semana ${i + 1} — Regenerativo`,
+                    steps: lmSteps,
+                    programName: 'Plano Iniciante',
+                });
+            }
+
+            // Interleave: M1, R1, M2, R2, R3...
+            const interleaved: WorkoutPlan[] = [];
+            for (let i = 0; i < Math.max(plans.length, regenSessions.length); i++) {
+                if (i < plans.length) interleaved.push(plans[i]);
+                if (i < regenSessions.length) interleaved.push(regenSessions[i]);
+            }
+            plans.length = 0;
+            plans.push(...interleaved);
+        }
+
         weeks.push({ weekNumber: i + 1, phase: 'base', isRecoveryWeek: false, plans });
     }
     return {
@@ -323,16 +381,19 @@ const generateStandardProgram = (data: any, totalWeeks: number): TrainingProgram
 const generateProgram = (data: any): TrainingProgram => {
     const totalWeeks = calculateTotalWeeks(data);
     
+    let program: TrainingProgram;
     if (data.experienceLevel === 'beginner') {
-        return generateBeginnerProgram(data, totalWeeks);
+        program = generateBeginnerProgram(data, totalWeeks);
+    } else {
+        const refPaceMinkm = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
+        if (data.goal.targetPace != null && refPaceMinkm - data.goal.targetPace > 0.15) {
+            program = generateImprovePaceProgram(data, totalWeeks);
+        } else {
+            program = generateStandardProgram(data, totalWeeks);
+        }
     }
     
-    const refPaceMinkm = (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm;
-    if (data.goal.targetPace != null && refPaceMinkm - data.goal.targetPace > 0.15) {
-        return generateImprovePaceProgram(data, totalWeeks);
-    }
-    
-    return generateStandardProgram(data, totalWeeks);
+    return assignScheduledDates(program, data.startDate, data.daysOfWeek);
 };
 
 export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate: (program: TrainingProgram) => void, onCancel: () => void }) {
@@ -349,7 +410,8 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
     const [refHours, setRefHours] = useState(0);
     const [refMinutes, setRefMinutes] = useState(30);
     const [refSeconds, setRefSeconds] = useState(0);
-    const [data, setData] = useState<Partial<TrainingProgram> & { raceDate?: string; daysOfWeek: number[]; mode: 'outdoor' | 'treadmill' | 'both'; }>({
+    const todayStr = () => new Date().toISOString().slice(0, 10);
+    const [data, setData] = useState<Partial<TrainingProgram> & { raceDate?: string; startDate?: string; daysOfWeek: number[]; mode: 'outdoor' | 'treadmill' | 'both'; }>({
         goal: { raceDistance: 'none' },
         experienceLevel: 'beginner',
         referenceRace: { distanceKm: 5, timeSeconds: 1800 },
@@ -358,8 +420,8 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
     });
     
     const isDeadlineRisky = () => {
-        if (!data.raceDate || data.goal?.raceDistance === 'none') return false;
-        const weeks = (new Date(data.raceDate).getTime() - Date.now()) / (7 * 24 * 60 * 60 * 1000);
+        if (!data.raceDate || !data.startDate || data.goal?.raceDistance === 'none') return false;
+        const weeks = (new Date(data.raceDate).getTime() - new Date(data.startDate).getTime()) / (7 * 24 * 60 * 60 * 1000);
         const threshold = data.goal?.raceDistance === '42k' ? 6 : (data.goal?.raceDistance === '21k' ? 4 : 0);
         return weeks < threshold;
     };
@@ -377,8 +439,12 @@ export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate
             {data.goal?.raceDistance !== 'none' && (
                 <>
                     <div className="mt-4">
+                        <label>Data de início:</label>
+                        <input type="date" value={data.startDate || ''} className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary" onChange={e => setData({...data, startDate: e.target.value})} />
+                    </div>
+                    <div className="mt-4">
                         <label>Data da prova:</label>
-                        <input type="date" className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary" onChange={e => setData({...data, raceDate: e.target.value})} min={new Date().toISOString().slice(0, 10)} max={new Date(Date.now() + 5 * 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)} />
+                        <input type="date" className="w-full p-2 border border-border rounded bg-bg-elevated text-text-primary" onChange={e => setData({...data, raceDate: e.target.value})} min={data.startDate || todayStr()} />
                     </div>
                     {data.goal.raceDistance !== 'none' && (
                         <div className="mt-4">
