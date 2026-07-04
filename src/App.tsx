@@ -503,9 +503,10 @@ export default function App() {
     return plans.filter(p => p.scheduledDate === key);
   }, [plans, selectedDate]);
 
-  const { plannedDates, completedDates } = useMemo(() => {
+  const { plannedDates, completedDates, raceDates } = useMemo(() => {
     const planned = new Set<string>();
     const completed = new Set<string>();
+    const race = new Set<string>();
     for (let i = 0; i < 7; i++) {
       const d = new Date(weekStart);
       d.setDate(d.getDate() + i);
@@ -514,8 +515,9 @@ export default function App() {
       if (dayPlans.length > 0) planned.add(key);
       if (dayPlans.some(p => p.isCompleted)) completed.add(key);
       if (sessions.some(s => s.date?.startsWith(key))) completed.add(key);
+      if (dayPlans.some(p => p.isRaceMarker)) race.add(key);
     }
-    return { plannedDates: planned, completedDates: completed };
+    return { plannedDates: planned, completedDates: completed, raceDates: race };
   }, [plans, sessions, weekStart]);
 
   const dayPlansCount = plansForSelectedDate.length;
@@ -683,6 +685,7 @@ export default function App() {
                 onWeekChange={handleWeekChange}
                 plannedDates={plannedDates}
                 completedDates={completedDates}
+                raceDates={raceDates}
               />
 
               <button
@@ -747,13 +750,18 @@ export default function App() {
                         onClick={() => togglePlanExpansion(plan.id)}
                       >
                         <div className='flex gap-2 items-center'>
-                          <button onClick={(e) => { e.stopPropagation(); toggleComplete(plan); }} className="p-2" aria-label={plan.isCompleted ? 'Marcar como não realizado' : 'Marcar como realizado'}>
+                          {plan.isRaceMarker ? (
+                            <span className="text-lg">🏁</span>
+                          ) : (
+                            <button onClick={(e) => { e.stopPropagation(); toggleComplete(plan); }} className="p-2" aria-label={plan.isCompleted ? 'Marcar como não realizado' : 'Marcar como realizado'}>
                               {plan.isCompleted ? <CheckCircle className='text-accent-secondary' /> : <Circle className='text-text-muted' />}
                               <span className="sr-only">{plan.isCompleted ? 'Concluído' : 'Pendente'}</span>
-                          </button>
+                            </button>
+                          )}
                           <span className="font-medium text-text-primary truncate">{plan.activityName || plan.name || 'Plano sem nome'}</span>
                         </div>
                       </div>
+                      {!plan.isRaceMarker && (
                       <div className="flex justify-between items-center px-4 pb-4 bg-bg-surface">
                           <span className="text-xs text-text-secondary">{formatTotalDuration(calculateTotalDuration(plan))}</span>
                           <div className="flex-1 flex justify-center px-2">
@@ -762,6 +770,7 @@ export default function App() {
                               value={plan.scheduledDate || ''}
                               onChange={(e) => handleDateChange(plan.id, e.target.value)}
                               onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.preventDefault()}
                               className="text-xs text-text-muted bg-transparent border border-border rounded px-1 py-0.5 w-28 cursor-pointer hover:border-accent focus:outline-none focus:border-accent"
                             />
                           </div>
@@ -793,6 +802,7 @@ export default function App() {
                               </button>
                           </div>
                       </div>
+                      )}
                       <div className={`overflow-y-auto transition-all duration-300 ${expandedPlanId === plan.id ? 'max-h-[80vh] opacity-100' : 'max-h-0 opacity-0'}`}>
                         <div className="p-4 border-t border-border text-text-secondary text-sm">
                           <h4 className="font-semibold mb-2">Passos:</h4>

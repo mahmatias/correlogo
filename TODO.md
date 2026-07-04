@@ -9,6 +9,7 @@
 
 ### Alta
 - [ ] Função de Repetição na criação manual de treino
+- [ ] Os geradores Standard/ImprovePace também devem escalar duração mínima (clampedWeeks do iniciante)
 
 ### Média
 - [ ] Onboarding para novos usuários (vazio do calendário sem planos) — perdido na refatoração
@@ -31,6 +32,12 @@
 ---
 
 ## Concluídos
+
+### 2026-07-04 — Correções no gerador, data editing, marcador de prova
+- ✅ Data editável: bloqueio de digitação manual (`onKeyDown e.preventDefault`) no input date
+- ✅ Gerador iniciante: remove cap de 16 semanas; `mapTableIndex` interpola a tabela runna para qualquer duração (6-52 sem); fim do plano com data de prova insere marcador 🏁
+- ✅ Marcador de prova no calendário: `isRaceMarker` no `WorkoutPlan`, bolinha amber-500 no `WeekCalendar`, legenda "Prova"
+- ✅ Renderização condicional: `isRaceMarker` oculta botões de ação, duração e input de data
 
 ### 2026-07-02 — Calendário de Treinos + Fixes
 - ✅ Calendário semanal horizontal (WeekCalendar) com navegação entre semanas

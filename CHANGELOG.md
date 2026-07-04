@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-07-04]
+- **Gerador iniciante adaptável:** tabela runna de 16 semanas agora escala para qualquer duração (6-52 sem). `mapTableIndex` interpola linearmente os índices da tabela para N semanas; fim de plano com data de prova insere marcador 🏁 no calendário
+- **Bloqueio de digitação manual no campo de data:** `onKeyDown={(e) => e.preventDefault()}` no input `type="date"` impede entrada numérica livre que causava saltos de data imprevisíveis
+- **Marcador de prova no calendário:** quando `raceDate` é definida, um plano `isRaceMarker: true` é adicionado ao programa com `scheduledDate = raceDate`; a bolinha laranja (amber-500) aparece no dia no `WeekCalendar` com legenda "Prova"
+- **Renderização condicional de racemarker:** `isRaceMarker` oculta botões de ação (completar, iniciar, histórico) e input de data no card do plano
+
 ## [2026-07-02]
 - **Calendário de treinos:** página reformulada com layout centrado no calendário semanal
 - **Novos componentes:** `WeekCalendar` (semana horizontal, 7 dias, bolinhas de status), `BottomSheet` (menu deslizante de ações de plano)
