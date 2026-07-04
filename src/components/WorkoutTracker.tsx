@@ -557,7 +557,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                 onTouchEnd={stopFinish}
                 className="w-full flex items-center justify-center gap-2 bg-accent text-white py-4 rounded-full font-bold mb-4 uppercase relative overflow-hidden"
             >
-                <div className="absolute inset-0 bg-white opacity-20" style={{ width: `${finishProgress}%` }}></div>
+                <div className="absolute inset-0 bg-accent-secondary/45" style={{ width: `${finishProgress}%` }}></div>
                 <Square aria-hidden="true" /> Finalizar treino
             </button>
         ) : (

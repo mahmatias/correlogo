@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026-07-04] (continuação)
+## [2026-07-04b]
+- **Calendário mensal expansível:** componente `MonthCalendar` com grade completa do mês, navegação < > entre meses, bolinhas de status (accent=planejado, accent-secondary=completo, amber=prova), indicador do dia atual e selecionado. Toggle v/^ abaixo da linha de semana com animação expand/collapse.
+- **Export iCal:** `src/lib/ical.ts` gera arquivo .ics válido (formato RFC 5545) com VEVENT para cada plano com `scheduledDate`. Botão "Exportar para Calendário (.ics)" no menu de Planos.
+
 ## [2026-07-04]
 - **Gerador iniciante adaptável:** tabela runna de 16 semanas agora escala para qualquer duração (6-52 sem). `mapTableIndex` interpola linearmente os índices da tabela para N semanas; fim de plano com data de prova insere marcador 🏁 no calendário
 - **Bloqueio de digitação manual no campo de data:** `onKeyDown={(e) => e.preventDefault()}` no input `type="date"` impede entrada numérica livre que causava saltos de data imprevisíveis
