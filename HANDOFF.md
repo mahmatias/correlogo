@@ -40,8 +40,15 @@
 - Marcador de prova injetado em `generateProgram` após `assignScheduledDates`, com `scheduledDate = data.raceDate`
 
 ### Date Input
-- `onKeyDown={(e) => e.preventDefault()}` no input `type="date"` dos cards de plano bloqueia digitação manual
-- Usuário só pode alterar data via o date picker nativo do browser
+- Botão estilizado (borda, hover accent) mostra data no formato `DD/MM` ou "➕ data"
+- Ao clicar, `datePickerRef` (input oculto no final do `<main>`) recebe foco via `showPicker()` com `colorScheme: dark` para o picker nativo usar tema escuro
+- `datePickerTarget` (state) guarda o `plan.id` do card clicado; o `onChange` do picker oculto usa esse target para chamar `handleDateChange`
+- Picker oculto posicionado off-screen (`top: -200px, left: -200px, opacity: 0`)
+
+### Light Mode
+- `.light` class no `<html>` agora também sobrescreve `--color-*` (ex: `--color-text-primary`, `--color-bg-elevated`)
+- Todas as Tailwind classes (`text-text-primary`, `bg-bg-surface`, etc.) agora refletem o modo claro
+- Fix: nome do app e textos que usam Tailwind utility classes estavam invisíveis no light mode por resolverem `--color-*` do tema escuro
 
 ## Key Considerations for Future Agent
 - `App.tsx` gerencia todo o estado global (plans, sessions, user, theme) — persistência centralizada
