@@ -104,12 +104,12 @@ export default function MonthCalendar({ selectedDate, onSelectDate, plannedDates
             <button
               key={dateKey}
               onClick={() => { onSelectDate(day); }}
-              className={`py-1.5 text-sm rounded-lg transition-colors relative ${
+              className={`py-1.5 text-sm rounded-lg transition-colors relative border-2 ${
                 isSelected
-                  ? 'bg-bg-elevated ring-2 ring-accent text-text-primary font-bold'
+                  ? 'bg-bg-elevated border-accent text-text-primary font-bold'
                   : isToday
-                    ? 'bg-bg-elevated text-text-primary'
-                    : 'text-text-secondary hover:bg-bg-elevated'
+                    ? 'bg-bg-elevated border-transparent text-text-primary'
+                    : 'text-text-secondary border-transparent hover:bg-bg-elevated'
               }`}
             >
               {day.getDate()}
