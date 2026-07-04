@@ -102,7 +102,7 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
         const safeName = sanitizeText(name, 100);
         const flatSteps = expandBlocks();
         if (!safeName || flatSteps.length === 0) return;
-        onSave({ id: initialPlan?.id || crypto.randomUUID(), name: safeName, steps: flatSteps, manual: true });
+        onSave({ id: initialPlan?.id || crypto.randomUUID(), name: safeName, steps: flatSteps, blocks, manual: true });
     };
 
     const paceToMmss = (pace: number | undefined) => {

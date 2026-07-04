@@ -1,5 +1,9 @@
 # Changelog
 
+## [2026-07-04c]
+- **Fix logout redirect:** `onAuthStateChanged(null)` branch agora chama `finalizeAuth()` + `setShowUserProfile(false)`, liberando `checkingAuth` para exibir tela de login em vez de spinner infinito
+- **Blocos de repetição no WorkoutEditor:** cada bloco tem `repeat: N` (1–99); steps dentro do bloco são duplicados N vezes na expansão ao salvar. Ex: bloco 2x [corrida, caminhada] → corrida, caminhada, corrida, caminhada. Suporta múltiplos blocos com reordenação, add/remove step por bloco
+
 ## [2026-07-04] (continuação)
 ## [2026-07-04b]
 - **Calendário mensal expansível:** componente `MonthCalendar` com grade completa do mês, navegação < > entre meses, bolinhas de status (accent=planejado, accent-secondary=completo, amber=prova), indicador do dia atual e selecionado. Toggle v/^ abaixo da linha de semana com animação expand/collapse.

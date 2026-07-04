@@ -52,10 +52,16 @@ export const getStepTypeLabel = (type: string): string => {
   return STEP_TYPE_LABELS_PT[type as WorkoutStep['type']] ?? type;
 };
 
+export interface StepBlock {
+  repeat: number;
+  steps: WorkoutStep[];
+}
+
 export interface WorkoutPlan {
   id: string;
   name: string;
   steps: WorkoutStep[];
+  blocks?: StepBlock[];
   isCompleted?: boolean;
   programName?: string;
   activityName?: string;

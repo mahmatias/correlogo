@@ -259,12 +259,6 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     return `${mins} minutos e ${secs} segundos`;
   };
 
-  const formatDurationTts = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')} minutos`;
-  };
-
   const formatDistanceTts = (distKm: number) => {
     if (distKm < 1) return `${Math.round(distKm * 1000)}m`;
     return `${distKm.toFixed(2).replace('.', ',')}km`;
@@ -283,10 +277,18 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
             const ptType = currentStep.type === 'warmup' ? 'Aquecimento' : currentStep.type === 'run' ? 'Corrida' : currentStep.type === 'cooldown' ? 'Desaquecimento' : currentStep.type === 'rest' ? 'Caminhada' : currentStep.type;
             const stepDuration = getStepDurationSeconds(currentStep);
             const targetDist = getStepTargetDistance(currentStep);
-            const speedKmh = 60 / (currentStep.targetPace || 1);
             const isDistBasis = currentStep.basis === 'distance';
+            const paceTtText = currentStep.targetPace
+                ? (mode === 'treadmill'
+                    ? (() => {
+                        const speed = 60 / currentStep.targetPace;
+                        const speedText = parseFloat(speed.toFixed(1)).toString().replace('.', ',');
+                        return ` a ${speedText} quilômetros por hora`;
+                      })()
+                    : ` Pace ${currentStep.targetPace}`)
+                : '';
             
-             speak(`Volta atual ${isDistBasis ? formatDistanceTts(targetDist) : formatDurationTts(stepDuration)} de ${ptType}${currentStep.targetPace ? ` Pace ${currentStep.targetPace}` : ''}`);
+            speak(`Volta atual ${isDistBasis ? formatDistanceTts(targetDist) : formatDurationSpeech(stepDuration)} de ${ptType}${paceTtText}`);
         }
 
         // Almost-there announcement before step completes
@@ -309,8 +311,14 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                 const next = plan.steps[currentStepIndex + 1];
                 const nextLabel = next.type === 'warmup' ? 'Aquecimento' : next.type === 'run' ? 'Corrida' : next.type === 'cooldown' ? 'Desaquecimento' : next.type === 'rest' ? 'Caminhada' : next.type;
                 const nextIsDist = next.basis === 'distance';
-                const nextObj = nextIsDist ? formatDistanceTts(getStepTargetDistance(next)) : formatDurationTts(getStepDurationSeconds(next));
-                speak(`${prefix}Próxima volta: ${nextObj} de ${nextLabel}${next.targetPace ? ` Pace ${next.targetPace}` : ''}`);
+                const nextSpeed = next.targetPace ? (60 / next.targetPace).toFixed(1).replace('.', ',') : '';
+                const nextPaceText = next.targetPace
+                    ? (mode === 'treadmill'
+                        ? ` a ${nextSpeed} quilômetros por hora`
+                        : ` Pace ${next.targetPace}`)
+                    : '';
+                const nextObj = nextIsDist ? formatDistanceTts(getStepTargetDistance(next)) : formatDurationSpeech(getStepDurationSeconds(next));
+                speak(`${prefix}Próxima volta: ${nextObj} de ${nextLabel}${nextPaceText}`);
             }
         }
 

@@ -6,6 +6,9 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { createServer as createViteServer } from "vite";
 
+const GOOGLE_CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -56,6 +59,37 @@ async function startServer() {
   // API routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Exchange Google OAuth code for access token
+  app.post("/auth/google/callback", async (req, res) => {
+    try {
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ error: "Code required" });
+      }
+
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: GOOGLE_CLIENT_ID,
+          client_secret: GOOGLE_CLIENT_SECRET,
+          code,
+          grant_type: 'authorization_code',
+          redirect_uri: `${process.env.APP_URL}/auth/google/callback`,
+        }),
+      });
+
+      const tokens = await tokenResponse.json();
+      if (tokens.error) {
+        return res.status(400).json({ error: tokens.error_description });
+      }
+
+      res.json({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // Vite middleware for development

@@ -20,6 +20,7 @@ import UserProfile from './components/UserProfile';
 import WeekCalendar from './components/WeekCalendar';
 import MonthCalendar from './components/MonthCalendar';
 import BottomSheet from './components/BottomSheet';
+import GoogleCalendarSyncButton from './components/GoogleCalendarSyncButton';
 import { getAuth, getDb } from './lib/firebase';
 import { downloadIcal } from './lib/ical';
 import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
@@ -771,6 +772,9 @@ export default function App() {
                         <CalendarIcon size={16} className="mr-2" />
                         Exportar para Calendário (.ics)
                       </Button>
+                      <div className="w-full py-1">
+                        <GoogleCalendarSyncButton plans={plans} />
+                      </div>
                       <Button
                         variant="ghost"
                         className="w-full border border-accent text-accent"
