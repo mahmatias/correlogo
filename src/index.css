@@ -40,6 +40,8 @@
   }
 
   .light {
+    --color-accent: #C70048;
+    --color-accent-secondary: #D49400;
     --color-bg-deep: #F8F4F0;
     --color-bg-surface: #FFFFFF;
     --color-bg-elevated: #F0ECE8;

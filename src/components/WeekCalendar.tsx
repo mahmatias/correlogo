@@ -54,7 +54,7 @@ export default function WeekCalendar({ selectedDate, weekStart, onSelectDate, on
               onClick={() => onSelectDate(day)}
               className={`flex-1 min-w-0 text-center py-2 rounded-lg transition-colors ${
                 isSelected
-                  ? 'bg-accent text-white'
+                  ? 'bg-bg-elevated ring-2 ring-accent text-text-primary font-bold'
                   : isToday
                     ? 'bg-bg-elevated text-text-primary'
                     : 'bg-bg-surface text-text-secondary'

@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proposta de Cores — Corre Logo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    padding: 40px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .container { max-width: 1100px; width: 100%; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; margin-bottom: 28px; }
+
+  .option {
+    border: 1px solid;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .option-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+  .option-number { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink:0; }
+  .option-title { font-size: 15px; font-weight: 600; }
+  .option-desc { font-size: 11px; margin-top: 2px; }
+
+  .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .mode-panel { border-radius: 10px; padding: 14px; }
+  .mode-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+
+  .section-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; margin: 10px 0 6px; }
+  .palette { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatch { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .swatch-color { width: 36px; height: 36px; border-radius: 6px; }
+  .swatch-label { font-size: 8px; text-align: center; }
+  .swatch-use { font-size: 7px; text-align: center; max-width: 64px; opacity:0.7; }
+
+  .cal-row { display: flex; gap: 5px; flex-wrap: wrap; margin: 3px 0; }
+  .cal-day { width: 40px; height: 48px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; border:2px solid transparent; }
+  .cal-day .dot { width: 5px; height: 5px; border-radius: 50%; margin-top:2px; }
+  .cal-day .day-num { line-height:1; }
+  .cal-label { font-size: 7px; text-align: center; margin-top:1px; }
+
+  .btn-mock { max-width: 280px; border-radius: 999px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; text-transform: uppercase; position: relative; overflow: hidden; margin:2px 0; }
+  .btn-mock .progress-fill { position: absolute; left:0; top:0; bottom:0; }
+  .btn-mock .btn-text { position: relative; z-index:1; }
+  .progress-row { display: flex; gap: 4px; flex-wrap: wrap; }
+
+  .divider { border:none; border-top:1px solid; margin:12px 0; }
+  .pros-cons { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .pros-cons div { font-size:10px; padding:6px 10px; border-radius:6px; }
+  .pros { background:#0D2A1A; border:1px solid #1A4A2A; color:#C8E6C9; }
+  .cons { background:#2A0D0D; border:1px solid #4A1A1A; color:#FFCDD2; }
+  .pros::before { content:"✓ "; color:#22C55E; font-weight:700; }
+  .cons::before { content:"✗ "; color:#EF4444; font-weight:700; }
+
+  .rec-badge { display:inline-block; background:#FFBE0B; color:#0A0A14; font-size:8px; font-weight:700; text-transform:uppercase; padding:1px 6px; border-radius:3px; margin-left:4px; vertical-align:middle; }
+
+  /* theme */
+  body { background:#0A0A14; color:#F0ECF5; }
+  .option { background:#12122A; border-color:#2A2A50; }
+  .option-number { background:#FF006E; color:#fff; }
+  .option-desc { color:#B0A8C8; }
+  .mode-panel.dark { background:#0A0A14; }
+  .mode-panel.light { background:#F8F4F0; }
+  .mode-label.dark-label { color:#7A7490; }
+  .mode-label.light-label { color:#8A8498; }
+  .section-label { color:#7A7490; }
+  .light .section-label { color:#8A8498; }
+  .light .mode-label { color:#8A8498; }
+
+  .col-diff { font-size:8px; padding:2px 6px; border-radius:4px; display:inline-block; margin-left:3px; }
+  .col-diff.dark-b { background:#1C1C40; color:#F0ECF5; }
+  .col-diff.light-b { background:#fff; color:#1A1826; border:1px solid #D4CFC8; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Proposta de Cores — Modo Escuro + Modo Claro com cores adaptadas</h1>
+  <p class="subtitle" style="color:#7A7490">
+    <strong style="color:#F0ECF5">Problemas originais:</strong> (1) bolinha programada some no fundo do dia selecionado (mesma cor) &nbsp;·&nbsp; (2) barra de progresso do "Finalizar treino" quase invisível &nbsp;·&nbsp; (3) acessibilidade protanopia/deuteranopia<br>
+    <strong style="color:#F0ECF5">Novidade:</strong> cada opção propõe cores de acento diferentes para o modo claro — versões mais escuras/saturadas para manter contraste sobre o fundo branco/creme.
+  </p>
+
+  <p style="font-size:11px; color:#B0A8C8; margin-bottom:20px; padding:10px 14px; background:#1C1C40; border-radius:8px; border:1px solid #2A2A50;">
+    <strong>🔑 Lógica de adaptação claro → escuro:</strong> No modo claro, o fundo do calendário é branco (#FFFFFF) ou creme (#F0ECE8). As cores de acento precisam ser <em>mais escuras e mais saturadas</em> que no modo escuro para manter o mesmo contraste. A regra geral: <code>lightAccent = darken(darkAccent, 20%)</code> + preservar matiz. O botão "Finalizar treino" (WorkoutTracker) usa <code>bg-accent</code> nos dois modos — não muda porque o fundo do botão é o mesmo rosa nos dois temas.
+  </p>
+
+  <!-- ================================================================ -->
+  <!-- OPTION 1 -->
+  <!-- ================================================================ -->
+  <div class="option">
+    <div class="option-header">
+      <div class="option-number">1</div>
+      <div>
+        <div class="option-title">Selected Outline <span class="rec-badge">menos mudança</span></div>
+        <div class="option-desc">Dia selecionado: ring-2 + bg-elevated (não preenchido). Bolinha accent visível. Barra: âmbar 45% sobre rosa.</div>
+      </div>
+    </div>
+
+    <div class="mode-grid">
+      <!-- DARK -->
+      <div class="mode-panel dark">
+        <div class="mode-label dark-label">⬛ Modo escuro</div>
+        <div class="section-label">Cores</div>
+        <div class="palette">
+          <div class="swatch"><div class="swatch-color" style="background:#FF006E;border:1px solid #4A2A3A"></div><div class="swatch-label" style="color:#B0A8C8">accent #FF006E</div><div class="swatch-use" style="color:#7A7490">bolinha · ring · botões</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#FFBE0B;border:1px solid #4A3A20"></div><div class="swatch-label" style="color:#B0A8C8">amb #FFBE0B</div><div class="swatch-use" style="color:#7A7490">progress fill</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#1C1C40;border:1px solid #3A3A60"></div><div class="swatch-label" style="color:#B0A8C8">bg-elevated</div><div class="swatch-use" style="color:#7A7490">fundo selected</div></div>
+        </div>
+        <div class="cal-row" style="margin-top:6px">
+          <div><div class="cal-day" style="background:#1C1C40"><div class="day-num" style="color:#F0ECF5">14</div></div><div class="cal-label" style="color:#7A7490">normal</div></div>
+          <div><div class="cal-day" style="background:#1C1C40;border:2px solid #FF006E"><div class="day-num" style="color:#F0ECF5">15</div><div class="dot" style="background:#FF006E"></div></div><div class="cal-label" style="color:#7A7490">selected c/ dot</div></div>
+          <div><div class="cal-day" style="background:#12122A"><div class="day-num" style="color:#B0A8C8">16</div><div class="dot" style="background:#FF006E"></div></div><div class="cal-label" style="color:#7A7490">dot programado</div></div>
+        </div>
+        <div class="section-label" style="margin-top:8px">Botão Finalizar</div>
+        <div class="progress-row">
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="btn-text">Finalizar</div></div>
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="progress-fill" style="width:40%;background:#FFBE0B;opacity:0.45"></div><div class="btn-text">40%</div></div>
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="progress-fill" style="width:80%;background:#FFBE0B;opacity:0.45"></div><div class="btn-text">80%</div></div>
+        </div>
+      </div>
+
+      <!-- LIGHT -->
+      <div class="mode-panel light" style="color:#1A1826">
+        <div class="mode-label light-label">☀️ Modo claro</div>
+        <div class="section-label" style="color:#8A8498">Cores <span class="col-diff light-b">adaptadas</span></div>
+        <div class="palette">
+          <div class="swatch"><div class="swatch-color" style="background:#C70048;border:1px solid #E0A0B0"></div><div class="swatch-label" style="color:#5A5470">accent #C70048</div><div class="swatch-use" style="color:#8A8498">mais escuro p/ contraste</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#D49400;border:1px solid #E0C880"></div><div class="swatch-label" style="color:#5A5470">amb #D49400</div><div class="swatch-use" style="color:#8A8498">progress: +escuro, +contraste</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#F0ECE8;border:1px solid #D4CFC8"></div><div class="swatch-label" style="color:#5A5470">bg-elevated</div><div class="swatch-use" style="color:#8A8498">fundo selected</div></div>
+        </div>
+        <div class="cal-row" style="margin-top:6px">
+          <div><div class="cal-day" style="background:#F0ECE8;border:2px solid #D4CFC8"><div class="day-num" style="color:#1A1826">14</div></div><div class="cal-label" style="color:#8A8498">normal</div></div>
+          <div><div class="cal-day" style="background:#F0ECE8;border:2px solid #C70048"><div class="day-num" style="color:#1A1826">15</div><div class="dot" style="background:#C70048"></div></div><div class="cal-label" style="color:#8A8498">selected c/ dot</div></div>
+          <div><div class="cal-day" style="background:#fff;border:2px solid #D4CFC8"><div class="day-num" style="color:#5A5470">16</div><div class="dot" style="background:#C70048"></div></div><div class="cal-label" style="color:#8A8498">dot programado</div></div>
+        </div>
+        <div class="section-label" style="color:#8A8498;margin-top:8px">Botão Finalizar</div>
+        <div class="progress-row">
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="btn-text">Finalizar</div></div>
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="progress-fill" style="width:40%;background:#D49400;opacity:0.5"></div><div class="btn-text">40%</div></div>
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="progress-fill" style="width:80%;background:#D49400;opacity:0.5"></div><div class="btn-text">80%</div></div>
+        </div>
+      </div>
+    </div>
+    <hr class="divider" style="border-color:#2A2A50">
+    <div class="pros-cons">
+      <div class="pros">0 novas variáveis de cor, só mudar o valor hex no light mode. Ring 2px funciona nos dois modos. Bolinha contrasta com qualquer fundo. Âmbar escuro (D49400) sobre vinho (C70048): contraste de ~4:1, OK para AA large text.</div>
+      <div class="cons">Selected perde preenchimento — ring 2px pode ser sutil. Vinho escuro (C70048) em botão pode se confundir com vermelho de erro (EF4444) para protanopia.</div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- OPTION 2 -->
+  <!-- ================================================================ -->
+  <div class="option">
+    <div class="option-header">
+      <div class="option-number">2</div>
+      <div>
+        <div class="option-title">Split Palette — Selection Blue / Action Pink <span class="rec-badge">recomendada</span></div>
+        <div class="option-desc">Azul para seleção, rosa para ação/planejado, verde para completo.</div>
+      </div>
+    </div>
+
+    <div class="mode-grid">
+      <!-- DARK -->
+      <div class="mode-panel dark">
+        <div class="mode-label dark-label">⬛ Modo escuro</div>
+        <div class="section-label">Cores</div>
+        <div class="palette">
+          <div class="swatch"><div class="swatch-color" style="background:#4A9EFF;border:1px solid #2A5A8A"></div><div class="swatch-label" style="color:#B0A8C8">select #4A9EFF</div><div class="swatch-use" style="color:#7A7490">fundo selected</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#FF006E;border:1px solid #4A2A3A"></div><div class="swatch-label" style="color:#B0A8C8">accent #FF006E</div><div class="swatch-use" style="color:#7A7490">bolinha · botões</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#22C55E;border:1px solid #1A4A2A"></div><div class="swatch-label" style="color:#B0A8C8">succ #22C55E</div><div class="swatch-use" style="color:#7A7490">CheckCircle completo</div></div>
+        </div>
+        <div class="cal-row" style="margin-top:6px">
+          <div><div class="cal-day" style="background:#1C1C40"><div class="day-num" style="color:#F0ECF5">14</div></div><div class="cal-label" style="color:#7A7490">normal</div></div>
+          <div><div class="cal-day" style="background:#4A9EFF;color:#fff"><div class="day-num">15</div><div class="dot" style="background:#FF006E"></div></div><div class="cal-label" style="color:#7A7490">selected c/ dot</div></div>
+          <div><div class="cal-day" style="background:#4A9EFF;color:#fff"><div class="day-num">16</div><div class="dot" style="background:#22C55E"></div></div><div class="cal-label" style="color:#7A7490">selected completo</div></div>
+        </div>
+        <div class="section-label" style="margin-top:8px">Botão Finalizar</div>
+        <div class="progress-row">
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="btn-text">Finalizar</div></div>
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="progress-fill" style="width:40%;background:#fff;opacity:0.5"></div><div class="btn-text">40%</div></div>
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="progress-fill" style="width:80%;background:#fff;opacity:0.5"></div><div class="btn-text">80%</div></div>
+        </div>
+      </div>
+
+      <!-- LIGHT -->
+      <div class="mode-panel light" style="color:#1A1826">
+        <div class="mode-label light-label">☀️ Modo claro <span class="col-diff light-b">adaptado</span></div>
+        <div class="section-label" style="color:#8A8498">Cores</div>
+        <div class="palette">
+          <div class="swatch"><div class="swatch-color" style="background:#2B7FE0;border:1px solid #90B8E0"></div><div class="swatch-label" style="color:#5A5470">select #2B7FE0</div><div class="swatch-use" style="color:#8A8498">+escuro no claro</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#C70048;border:1px solid #E0A0B0"></div><div class="swatch-label" style="color:#5A5470">accent #C70048</div><div class="swatch-use" style="color:#8A8498">bolinha · botões</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#1A9E4A;border:1px solid #90C8A0"></div><div class="swatch-label" style="color:#5A5470">succ #1A9E4A</div><div class="swatch-use" style="color:#8A8498">CheckCircle completo</div></div>
+        </div>
+        <div class="cal-row" style="margin-top:6px">
+          <div><div class="cal-day" style="background:#F0ECE8;border:2px solid #D4CFC8"><div class="day-num" style="color:#1A1826">14</div></div><div class="cal-label" style="color:#8A8498">normal</div></div>
+          <div><div class="cal-day" style="background:#2B7FE0;color:#fff"><div class="day-num">15</div><div class="dot" style="background:#C70048"></div></div><div class="cal-label" style="color:#8A8498">selected c/ dot</div></div>
+          <div><div class="cal-day" style="background:#2B7FE0;color:#fff"><div class="day-num">16</div><div class="dot" style="background:#1A9E4A"></div></div><div class="cal-label" style="color:#8A8498">selected completo</div></div>
+        </div>
+        <div class="section-label" style="color:#8A8498;margin-top:8px">Botão Finalizar</div>
+        <div class="progress-row">
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="btn-text">Finalizar</div></div>
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="progress-fill" style="width:40%;background:#fff;opacity:0.5"></div><div class="btn-text">40%</div></div>
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="progress-fill" style="width:80%;background:#fff;opacity:0.5"></div><div class="btn-text">80%</div></div>
+        </div>
+      </div>
+    </div>
+    <hr class="divider" style="border-color:#2A2A50">
+    <div class="pros-cons">
+      <div class="pros">3 cores = 3 significados (azul=seleção, rosa=ação, verde=completo). Azul #2B7FE0 no claro contrasta bem com branco. Rosa vinho (#C70048) se distancia do vermelho erro. Para protanopia: azul, vinho e verde são 3 estímulos diferentes.</div>
+      <div class="cons">Precisa de 2 variáveis novas (selection, success). Mais cores para manter sincronizadas entre temas.</div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- OPTION 3 -->
+  <!-- ================================================================ -->
+  <div class="option">
+    <div class="option-header">
+      <div class="option-number">3</div>
+      <div>
+        <div class="option-title">Purple Selection, Cyan Progress</div>
+        <div class="option-desc">Roxo (#9B5DE5) para seleção. Ciano (#00B4D8) na barra de progresso.</div>
+      </div>
+    </div>
+
+    <div class="mode-grid">
+      <!-- DARK -->
+      <div class="mode-panel dark">
+        <div class="mode-label dark-label">⬛ Modo escuro</div>
+        <div class="section-label">Cores</div>
+        <div class="palette">
+          <div class="swatch"><div class="swatch-color" style="background:#9B5DE5;border:1px solid #4A2A7A"></div><div class="swatch-label" style="color:#B0A8C8">roxo #9B5DE5</div><div class="swatch-use" style="color:#7A7490">fundo selected</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#FF006E;border:1px solid #4A2A3A"></div><div class="swatch-label" style="color:#B0A8C8">accent #FF006E</div><div class="swatch-use" style="color:#7A7490">bolinha · botões</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#00B4D8;border:1px solid #1A4A5A"></div><div class="swatch-label" style="color:#B0A8C8">ciano #00B4D8</div><div class="swatch-use" style="color:#7A7490">barra progresso</div></div>
+        </div>
+        <div class="cal-row" style="margin-top:6px">
+          <div><div class="cal-day" style="background:#1C1C40"><div class="day-num" style="color:#F0ECF5">14</div></div><div class="cal-label" style="color:#7A7490">normal</div></div>
+          <div><div class="cal-day" style="background:#9B5DE5;color:#fff"><div class="day-num">15</div><div class="dot" style="background:#FF006E"></div></div><div class="cal-label" style="color:#7A7490">selected c/ dot</div></div>
+          <div><div class="cal-day" style="background:#12122A"><div class="day-num" style="color:#B0A8C8">16</div><div class="dot" style="background:#FF006E"></div></div><div class="cal-label" style="color:#7A7490">dot programado</div></div>
+        </div>
+        <div class="section-label" style="margin-top:8px">Botão Finalizar</div>
+        <div class="progress-row">
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="btn-text">Finalizar</div></div>
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="progress-fill" style="width:40%;background:#00B4D8;opacity:0.5"></div><div class="btn-text">40%</div></div>
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="progress-fill" style="width:80%;background:#00B4D8;opacity:0.5"></div><div class="btn-text">80%</div></div>
+        </div>
+      </div>
+
+      <!-- LIGHT -->
+      <div class="mode-panel light" style="color:#1A1826">
+        <div class="mode-label light-label">☀️ Modo claro <span class="col-diff light-b">adaptado</span></div>
+        <div class="section-label" style="color:#8A8498">Cores</div>
+        <div class="palette">
+          <div class="swatch"><div class="swatch-color" style="background:#7C3AED;border:1px solid #B090D8"></div><div class="swatch-label" style="color:#5A5470">roxo #7C3AED</div><div class="swatch-use" style="color:#8A8498">+escuro no claro</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#C70048;border:1px solid #E0A0B0"></div><div class="swatch-label" style="color:#5A5470">accent #C70048</div><div class="swatch-use" style="color:#8A8498">bolinha · botões</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#0098B8;border:1px solid #80B8C8"></div><div class="swatch-label" style="color:#5A5470">ciano #0098B8</div><div class="swatch-use" style="color:#8A8498">barra progresso</div></div>
+        </div>
+        <div class="cal-row" style="margin-top:6px">
+          <div><div class="cal-day" style="background:#F0ECE8;border:2px solid #D4CFC8"><div class="day-num" style="color:#1A1826">14</div></div><div class="cal-label" style="color:#8A8498">normal</div></div>
+          <div><div class="cal-day" style="background:#7C3AED;color:#fff"><div class="day-num">15</div><div class="dot" style="background:#C70048"></div></div><div class="cal-label" style="color:#8A8498">selected c/ dot</div></div>
+          <div><div class="cal-day" style="background:#fff;border:2px solid #D4CFC8"><div class="day-num" style="color:#5A5470">16</div><div class="dot" style="background:#C70048"></div></div><div class="cal-label" style="color:#8A8498">dot programado</div></div>
+        </div>
+        <div class="section-label" style="color:#8A8498;margin-top:8px">Botão Finalizar</div>
+        <div class="progress-row">
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="btn-text">Finalizar</div></div>
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="progress-fill" style="width:40%;background:#0098B8;opacity:0.55"></div><div class="btn-text">40%</div></div>
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="progress-fill" style="width:80%;background:#0098B8;opacity:0.55"></div><div class="btn-text">80%</div></div>
+        </div>
+      </div>
+    </div>
+    <hr class="divider" style="border-color:#2A2A50">
+    <div class="pros-cons">
+      <div class="pros">Roxo #7C3AED no claro: contraste 4.5:1 com branco (AA). Ciano (#0098B8 + 55% opacity) sobre vinho: contraste de hue ~180° na roda. Para protanopia: roxo (S-cone) ≠ vinho (L-cone enfraquecido, azul presente).</div>
+      <div class="cons">3 variáveis de cor novas no claro (roxo, vinho, ciano). Ciano no escuro (#00B4D8) pode ser claro demais sobre branco — precisou escurecer para #0098B8.</div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- OPTION 4 -->
+  <!-- ================================================================ -->
+  <div class="option">
+    <div class="option-header">
+      <div class="option-number">4</div>
+      <div>
+        <div class="option-title">High Contrast — Light Selection + Striped Progress</div>
+        <div class="option-desc">Seleção com camada translúcida. Barra de progresso com listras diagonais (padrão geométrico, 0 cor).</div>
+      </div>
+    </div>
+
+    <div class="mode-grid">
+      <!-- DARK -->
+      <div class="mode-panel dark">
+        <div class="mode-label dark-label">⬛ Modo escuro</div>
+        <div class="section-label">Cores</div>
+        <div class="palette">
+          <div class="swatch"><div class="swatch-color" style="background:rgba(255,255,255,0.15);border:1px solid #3A3A5A"></div><div class="swatch-label" style="color:#B0A8C8">white 15%</div><div class="swatch-use" style="color:#7A7490">fundo selected</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#FF006E;border:1px solid #4A2A3A"></div><div class="swatch-label" style="color:#B0A8C8">accent #FF006E</div><div class="swatch-use" style="color:#7A7490">bolinha · botões</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:repeating-linear-gradient(45deg,transparent 0,transparent 3px,rgba(255,255,255,0.4) 3px,rgba(255,255,255,0.4) 6px);border:1px solid #3A3A5A"></div><div class="swatch-label" style="color:#B0A8C8">striped</div><div class="swatch-use" style="color:#7A7490">barra progresso</div></div>
+        </div>
+        <div class="cal-row" style="margin-top:6px">
+          <div><div class="cal-day" style="background:#1C1C40"><div class="day-num" style="color:#F0ECF5">14</div></div><div class="cal-label" style="color:#7A7490">normal</div></div>
+          <div><div class="cal-day" style="background:rgba(255,255,255,0.15)"><div class="day-num" style="color:#F0ECF5;font-weight:700">15</div><div class="dot" style="background:#FF006E"></div></div><div class="cal-label" style="color:#7A7490">selected c/ dot</div></div>
+          <div><div class="cal-day" style="background:#12122A"><div class="day-num" style="color:#B0A8C8">16</div><div class="dot" style="background:#FF006E"></div></div><div class="cal-label" style="color:#7A7490">dot programado</div></div>
+        </div>
+        <div class="section-label" style="margin-top:8px">Botão Finalizar</div>
+        <div class="progress-row">
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="btn-text">Finalizar</div></div>
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="progress-fill" style="width:40%;background:repeating-linear-gradient(45deg,transparent 0,transparent 3px,rgba(255,255,255,0.4) 3px,rgba(255,255,255,0.4) 7px)"></div><div class="btn-text">40%</div></div>
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="progress-fill" style="width:80%;background:repeating-linear-gradient(45deg,transparent 0,transparent 3px,rgba(255,255,255,0.4) 3px,rgba(255,255,255,0.4) 7px)"></div><div class="btn-text">80%</div></div>
+        </div>
+      </div>
+
+      <!-- LIGHT -->
+      <div class="mode-panel light" style="color:#1A1826">
+        <div class="mode-label light-label">☀️ Modo claro <span class="col-diff light-b">adaptado</span></div>
+        <div class="section-label" style="color:#8A8498">Cores</div>
+        <div class="palette">
+          <div class="swatch"><div class="swatch-color" style="background:rgba(0,0,0,0.08);border:1px solid #D4CFC8"></div><div class="swatch-label" style="color:#5A5470">black 8%</div><div class="swatch-use" style="color:#8A8498">fundo selected (sutil)</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#C70048;border:1px solid #E0A0B0"></div><div class="swatch-label" style="color:#5A5470">accent #C70048</div><div class="swatch-use" style="color:#8A8498">bolinha · botões</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:repeating-linear-gradient(45deg,transparent 0,transparent 3px,rgba(0,0,0,0.2) 3px,rgba(0,0,0,0.2) 6px);border:1px solid #D4CFC8"></div><div class="swatch-label" style="color:#5A5470">striped escuro</div><div class="swatch-use" style="color:#8A8498">barra progresso</div></div>
+        </div>
+        <div class="cal-row" style="margin-top:6px">
+          <div><div class="cal-day" style="background:#F0ECE8;border:2px solid #D4CFC8"><div class="day-num" style="color:#1A1826">14</div></div><div class="cal-label" style="color:#8A8498">normal</div></div>
+          <div><div class="cal-day" style="background:rgba(0,0,0,0.08);border:2px solid #B0A8A0"><div class="day-num" style="color:#1A1826;font-weight:700">15</div><div class="dot" style="background:#C70048"></div></div><div class="cal-label" style="color:#8A8498">selected c/ dot</div></div>
+          <div><div class="cal-day" style="background:#fff;border:2px solid #D4CFC8"><div class="day-num" style="color:#5A5470">16</div><div class="dot" style="background:#C70048"></div></div><div class="cal-label" style="color:#8A8498">dot programado</div></div>
+        </div>
+        <div class="section-label" style="color:#8A8498;margin-top:8px">Botão Finalizar</div>
+        <div class="progress-row">
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="btn-text">Finalizar</div></div>
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="progress-fill" style="width:40%;background:repeating-linear-gradient(45deg,transparent 0,transparent 3px,rgba(0,0,0,0.25) 3px,rgba(0,0,0,0.25) 7px)"></div><div class="btn-text">40%</div></div>
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="progress-fill" style="width:80%;background:repeating-linear-gradient(45deg,transparent 0,transparent 3px,rgba(0,0,0,0.25) 3px,rgba(0,0,0,0.25) 7px)"></div><div class="btn-text">80%</div></div>
+        </div>
+      </div>
+    </div>
+    <hr class="divider" style="border-color:#2A2A50">
+    <div class="pros-cons">
+      <div class="pros">Zero novas variáveis em qualquer modo. Listras diagonais são 100% independentes de cor. No claro, black 8% + borda mais escura (#B0A8A0) cria camada sutil mas presente.</div>
+      <div class="cons">Black 8% é muito sutil — praticamente invisível em monitores com brilho baixo. Listras pretas no botão vinho podem parecer "sujas" ou "manchadas". É a opção mais frágil visualmente.</div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- OPTION 5 -->
+  <!-- ================================================================ -->
+  <div class="option">
+    <div class="option-header">
+      <div class="option-number">5</div>
+      <div>
+        <div class="option-title">Color + Icon Redundancy</div>
+        <div class="option-desc">Bolinha troca para branco no selecionado. Texto do botão muda de cor gradualmente (branco → âmbar).</div>
+      </div>
+    </div>
+
+    <div class="mode-grid">
+      <!-- DARK -->
+      <div class="mode-panel dark">
+        <div class="mode-label dark-label">⬛ Modo escuro</div>
+        <div class="section-label">Cores</div>
+        <div class="palette">
+          <div class="swatch"><div class="swatch-color" style="background:#FF006E;border:1px solid #4A2A3A"></div><div class="swatch-label" style="color:#B0A8C8">accent #FF006E</div><div class="swatch-use" style="color:#7A7490">fundo selected · bolinha · botões</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#fff;border:1px solid #4A4A6A"></div><div class="swatch-label" style="color:#B0A8C8">white</div><div class="swatch-use" style="color:#7A7490">bolinha NO selected</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#FFBE0B;border:1px solid #4A3A20"></div><div class="swatch-label" style="color:#B0A8C8">amb #FFBE0B</div><div class="swatch-use" style="color:#7A7490">texto progresso</div></div>
+        </div>
+        <div class="cal-row" style="margin-top:6px">
+          <div><div class="cal-day" style="background:#1C1C40"><div class="day-num" style="color:#F0ECF5">14</div></div><div class="cal-label" style="color:#7A7490">normal</div></div>
+          <div><div class="cal-day" style="background:#FF006E;color:#fff"><div class="day-num">15</div><div class="dot" style="background:#fff"></div></div><div class="cal-label" style="color:#7A7490">selected c/ dot BRANCO</div></div>
+          <div><div class="cal-day" style="background:#12122A"><div class="day-num" style="color:#B0A8C8">16</div><div class="dot" style="background:#FF006E"></div></div><div class="cal-label" style="color:#7A7490">dot programado</div></div>
+        </div>
+        <div class="section-label" style="margin-top:8px">Botão Finalizar</div>
+        <div class="progress-row">
+          <div class="btn-mock" style="background:#FF006E;color:#fff"><div class="btn-text">Finalizar</div></div>
+          <div class="btn-mock" style="background:#FF006E"><div class="progress-fill" style="width:40%;background:#fff;opacity:0.35"></div><div class="btn-text" style="color:#FFBE0B">40%</div></div>
+          <div class="btn-mock" style="background:#FF006E"><div class="progress-fill" style="width:80%;background:#fff;opacity:0.35"></div><div class="btn-text" style="color:#FFBE0B">80%</div></div>
+        </div>
+      </div>
+
+      <!-- LIGHT -->
+      <div class="mode-panel light" style="color:#1A1826">
+        <div class="mode-label light-label">☀️ Modo claro <span class="col-diff light-b">adaptado</span></div>
+        <div class="section-label" style="color:#8A8498">Cores</div>
+        <div class="palette">
+          <div class="swatch"><div class="swatch-color" style="background:#C70048;border:1px solid #E0A0B0"></div><div class="swatch-label" style="color:#5A5470">accent #C70048</div><div class="swatch-use" style="color:#8A8498">fundo selected · bolinha · botões</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#fff;border:1px solid #D4CFC8"></div><div class="swatch-label" style="color:#5A5470">white</div><div class="swatch-use" style="color:#8A8498">bolinha NO selected</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#D49400;border:1px solid #E0C880"></div><div class="swatch-label" style="color:#5A5470">amb #D49400</div><div class="swatch-use" style="color:#8A8498">texto progresso</div></div>
+        </div>
+        <div class="cal-row" style="margin-top:6px">
+          <div><div class="cal-day" style="background:#F0ECE8;border:2px solid #D4CFC8"><div class="day-num" style="color:#1A1826">14</div></div><div class="cal-label" style="color:#8A8498">normal</div></div>
+          <div><div class="cal-day" style="background:#C70048;color:#fff"><div class="day-num">15</div><div class="dot" style="background:#fff"></div></div><div class="cal-label" style="color:#8A8498">selected c/ dot BRANCO</div></div>
+          <div><div class="cal-day" style="background:#fff;border:2px solid #D4CFC8"><div class="day-num" style="color:#5A5470">16</div><div class="dot" style="background:#C70048"></div></div><div class="cal-label" style="color:#8A8498">dot programado</div></div>
+        </div>
+        <div class="section-label" style="color:#8A8498;margin-top:8px">Botão Finalizar</div>
+        <div class="progress-row">
+          <div class="btn-mock" style="background:#C70048;color:#fff"><div class="btn-text">Finalizar</div></div>
+          <div class="btn-mock" style="background:#C70048"><div class="progress-fill" style="width:40%;background:#fff;opacity:0.35"></div><div class="btn-text" style="color:#D49400">40%</div></div>
+          <div class="btn-mock" style="background:#C70048"><div class="progress-fill" style="width:80%;background:#fff;opacity:0.35"></div><div class="btn-text" style="color:#D49400">80%</div></div>
+        </div>
+      </div>
+    </div>
+    <hr class="divider" style="border-color:#2A2A50">
+    <div class="pros-cons">
+      <div class="pros">0 novas variáveis. Mantém o bg-accent no selecionado (não muda layout). Bolinha branca legível em QUALQUER fundo colorido. Texto âmbar no progresso = dupla codificação (cor + texto numérico). Fácil de implementar com CSS condicional.</div>
+      <div class="cons">Lógica extra: dotColor precisa ser condicional (branco se selected). Texto do botão precisa de estado dinâmico. Leva mais mudanças no código que a Opção 1.</div>
+    </div>
+  </div>
+
+  <p style="text-align:center;font-size:11px;margin-top:8px;color:#7A7490">
+    <strong style="color:#B0A8C8">Nota sobre botão Finalizar:</strong> ele usa <code>bg-accent</code> nos dois modos (WorkoutTracker.tsx:558). A única diferença entre temas é se o accent é #FF006E (escuro) ou #C70048 (claro). O contraste do progress fill é o mesmo em ambos.
+  </p>
+</div>
+</body>
+</html>

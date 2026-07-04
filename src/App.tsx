@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
-import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, Rocket } from 'lucide-react';
+import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon } from 'lucide-react';
 import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData } from './types';
 import WorkoutTracker from './components/WorkoutTracker';
 import ImportPlan from './components/ImportPlan';
@@ -18,8 +18,10 @@ import Modal from './components/Modal';
 import Button from './components/Button';
 import UserProfile from './components/UserProfile';
 import WeekCalendar from './components/WeekCalendar';
+import MonthCalendar from './components/MonthCalendar';
 import BottomSheet from './components/BottomSheet';
 import { getAuth, getDb } from './lib/firebase';
+import { downloadIcal } from './lib/ical';
 import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
 
@@ -68,6 +70,7 @@ export default function App() {
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [showPlanSheet, setShowPlanSheet] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showMonthCalendar, setShowMonthCalendar] = useState(false);
   const getWeekStart = (d: Date) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -521,6 +524,23 @@ export default function App() {
     return { plannedDates: planned, completedDates: completed, raceDates: race };
   }, [plans, sessions, weekStart]);
 
+  const allPlannedDates = useMemo(() => {
+    const planned = new Set<string>();
+    const completed = new Set<string>();
+    const race = new Set<string>();
+    for (const p of plans) {
+      if (p.scheduledDate) {
+        planned.add(p.scheduledDate);
+        if (p.isCompleted) completed.add(p.scheduledDate);
+        if (p.isRaceMarker) race.add(p.scheduledDate);
+      }
+    }
+    for (const s of sessions) {
+      if (s.date) completed.add(s.date);
+    }
+    return { planned, completed, race };
+  }, [plans, sessions]);
+
   const dayPlansCount = plansForSelectedDate.length;
   const remainingCount = plans.filter(p => !p.isCompleted).length;
   const isTodaySelected = selectedDate.toDateString() === new Date().toDateString();
@@ -679,15 +699,42 @@ export default function App() {
 
               <p className="text-text-secondary mb-4">Olá, <strong>{greetingName}</strong></p>
 
-              <WeekCalendar
-                selectedDate={selectedDate}
-                weekStart={weekStart}
-                onSelectDate={handleSelectDate}
-                onWeekChange={handleWeekChange}
-                plannedDates={plannedDates}
-                completedDates={completedDates}
-                raceDates={raceDates}
-              />
+              <div className="mt-4 bg-bg-surface border border-border rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setShowMonthCalendar(!showMonthCalendar)}
+                  className="w-full p-3 flex items-center justify-between hover:bg-bg-elevated transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                    <CalendarIcon size={16} className="text-accent" />
+                    Calendário
+                  </span>
+                  {showMonthCalendar ? <ChevronUp size={18} className="text-text-muted" /> : <ChevronDown size={18} className="text-text-muted" />}
+                </button>
+
+                {showMonthCalendar ? (
+                  <div className="px-3 pb-3 pt-3">
+                    <MonthCalendar
+                      selectedDate={selectedDate}
+                      onSelectDate={(d) => { handleSelectDate(d); }}
+                      plannedDates={allPlannedDates.planned}
+                      completedDates={allPlannedDates.completed}
+                      raceDates={allPlannedDates.race}
+                    />
+                  </div>
+                ) : (
+                  <div className="px-3 pb-3">
+                    <WeekCalendar
+                      selectedDate={selectedDate}
+                      weekStart={weekStart}
+                      onSelectDate={handleSelectDate}
+                      onWeekChange={handleWeekChange}
+                      plannedDates={plannedDates}
+                      completedDates={completedDates}
+                      raceDates={raceDates}
+                    />
+                  </div>
+                )}
+              </div>
 
               <button
                 onClick={() => setShowPlanSheet(true)}
@@ -713,13 +760,23 @@ export default function App() {
                   </Button>
                   <ImportPlan onImport={(newPlans) => { setShowPlanSheet(false); handleImport(newPlans); }} plans={plans} />
                   {plans.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      className="w-full mt-4 border border-accent text-accent"
-                      onClick={() => { setShowPlanSheet(false); setPlanToDelete({ id: 'ALL', name: 'TODOS os planos' } as WorkoutPlan); }}
-                    >
-                      Apagar Plano de Treino
-                    </Button>
+                    <>
+                      <Button
+                        variant="secondary"
+                        className="w-full"
+                        onClick={() => { setShowPlanSheet(false); downloadIcal(plans, 'corre-logo-treinos.ics'); }}
+                      >
+                        <CalendarIcon size={16} className="mr-2" />
+                        Exportar para Calendário (.ics)
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full border border-accent text-accent"
+                        onClick={() => { setShowPlanSheet(false); setPlanToDelete({ id: 'ALL', name: 'TODOS os planos' } as WorkoutPlan); }}
+                      >
+                        Apagar Plano de Treino
+                      </Button>
+                    </>
                   )}
                 </div>
               </BottomSheet>

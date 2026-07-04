@@ -1,6 +1,30 @@
 # Handoff
 
-## Current Functional State (2026-07-04)
+## Current Functional State (2026-07-04b)
+
+### Calendar & Plan Rendering
+- `MonthCalendar` component: full month grid, navigation < >, dot markers (accent=planned, accent-secondary=completed, amber=race), current/selected day highlight
+- Collapsible via v/^ button below the week row with `max-h` + `opacity` transition animation
+- `exportIcal(plans, filename?)` and `downloadIcal(plans, filename?)` in `src/lib/ical.ts` — generates RFC 5545 `.ics` with VEVENT per plan with `scheduledDate`
+- "Exportar para Calendário (.ics)" button in Planos BottomSheet (appears when plans.length > 0)
+- Race marker dot color: `bg-amber-500` in MonthCalendar too (same convention)
+
+### Date Input
+- **Mudança:** Date picker movido para dentro do card expandido: botão "Reagendar" (apenas se não for raceMarker) abre modal com `<input type="date" colorScheme="dark">` com `onKeyDown e.preventDefault()` para bloquear digitação manual
+- Picker oculto anterior removido (`datePickerTarget`, `datePickerRef` não existem mais no App.tsx)
+- "Reagendar" funciona para planos existentes também
+
+### Month Calendar
+- `MonthCalendar` em `src/components/` — props: `selectedDate`, `onSelectDate`, `plannedDates`, `completedDates`, `raceDates`
+- Toggle state `showMonthCalendar` em App.tsx
+
+### iCal Export
+- `src/lib/ical.ts` — `generateIcal()` e `downloadIcal()`
+- Formato: versão 2.0, DATE (all-day), SUMMARY = plan.name, DESCRIPTION = steps + total duration
+- Botão no BottomSheet de Planos
+
+### Known Issues (updated)
+- Standard/ImprovePace generators still need min duration scaling (like beginner) — pendente
 
 ### Loading & Sync
 - App carrega em <1.2s (cache localStorage instantâneo + Firestore paralelo com timeout de 5s)
