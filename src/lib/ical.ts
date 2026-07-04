@@ -26,24 +26,29 @@ export function generateIcal(plans: WorkoutPlan[], programName?: string): string
 
   for (const plan of datedPlans) {
     const dateStr = plan.scheduledDate!;
-    if (seen.has(dateStr + plan.name)) continue;
-    seen.add(dateStr + plan.name);
+    if (seen.has(dateStr + plan.id)) continue; // UID único por plan.id, não por nome
+    seen.add(dateStr + plan.id);
 
-    const totalMinutes = Math.ceil(plan.steps.reduce((acc, s) => acc + (s.durationSeconds || 0), 0) / 60);
+    const totalMinutes = Math.ceil(plan.steps.reduce((acc, s) => acc + (s.durationSeconds || 0), 60) / 60);
     const startIcal = formatIcalDate(dateStr);
     const desc = plan.steps.map(s => {
       const label = s.type === 'warmup' ? 'Aquecimento' : s.type === 'run' ? 'Corrida' : s.type === 'cooldown' ? 'Desaquecimento' : s.type === 'rest' ? 'Caminhada' : s.type;
       const dur = `${Math.ceil((s.durationSeconds || 0) / 60)}min`;
-      return `${label}: ${dur}`;
+      const pace = s.type === 'run' && s.targetPace ? ` a ${s.targetPace}min/km` : '';
+      return `${label}: ${dur}${pace}`;
     }).join('\\n');
 
     lines.push('BEGIN:VEVENT');
-    lines.push(`UID:${plan.id}@correlogo`);
+    lines.push(`UID:plan.${plan.id}@correlogo.sytes.net`);
     lines.push(`DTSTART;VALUE=DATE:${startIcal}`);
     lines.push(`DTEND;VALUE=DATE:${startIcal}`);
     lines.push(`SUMMARY:${escapeIcal(plan.name)}`);
     lines.push(`DESCRIPTION:${escapeIcal(desc + '\\n\\nDuração total: ' + totalMinutes + 'min')}`);
     lines.push(`DTSTAMP:${stamp}`);
+    if (plan.updatedAt) {
+      const modified = new Date(plan.updatedAt).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+      lines.push(`LAST-MODIFIED:${modified}`);
+    }
     lines.push('END:VEVENT');
   }
 
