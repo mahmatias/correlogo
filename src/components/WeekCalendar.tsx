@@ -52,12 +52,12 @@ export default function WeekCalendar({ selectedDate, weekStart, onSelectDate, on
             <button
               key={dateKey}
               onClick={() => onSelectDate(day)}
-              className={`flex-1 min-w-0 text-center py-2 rounded-lg transition-colors ${
+              className={`flex-1 min-w-0 text-center py-2 rounded-lg transition-colors border-2 ${
                 isSelected
-                  ? 'bg-bg-elevated ring-2 ring-accent text-text-primary font-bold'
+                  ? 'bg-bg-elevated border-accent text-text-primary font-bold'
                   : isToday
-                    ? 'bg-bg-elevated text-text-primary'
-                    : 'bg-bg-surface text-text-secondary'
+                    ? 'bg-bg-elevated border-transparent text-text-primary'
+                    : 'bg-bg-surface border-transparent text-text-secondary'
               }`}
             >
               <div className="text-xs uppercase opacity-70">{DAYS[day.getDay()]}</div>

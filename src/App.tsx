@@ -722,7 +722,7 @@ export default function App() {
                     />
                   </div>
                 ) : (
-                  <div className="px-3 pb-3">
+                  <div className="px-3 pb-3 pt-1">
                     <WeekCalendar
                       selectedDate={selectedDate}
                       weekStart={weekStart}
