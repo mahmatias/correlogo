@@ -67,8 +67,7 @@ export default function App() {
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [showPlanSheet, setShowPlanSheet] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [datePickerTarget, setDatePickerTarget] = useState<string | null>(null);
-  const datePickerRef = useRef<HTMLInputElement>(null);
+  const datePickerRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const getWeekStart = (d: Date) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -766,23 +765,34 @@ export default function App() {
                       {!plan.isRaceMarker && (
                       <div className="flex justify-between items-center px-4 pb-4 bg-bg-surface">
                           <span className="text-xs text-text-secondary">{formatTotalDuration(calculateTotalDuration(plan))}</span>
-                          <div className="flex-1 flex justify-center px-2">
+                          <div className="flex-1 flex justify-center px-2 relative">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setDatePickerTarget(plan.id);
-                                if (datePickerRef.current) {
-                                  datePickerRef.current.value = plan.scheduledDate || '';
-                                  datePickerRef.current.showPicker();
+                                const input = datePickerRefs.current.get(plan.id);
+                                if (input) {
+                                  input.value = plan.scheduledDate || '';
+                                  input.showPicker();
                                 }
                               }}
                               className="text-xs text-text-muted border border-border rounded px-2 py-0.5 cursor-pointer hover:border-accent hover:text-accent transition-colors"
-                              style={{ colorScheme: 'dark' }}
                             >
                               {plan.scheduledDate
                                 ? new Date(plan.scheduledDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
                                 : '➕ data'}
                             </button>
+                            <input
+                              type="date"
+                              ref={(el) => {
+                                if (el) datePickerRefs.current.set(plan.id, el);
+                                else datePickerRefs.current.delete(plan.id);
+                              }}
+                              value={plan.scheduledDate || ''}
+                              onChange={(e) => handleDateChange(plan.id, e.target.value)}
+                              onKeyDown={(e) => e.preventDefault()}
+                              className="absolute inset-0 opacity-0 cursor-pointer"
+                              style={{ colorScheme: 'dark' }}
+                            />
                           </div>
                           <div className='flex gap-2 items-center'>
                               {plan.manual && (
@@ -877,19 +887,6 @@ export default function App() {
           />
         )}
       </main>
-
-      {/* Date picker oculto — acionado pelos botões de data nos cards */}
-      <input
-        ref={datePickerRef}
-        type="date"
-        style={{ position: 'fixed', top: '-200px', left: '-200px', opacity: 0, pointerEvents: 'none', colorScheme: 'dark' }}
-        onChange={(e) => {
-          if (datePickerTarget) {
-            handleDateChange(datePickerTarget, e.target.value);
-            setDatePickerTarget(null);
-          }
-        }}
-      />
     </div>
   );
 }
