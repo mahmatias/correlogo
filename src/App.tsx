@@ -765,39 +765,21 @@ export default function App() {
                       <div className="flex justify-between items-center px-4 pb-4 bg-bg-surface">
                           <span className="text-xs text-text-secondary">{formatTotalDuration(calculateTotalDuration(plan))}</span>
                           <div className="flex-1 flex justify-center px-2">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                const temp = document.createElement('input');
-                                temp.type = 'date';
-                                temp.value = plan.scheduledDate || '';
-                                temp.style.position = 'fixed';
-                                temp.style.left = rect.left + 'px';
-                                temp.style.top = rect.top + 'px';
-                                temp.style.width = rect.width + 'px';
-                                temp.style.height = rect.height + 'px';
-                                temp.style.opacity = '0';
-                                temp.style.colorScheme = 'dark';
-                                temp.addEventListener('change', () => {
-                                  handleDateChange(plan.id, temp.value);
-                                  document.body.removeChild(temp);
-                                }, { once: true });
-                                temp.addEventListener('blur', () => {
-                                  setTimeout(() => {
-                                    if (temp.parentNode) document.body.removeChild(temp);
-                                  }, 200);
-                                }, { once: true });
-                                document.body.appendChild(temp);
-                                temp.showPicker();
-                              }}
-                              className="text-xs text-text-muted border border-border rounded px-2 py-0.5 cursor-pointer hover:border-accent hover:text-accent transition-colors"
-                            >
-                              {plan.scheduledDate
-                                ? new Date(plan.scheduledDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-                                : '➕ data'}
-                            </button>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <span className="text-xs text-text-muted border border-border rounded px-2 py-0.5 hover:border-accent hover:text-accent transition-colors pointer-events-none">
+                                {plan.scheduledDate
+                                  ? new Date(plan.scheduledDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                                  : '➕ data'}
+                              </span>
+                              <input
+                                type="date"
+                                value={plan.scheduledDate || ''}
+                                onChange={(e) => { e.stopPropagation(); handleDateChange(plan.id, e.target.value); }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="absolute inset-0 opacity-0"
+                                style={{ colorScheme: 'dark' }}
+                              />
+                            </label>
                           </div>
                           <div className='flex gap-2 items-center'>
                               {plan.manual && (
