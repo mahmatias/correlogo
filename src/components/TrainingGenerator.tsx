@@ -60,11 +60,39 @@ const createStep = (
     ...(basis ? { basis } : {}),
 });
 
+// Mapeia um índice da tabela runna (0-15) para o índice linear interpolado
+// em N semanas, garantindo que a semana 0 mapeia para 0 e a última para 15.
+const mapTableIndex = (weekIdx: number, totalWeeks: number): number => {
+    if (totalWeeks <= 1) return 0;
+    const raw = (weekIdx / (totalWeeks - 1)) * 15;
+    return Math.min(15, Math.max(0, Math.round(raw)));
+};
+
+// Converte os steps crus da tabela runna em WorkoutStep[] formatados
+const buildBeginnerSteps = (steps: { t: string; min?: number; km?: number }[], runPace: number, walkPace: number): WorkoutStep[] => {
+    const planSteps: WorkoutStep[] = [];
+    planSteps.push(createStep('warmup', 300, walkPace));
+    for (const s of steps) {
+        if (s.t === 'run' && s.min != null) {
+            planSteps.push(createStep('run', Math.round(s.min * 60), runPace));
+        } else if (s.t === 'run' && s.km != null) {
+            const secs = Math.round((s.km / (60 / runPace)) * 3600);
+            planSteps.push({ ...createStep('run', secs, runPace, 'distance'), targetDistance: s.km });
+        } else if (s.t === 'walk') {
+            planSteps.push(createStep('rest', Math.round((s.min ?? 1) * 60), walkPace));
+        }
+    }
+    planSteps.push(createStep('cooldown', 300, walkPace));
+    return planSteps;
+};
+
 const generateBeginnerProgram = (data: any, totalWeeks: number): TrainingProgram => {
     const comfortPace = Math.max(6, (data.referenceRace.timeSeconds / 60) / data.referenceRace.distanceKm);
     const runPace = data.goal.targetPace ?? comfortPace;
     const walkPace = Math.max(comfortPace, 12);
-    const maxW = Math.min(totalWeeks, 16);
+
+    // Duração mínima viável para um C25K é 6 semanas; máxima 52
+    const clampedWeeks = Math.max(6, Math.min(52, totalWeeks));
 
     const runnaTable: { t: string; min?: number; km?: number }[][][] = [
         [ // W1
@@ -134,22 +162,11 @@ const generateBeginnerProgram = (data: any, totalWeeks: number): TrainingProgram
     ];
 
     const weeks: ProgramWeek[] = [];
-    for (let i = 0; i < maxW; i++) {
-        const sessions = runnaTable[i];
+    for (let i = 0; i < clampedWeeks; i++) {
+        const tableIdx = mapTableIndex(i, clampedWeeks);
+        const sessions = runnaTable[tableIdx];
         const plans: WorkoutPlan[] = sessions.map((steps, si) => {
-            const planSteps: WorkoutStep[] = [];
-            planSteps.push(createStep('warmup', 300, walkPace));
-            for (const s of steps) {
-                if (s.t === 'run' && s.min != null) {
-                    planSteps.push(createStep('run', Math.round(s.min * 60), runPace));
-                } else if (s.t === 'run' && s.km != null) {
-                    const secs = Math.round((s.km / (60 / runPace)) * 3600);
-                    planSteps.push({ ...createStep('run', secs, runPace, 'distance'), targetDistance: s.km });
-                } else if (s.t === 'walk') {
-                    planSteps.push(createStep('rest', Math.round((s.min ?? 1) * 60), walkPace));
-                }
-            }
-            planSteps.push(createStep('cooldown', 300, walkPace));
+            const planSteps = buildBeginnerSteps(steps, runPace, walkPace);
             const hasDistance = steps.some(s => s.km != null);
             if (hasDistance) {
                 const totalKm = steps.filter(s => s.t === 'run').reduce((a, s) => a + (s.km ?? 0), 0);
@@ -187,9 +204,9 @@ const generateBeginnerProgram = (data: any, totalWeeks: number): TrainingProgram
 
             // Interleave: M1, R1, M2, R2, R3...
             const interleaved: WorkoutPlan[] = [];
-            for (let i = 0; i < Math.max(plans.length, regenSessions.length); i++) {
-                if (i < plans.length) interleaved.push(plans[i]);
-                if (i < regenSessions.length) interleaved.push(regenSessions[i]);
+            for (let j = 0; j < Math.max(plans.length, regenSessions.length); j++) {
+                if (j < plans.length) interleaved.push(plans[j]);
+                if (j < regenSessions.length) interleaved.push(regenSessions[j]);
             }
             plans.length = 0;
             plans.push(...interleaved);
@@ -197,6 +214,7 @@ const generateBeginnerProgram = (data: any, totalWeeks: number): TrainingProgram
 
         weeks.push({ weekNumber: i + 1, phase: 'base', isRecoveryWeek: false, plans });
     }
+
     return {
         id: crypto.randomUUID(), name: 'Plano Iniciante', goal: data.goal,
         experienceLevel: data.experienceLevel, referenceRace: data.referenceRace,
@@ -393,7 +411,30 @@ const generateProgram = (data: any): TrainingProgram => {
         }
     }
     
-    return assignScheduledDates(program, data.startDate, data.daysOfWeek);
+    program = assignScheduledDates(program, data.startDate, data.daysOfWeek);
+
+    // Adiciona marcador visual da prova após a distribuição de datas
+    if (data.raceDate) {
+        const lastWeek = program.weeks[program.weeks.length - 1];
+        if (lastWeek) {
+            lastWeek.plans.push({
+                id: crypto.randomUUID(),
+                name: '🏁 Prova',
+                steps: [{ id: crypto.randomUUID(), type: 'run', durationSeconds: 1, targetPace: data.goal?.targetPace ?? 6 }],
+                programName: program.name,
+                isRaceMarker: true,
+                scheduledDate: data.raceDate,
+            });
+            // Reordena plans da última semana para que a prova fique no scheduledDate correto
+            lastWeek.plans.sort((a, b) => {
+                if (a.isRaceMarker) return 1;
+                if (b.isRaceMarker) return -1;
+                return (a.scheduledDate || '').localeCompare(b.scheduledDate || '');
+            });
+        }
+    }
+
+    return program;
 };
 
 export default function TrainingGenerator({ onGenerate, onCancel }: { onGenerate: (program: TrainingProgram) => void, onCancel: () => void }) {
