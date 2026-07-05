@@ -37,8 +37,8 @@ Empacotar o Corre Logo (SPA React + Vite + Firebase) como app Android usando Cap
 "dependencies": {
   "@capacitor/core": "^7.0.0",
   "@capacitor/android": "^7.0.0",
-    "@capacitor/text-to-speech": "^7.0.0",
-  "@capacitor/keep-awake": "^7.0.0",
+    "@capacitor-community/text-to-speech": "^6.0.0",
+  "@capacitor-community/keep-awake": "^7.0.0",
   "@capacitor/local-notifications": "^7.0.0"
 },
 "devDependencies": {

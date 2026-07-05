@@ -29,7 +29,7 @@
 - [ ] **Step 1: Install npm dependencies**
 
 ```bash
-npm install @capacitor/core @capacitor/android @capacitor/text-to-speech @capacitor/keep-awake @capacitor/local-notifications
+npm install @capacitor/core @capacitor/android @capacitor-community/text-to-speech @capacitor-community/keep-awake @capacitor/local-notifications
 npm install -D @capacitor/cli
 ```
 
@@ -625,7 +625,7 @@ export async function startTracking(onPosition: TrackCallback): Promise<{ stop: 
 - [ ] **Step 3: Create voice.ts**
 
 ```ts
-import { TextToSpeech } from '@capacitor/text-to-speech';
+import { TextToSpeech } from '@capacitor-community/text-to-speech';
 import { isNative } from './platform';
 
 let audioFocus: any = null;
@@ -681,7 +681,7 @@ const AudioFocus = registerPlugin<AudioFocusPlugin>('AudioFocus');
 - [ ] **Step 4: Create wakeLock.ts**
 
 ```ts
-import { KeepAwake } from '@capacitor/keep-awake';
+import { KeepAwake } from '@capacitor-community/keep-awake';
 import { isNative } from './platform';
 
 export async function keepAwake() {
@@ -732,7 +732,7 @@ export async function cancelAllNotifications() {
 - [ ] **Step 6: Fix voice.ts to include AudioFocus registration inline**
 
 ```ts
-import { TextToSpeech } from '@capacitor/text-to-speech';
+import { TextToSpeech } from '@capacitor-community/text-to-speech';
 import { registerPlugin } from '@capacitor/core';
 import { isNative } from './platform';
 
