@@ -222,7 +222,7 @@ class TrackingService : Service(), SensorEventListener {
         startForeground(NOTIFICATION_ID, notification)
 
         val locationRequest = LocationRequest.Builder(
-            android.location.Criterion.ACCURACY_FINE
+            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY
         ).setIntervalMillis(3000)
          .setMinUpdateIntervalMillis(1000)
          .build()
@@ -383,18 +383,19 @@ class TrackingPlugin : Plugin() {
 
 - [ ] **Step 3: Register plugins in MainActivity.kt**
 
-Read and modify `android/app/src/main/java/com/correlogo/app/MainActivity.kt`:
+Read and modify `android/app/src/main/java/com/correlogo/app/MainActivity.java` (note: it's Java, not Kotlin):
 
-```kotlin
-package com.correlogo.app
+```java
+package com.correlogo.app;
 
-import android.os.Bundle
-import com.getcapacitor.BridgeActivity
+import android.os.Bundle;
+import com.getcapacitor.BridgeActivity;
 
-class MainActivity : BridgeActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        registerPlugin(TrackingPlugin::class.java)
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        registerPlugin(TrackingPlugin.class);
     }
 }
 ```
@@ -489,19 +490,20 @@ class AudioFocusPlugin : Plugin() {
 
 - [ ] **Step 2: Register AudioFocusPlugin in MainActivity.kt**
 
-Modify `android/app/src/main/java/com/correlogo/app/MainActivity.kt`:
+Modify `android/app/src/main/java/com/correlogo/app/MainActivity.java`:
 
-```kotlin
-package com.correlogo.app
+```java
+package com.correlogo.app;
 
-import android.os.Bundle
-import com.getcapacitor.BridgeActivity
+import android.os.Bundle;
+import com.getcapacitor.BridgeActivity;
 
-class MainActivity : BridgeActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        registerPlugin(TrackingPlugin::class.java)
-        registerPlugin(AudioFocusPlugin::class.java)
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        registerPlugin(TrackingPlugin.class);
+        registerPlugin(AudioFocusPlugin.class);
     }
 }
 ```

@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026-07-04d]
+- **Android native tracking:** `TrackingService.kt` (foreground service, GPS via FusedLocationProviderClient, step counter via TYPE_STEP_COUNTER sensor) + `TrackingPlugin.kt` (Capacitor plugin bridge with `startTracking`, `stopTracking`, `getStepCount` methods)
+- **Plugin registration:** `MainActivity.java` now registers `TrackingPlugin` via `registerPlugin()` in `onCreate`
+- **Build config:** Kotlin plugin (2.0.21) + `play-services-location:21.0.1` added to Gradle
+
 ## [2026-07-04c]
 - **Fix logout redirect:** `onAuthStateChanged(null)` branch agora chama `finalizeAuth()` + `setShowUserProfile(false)`, liberando `checkingAuth` para exibir tela de login em vez de spinner infinito
 - **Blocos de repetição no WorkoutEditor:** cada bloco tem `repeat: N` (1–99); steps dentro do bloco são duplicados N vezes na expansão ao salvar. Ex: bloco 2x [corrida, caminhada] → corrida, caminhada, corrida, caminhada. Suporta múltiplos blocos com reordenação, add/remove step por bloco
