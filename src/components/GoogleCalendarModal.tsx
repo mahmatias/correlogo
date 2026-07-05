@@ -47,23 +47,23 @@ export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCale
     try {
       setError(null);
       
-      // Use direct redirect approach with the existing /auth/google/callback endpoint
-      // We send the user to a server page that exchanges the code for a token,
-      // then redirects back to our app with the token in the fragment.
-      
+      // Save current state to restore after redirect
       const state = crypto.randomUUID();
       sessionStorage.setItem('gcal_oauth_state', state);
       
+      // Use Google's OAuth endpoint directly - this is the cleanest approach
+      // and even works inside iframes as long as the redirect_uri matches
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
         client_id: CLIENT_ID,
         redirect_uri: `${window.location.origin}/auth/google/callback`,
         response_type: 'code',
         scope: SCOPES,
         access_type: 'offline',
-        prompt: 'consent',
+        include_granted_scopes: 'true',
         state,
       })}`;
       
+      console.log('[GCal] Redirecting to Google OAuth...');
       window.location.href = authUrl;
       
     } catch (err: any) {
@@ -99,6 +99,8 @@ export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCale
 
   const disconnect = () => {
     localStorage.removeItem('google_calendar_token');
+    localStorage.removeItem('gcal_calendar_id');
+    sessionStorage.removeItem('gcal_oauth_state');
     setAccessToken(null);
     setIsConnected(false);
     setLastSync(null);
@@ -117,6 +119,7 @@ export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCale
       
       // Use cached calendar IDs (faster + avoids emoji encoding issues)
       let calendarId = localStorage.getItem('gcal_calendar_id');
+      console.log('[GCal] Cached calendarId:', calendarId);
       
       if (calendarId) {
         // Verify it still exists
@@ -124,9 +127,11 @@ export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCale
           `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
         );
+        console.log('[GCal] Check cached calendar:', checkResponse.status);
         if (!checkResponse.ok) {
           calendarId = null;
           localStorage.removeItem('gcal_calendar_id');
+          console.log('[GCal] Cached calendar is gone, will create/find new one');
         }
       }
       
@@ -137,6 +142,7 @@ export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCale
           { headers: { Authorization: `Bearer ${accessToken}` } }
         );
         const calendarList = await calendarListResponse.json();
+        console.log('[GCal] Calendar list response:', calendarList);
         
         // Try several name variations
         const targetNames = ['Corre Logo 🏃', 'Corre Logo'];
@@ -147,6 +153,7 @@ export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCale
         if (found) {
           calendarId = found.id;
           localStorage.setItem('gcal_calendar_id', calendarId);
+          console.log('[GCal] Found existing calendar:', calendarId);
         } else {
           const newCalResponse = await fetch(
             'https://www.googleapis.com/calendar/v3/calendars',
@@ -163,11 +170,13 @@ export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCale
             }
           );
           const newCal = await newCalResponse.json();
+          console.log('[GCal] Create calendar response:', newCalResponse.status, newCal);
           if (newCal.error) {
             throw new Error(newCal.error.message);
           }
           calendarId = newCal.id;
           localStorage.setItem('gcal_calendar_id', calendarId);
+          console.log('[GCal] Created new calendar:', calendarId);
         }
       }
       
