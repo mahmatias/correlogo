@@ -1,28 +1,17 @@
+import { Calendar, LogOut, RefreshCw, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { Calendar, LogOut, Plus } from 'lucide-react';
+import { load } from 'gapi-script';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 
-declare global {
-  interface Window {
-    gapi: any;
-  }
+interface GoogleCalendarModalProps {
+  open: boolean;
+  onClose: () => void;
+  plans: any[];
 }
 
-interface GoogleCalendarSync {
-  isOpen: boolean;
-  isConnected: boolean;
-  isSyncing: boolean;
-  error: string | null;
-  lastSync: Date | null;
-  eventCount: number;
-  connect: () => Promise<void>;
-  disconnect: () => void;
-  sync: (plans: any[]) => Promise<void>;
-}
-
-export function useGoogleCalendarSync(): GoogleCalendarSync {
+export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCalendarModalProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,30 +25,12 @@ export function useGoogleCalendarSync(): GoogleCalendarSync {
       setAccessToken(token);
       setIsConnected(true);
     }
-    
-    // Load gapi script dynamically
-    const script = document.createElement('script');
-    script.src = 'https://apis.google.com/js/api.js';
-    script.onload = () => {
-      window.gapi?.load('client', async () => {
-        await window.gapi?.client.init({
-          apiKey: '', // Not needed for OAuth flow
-          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
-        });
-      });
-    };
-    document.body.appendChild(script);
-    
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
+  }, [open]);
 
   const connect = async () => {
     try {
       setError(null);
       
-      // Use Google Identity Services (new OAuth 2.0 flow)
       const width = 500;
       const height = 600;
       const left = window.screenX + (window.outerWidth / 2) - (width / 2);
@@ -84,7 +55,6 @@ export function useGoogleCalendarSync(): GoogleCalendarSync {
         throw new Error('Popup bloqueado. Permita popups para este site.');
       }
       
-      // Listen for token from popup
       const handleMessage = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
         if (!event.data?.access_token) return;
@@ -102,11 +72,7 @@ export function useGoogleCalendarSync(): GoogleCalendarSync {
       window.addEventListener('message', handleMessage);
       
     } catch (err: any) {
-      if (err?.message?.includes('popup')) {
-        setError('Popup bloqueado. Permita popups para este site.');
-      } else {
-        setError(err?.message || 'Erro ao conectar. Tente novamente.');
-      }
+      setError(err?.message || 'Erro ao conectar. Tente novamente.');
     }
   };
 
@@ -118,21 +84,19 @@ export function useGoogleCalendarSync(): GoogleCalendarSync {
     setEventCount(0);
   };
 
-  const sync = async (plans: any[]) => {
+  const sync = async () => {
     if (!accessToken) {
-      throw new Error('Não conectado ao Google Calendar');
+      setError('Não conectado ao Google Calendar');
+      return;
     }
     
     try {
       setIsSyncing(true);
       setError(null);
       
-      // Find or create "Corre Logo" calendar
       const calendarListResponse = await fetch(
         'https://www.googleapis.com/calendar/v3/users/me/calendarList',
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }
+        { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       const calendarList = await calendarListResponse.json();
       
@@ -159,7 +123,6 @@ export function useGoogleCalendarSync(): GoogleCalendarSync {
         calendarId = newCal.id;
       }
       
-      // Create events
       let created = 0;
       for (const plan of plans) {
         if (!plan.scheduledDate || plan.isRaceMarker) continue;
@@ -178,17 +141,9 @@ export function useGoogleCalendarSync(): GoogleCalendarSync {
               return `${label}: ${dur}min${pace}`;
             })
             .join('\n'),
-          start: {
-            date: start.toISOString().split('T')[0],
-          },
-          end: {
-            date: end.toISOString().split('T')[0],
-          },
-          extendedProperties: {
-            private: {
-              planId: plan.id,
-            },
-          },
+          start: { date: start.toISOString().split('T')[0] },
+          end: { date: end.toISOString().split('T')[0] },
+          extendedProperties: { private: { planId: plan.id } },
         };
         
         const response = await fetch(
@@ -221,17 +176,86 @@ export function useGoogleCalendarSync(): GoogleCalendarSync {
     }
   };
 
-  return {
-    isOpen: false,
-    isConnected,
-    isSyncing,
-    error,
-    lastSync,
-    eventCount,
-    connect,
-    disconnect,
-    sync,
-  };
-}
+  if (!open) return null;
 
-export default useGoogleCalendarSync;
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" onClick={onClose}>
+      <div className="bg-bg-surface rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
+            <Calendar size={24} className="text-accent" />
+            Google Calendar
+          </h2>
+          <button onClick={onClose} className="text-text-muted hover:text-text-primary">
+            <X size={24} />
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-danger/10 border border-danger/20 rounded-lg text-danger text-sm flex items-start gap-2">
+            <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {!isConnected ? (
+          <div className="space-y-4">
+            <p className="text-text-muted text-sm">
+              Conecte sua conta do Google Calendar para sincronizar seus treinos automaticamente.
+            </p>
+            <button
+              onClick={connect}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors font-medium"
+            >
+              <Calendar size={20} />
+              Conectar conta
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-muted">Status:</span>
+              <span className="text-sm text-success flex items-center gap-1">
+                <CheckCircle size={14} />
+                Conectado
+              </span>
+            </div>
+
+            {lastSync && (
+              <div className="text-xs text-text-muted">
+                Última sincronização: {lastSync.toLocaleString('pt-BR')}
+              </div>
+            )}
+
+            {eventCount > 0 && (
+              <div className="text-sm text-text-primary">
+                {eventCount} evento(s) sincronizado(s)
+              </div>
+            )}
+
+            <button
+              onClick={sync}
+              disabled={isSyncing}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50 font-medium"
+            >
+              <RefreshCw size={20} className={isSyncing ? 'animate-spin' : ''} />
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar Agora'}
+            </button>
+
+            <button
+              onClick={disconnect}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-bg-elevated text-text-muted rounded-lg hover:bg-bg-surface transition-colors text-sm"
+            >
+              <LogOut size={16} />
+              Desconectar
+            </button>
+
+            <p className="text-xs text-text-muted text-center">
+              Os treinos serão adicionados ao calendário "Corre Logo 🏃" no seu Google Calendar.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
