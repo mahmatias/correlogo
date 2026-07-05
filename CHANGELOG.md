@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026-07-05]
+- **Fix OAuth invalid_client:** server .env estava sem `VITE_GOOGLE_CLIENT_ID`; adicionado ao `.env` do servidor + rebuild
+- **Fix OAuth bad request:** GET `/auth/google/callback` no server.ts usava `redirect_uri` hardcoded `http://localhost:3000`, mas o Google exige que o `redirect_uri` do token exchange seja **idêntico** ao da auth request do frontend. Corrigido para usar `APP_URL` (mesmo pattern do POST route)
+- **Deploy:** server.cjs copiado para produção, PM2 restartado
+
 ## [2026-07-04d]
 - **Android native tracking:** `TrackingService.kt` (foreground service, GPS via FusedLocationProviderClient, step counter via TYPE_STEP_COUNTER sensor) + `TrackingPlugin.kt` (Capacitor plugin bridge with `startTracking`, `stopTracking`, `getStepCount` methods)
 - **Plugin registration:** `MainActivity.java` now registers `TrackingPlugin` via `registerPlugin()` in `onCreate`
