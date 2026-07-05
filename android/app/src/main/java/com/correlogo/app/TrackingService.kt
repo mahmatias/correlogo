@@ -58,11 +58,10 @@ class TrackingService : Service(), SensorEventListener {
         val notification = buildNotification()
         startForeground(NOTIFICATION_ID, notification)
 
-        val locationRequest = LocationRequest.Builder(
-            Priority.PRIORITY_HIGH_ACCURACY
-        ).setIntervalMillis(3000)
-         .setMinUpdateIntervalMillis(1000)
-         .build()
+        val locationRequest = LocationRequest.Builder(3000L)
+            .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+            .setMinUpdateIntervalMillis(1000L)
+            .build()
 
         fusedLocationClient.requestLocationUpdates(
             locationRequest,
@@ -107,7 +106,7 @@ class TrackingService : Service(), SensorEventListener {
             put("speed", location.speed)
             put("timestamp", location.time)
         }
-        currentPlugin?.notifyListeners("locationUpdate", obj)
+        currentPlugin?.emitLocation(obj)
     }
 
     private fun createNotificationChannel() {

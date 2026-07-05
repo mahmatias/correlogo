@@ -72,4 +72,8 @@ class TrackingPlugin : Plugin() {
         }
         notifyListeners("stepUpdate", obj)
     }
+
+    fun emitLocation(data: JSObject) {
+        notifyListeners("locationUpdate", data)
+    }
 }

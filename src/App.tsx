@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
-import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon } from 'lucide-react';
+import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar } from 'lucide-react';
 import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData } from './types';
 import WorkoutTracker from './components/WorkoutTracker';
 import ImportPlan from './components/ImportPlan';
@@ -20,7 +20,7 @@ import UserProfile from './components/UserProfile';
 import WeekCalendar from './components/WeekCalendar';
 import MonthCalendar from './components/MonthCalendar';
 import BottomSheet from './components/BottomSheet';
-import GoogleCalendarSyncButton from './components/GoogleCalendarSyncButton';
+import GoogleCalendarModal from './components/GoogleCalendarModal';
 import { getAuth, getDb } from './lib/firebase';
 import { downloadIcal } from './lib/ical';
 import { keepAwake, allowSleep } from './lib/capacitor/wakeLock';
@@ -73,6 +73,7 @@ export default function App() {
   const [showPlanSheet, setShowPlanSheet] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showMonthCalendar, setShowMonthCalendar] = useState(false);
+  const [showGoogleCalendarModal, setShowGoogleCalendarModal] = useState(false);
   const getWeekStart = (d: Date) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -773,9 +774,14 @@ export default function App() {
                         <CalendarIcon size={16} className="mr-2" />
                         Exportar para Calendário (.ics)
                       </Button>
-                      <div className="w-full py-1">
-                        <GoogleCalendarSyncButton plans={plans} />
-                      </div>
+                      <Button
+                        variant="ghost"
+                        className="w-full"
+                        onClick={() => { setShowPlanSheet(false); setShowGoogleCalendarModal(true); }}
+                      >
+                        <Calendar size={16} className="mr-2" />
+                        Sincronizar Google Calendar
+                      </Button>
                       <Button
                         variant="ghost"
                         className="w-full border border-accent text-accent"
@@ -952,6 +958,11 @@ export default function App() {
             onSaved={handleProfileSaved}
           />
         )}
+        <GoogleCalendarModal
+          open={showGoogleCalendarModal}
+          onClose={() => setShowGoogleCalendarModal(false)}
+          plans={plans}
+        />
       </main>
     </div>
   );
