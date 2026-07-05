@@ -132,6 +132,8 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     } else {
       startTracking(handlePosition).then((tracker) => {
         cleanup = () => tracker.stop();
+      }).catch((err) => {
+        console.error('GPS tracking error:', err);
       });
     }
 

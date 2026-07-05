@@ -58,11 +58,27 @@
     --text-muted: #8A8498;
   }
 
+  *, *::before, *::after {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
   body {
     background-color: var(--bg-deep);
     color: var(--text-primary);
     font-family: var(--font-body);
     transition: background-color 0.3s, color 0.3s;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   h1, h2, h3 {

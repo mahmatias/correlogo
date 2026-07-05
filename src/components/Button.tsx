@@ -33,7 +33,7 @@ export default function Button({
 }: ButtonProps) {
   return (
     <button
-      className={`transition-colors disabled:opacity-50 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={`whitespace-nowrap transition-colors disabled:opacity-50 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
       {...rest}
     >
       {children}

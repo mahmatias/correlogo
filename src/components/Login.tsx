@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { getAuth } from '../lib/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect, sendPasswordResetEmail } from 'firebase/auth';
 import { getFirebaseErrorPt } from '../lib/firebaseErrorsPtBr';
 
 interface Props {
@@ -43,11 +43,9 @@ export default function Login({ onSignupClick }: Props) {
             return;
         }
         try {
-            await signInWithPopup(auth, provider);
+            await signInWithRedirect(auth, provider);
         } catch (err: any) {
-            if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
-                setError(getFirebaseErrorPt(err));
-            }
+            setError(getFirebaseErrorPt(err));
             setLoading(false);
         }
     };

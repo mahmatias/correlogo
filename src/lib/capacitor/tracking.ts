@@ -31,7 +31,10 @@ export type TrackCallback = (point: { lat: number; lng: number; timestamp: numbe
 
 export async function startTracking(onPosition: TrackCallback): Promise<{ stop: () => void }> {
   if (isNative()) {
-    await Tracking.requestPermissions();
+    const permResult = await Tracking.requestPermissions();
+    if (permResult.location !== 'granted') {
+      throw new Error('Permissão de localização não concedida');
+    }
     await Tracking.startTracking();
 
     Tracking.addListener('locationUpdate', (data) => {

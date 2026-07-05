@@ -1,6 +1,5 @@
 import { Calendar, LogOut, RefreshCw, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { load } from 'gapi-script';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
