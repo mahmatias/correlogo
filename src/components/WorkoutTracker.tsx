@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Play, Pause, SkipForward, Minus, Plus, Square } from 'lucide-react';
 import { WorkoutPlan, formatDuration, formatDistance, getStepTypeLabel, ActivityPoint, getStepDurationSeconds } from '../types';
 import MapComponent from './MapComponent';
+import { startTracking, TrackCallback } from '../lib/capacitor/tracking';
+import { speak as voiceSpeak } from '../lib/capacitor/voice';
 
 interface Props {
   plan: WorkoutPlan;
@@ -86,23 +88,22 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     let lastTime: number = Date.now();
     let cleanup: (() => void) | null = null;
 
-    const handlePosition = (pos: GeolocationPosition) => {
-      const newCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude, altitude: pos.coords.altitude ?? undefined };
-      const now = Date.now();
-      setCoords(newCoords);
-      setPath(p => [...p, { ...newCoords, timestamp: now }]);
+    const handlePosition: TrackCallback = (pos) => {
+      const now = pos.timestamp;
+      setCoords({ lat: pos.lat, lng: pos.lng });
+      setPath(p => [...p, { ...pos, timestamp: now, altitude: undefined }]);
 
       if (lastCoords) {
-         const R = 6371; // km
-         const dLat = (newCoords.lat - lastCoords.lat) * Math.PI / 180;
-         const dLon = (newCoords.lng - lastCoords.lng) * Math.PI / 180;
+         const R = 6371;
+         const dLat = (pos.lat - lastCoords.lat) * Math.PI / 180;
+         const dLon = (pos.lng - lastCoords.lng) * Math.PI / 180;
          const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                   Math.cos(lastCoords.lat * Math.PI / 180) * Math.cos(newCoords.lat * Math.PI / 180) *
+                   Math.cos(lastCoords.lat * Math.PI / 180) * Math.cos(pos.lat * Math.PI / 180) *
                    Math.sin(dLon/2) * Math.sin(dLon/2);
          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-         const d = R * c; // km
+         const d = R * c;
          
-         if (d > 0.001) { // Filter noise
+         if (d > 0.001) {
            distRef.current += d;
            lapDistRef.current += d;
            const timeDiffHours = (now - lastTime) / 3600000;
@@ -111,24 +112,27 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
            }
          }
       }
-      lastCoords = newCoords;
+      lastCoords = { lat: pos.lat, lng: pos.lng };
       lastTime = now;
     };
-
-    const handleError = (err: GeolocationPositionError) => console.error(err);
 
     if (simulateGps) {
       import('../lib/gpsSimulator').then(({ startGpsSimulation }) => {
         cleanup = startGpsSimulation({
           originLat: -15.7975,
           originLng: -47.8919,
-          onPosition: handlePosition,
-          onError: handleError,
+          onPosition: (pos: GeolocationPosition) => handlePosition({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            timestamp: pos.coords.timestamp,
+          }),
+          onError: (err) => console.error(err),
         });
       });
     } else {
-      const watchId = navigator.geolocation.watchPosition(handlePosition, handleError, { enableHighAccuracy: true });
-      cleanup = () => navigator.geolocation.clearWatch(watchId);
+      startTracking(handlePosition).then((tracker) => {
+        cleanup = () => tracker.stop();
+      });
     }
 
     return () => { if (cleanup) cleanup(); };
@@ -234,21 +238,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
 
   const speak = (text: string, force = false) => {
     if (!force && (isFreeTraining || isExtended)) return;
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'pt-BR';
-
-      // Try to find a female voice
-      const voices = window.speechSynthesis.getVoices();
-      const femaleVoice = voices.find(v => v.lang === 'pt-BR' && v.name.toLowerCase().includes('female'));
-      if (femaleVoice) {
-        utterance.voice = femaleVoice;
-      }
-      
-      utterance.rate = 1.1; // Slightly faster for clarity
-      window.speechSynthesis.speak(utterance);
-    }
+    voiceSpeak(text, 'pt-BR');
   };
 
   const formatDurationSpeech = (seconds: number) => {
