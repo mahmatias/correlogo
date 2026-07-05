@@ -23,6 +23,7 @@
     "express": "^4.21.2",
     "express-rate-limit": "^8.5.2",
     "firebase": "^12.15.0",
+    "google-auth-library": "^10.9.0",
     "helmet": "^8.2.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.546.0",

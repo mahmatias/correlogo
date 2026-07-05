@@ -766,22 +766,51 @@ export default function App() {
                   <ImportPlan onImport={(newPlans) => { setShowPlanSheet(false); handleImport(newPlans); }} plans={plans} />
                   {plans.length > 0 && (
                     <>
-                      <Button
-                        variant="secondary"
-                        className="w-full"
+                      <button
+                        type="button"
                         onClick={() => { setShowPlanSheet(false); downloadIcal(plans, 'corre-logo-treinos.ics'); }}
+                        style={{
+                          display: 'flex',
+                          width: '100%',
+                          whiteSpace: 'nowrap',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '0.5rem',
+                          backgroundColor: 'rgb(var(--color-bg-elevated))',
+                          color: 'rgb(var(--color-text-primary))',
+                          transition: 'all 0.15s',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+                        onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                       >
-                        <CalendarIcon size={16} className="mr-2" />
+                        <CalendarIcon size={16} style={{ marginRight: '0.5rem', flexShrink: 0 }} />
                         Exportar para Calendário (.ics)
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="w-full"
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => { setShowPlanSheet(false); setShowGoogleCalendarModal(true); }}
+                        style={{
+                          display: 'flex',
+                          width: '100%',
+                          whiteSpace: 'nowrap',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '0.5rem',
+                          color: 'rgb(var(--color-text-muted))',
+                          transition: 'all 0.15s',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = 'rgb(var(--color-text-primary))'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = 'rgb(var(--color-text-muted))'}
                       >
-                        <Calendar size={16} className="mr-2" />
+                        <Calendar size={16} style={{ marginRight: '0.5rem', flexShrink: 0 }} />
                         Sincronizar Google Calendar
-                      </Button>
+                      </button>
                       <Button
                         variant="ghost"
                         className="w-full border border-accent text-accent"

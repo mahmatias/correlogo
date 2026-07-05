@@ -16,13 +16,13 @@ export interface StepUpdate {
 }
 
 export interface TrackingPlugin {
+  requestLocationPermission(): Promise<{ location: string }>;
   startTracking(): Promise<void>;
   stopTracking(): Promise<void>;
   getStepCount(): Promise<{ steps: number }>;
   addListener(eventName: 'locationUpdate', listener: (data: LocationUpdate) => void): Promise<void>;
   addListener(eventName: 'stepUpdate', listener: (data: StepUpdate) => void): Promise<void>;
   removeAllListeners(): Promise<void>;
-  requestPermissions(): Promise<{ location: string }>;
 }
 
 const Tracking = registerPlugin<TrackingPlugin>('Tracking');
@@ -31,7 +31,7 @@ export type TrackCallback = (point: { lat: number; lng: number; timestamp: numbe
 
 export async function startTracking(onPosition: TrackCallback): Promise<{ stop: () => void }> {
   if (isNative()) {
-    const permResult = await Tracking.requestPermissions();
+    const permResult = await Tracking.requestLocationPermission();
     if (permResult.location !== 'granted') {
       throw new Error('Permissão de localização não concedida');
     }
