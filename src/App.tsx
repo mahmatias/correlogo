@@ -23,6 +23,7 @@ import BottomSheet from './components/BottomSheet';
 import GoogleCalendarSyncButton from './components/GoogleCalendarSyncButton';
 import { getAuth, getDb } from './lib/firebase';
 import { downloadIcal } from './lib/ical';
+import { keepAwake, allowSleep } from './lib/capacitor/wakeLock';
 import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
 
@@ -294,7 +295,7 @@ export default function App() {
   const confirmWorkoutMode = (mode: 'treadmill' | 'outdoor') => {
     if (workoutToStart) {
       if (mode === 'outdoor') {
-        navigator.geolocation.getCurrentPosition(() => {}, (err) => console.error(err));
+        keepAwake();
       }
       setActivePlan({ plan: workoutToStart.plan, mode, sessionId: `${workoutToStart.plan.id}-${Date.now()}`, simulateGps: workoutToStart.simulateGps });
       setWorkoutToStart(null);
@@ -641,7 +642,7 @@ export default function App() {
                   plan={activePlan.plan} 
                   mode={activePlan.mode} 
                   simulateGps={activePlan.simulateGps}
-                  onStop={() => { setActivePlan(null); setIsFreeTraining(false); }} 
+                  onStop={() => { allowSleep(); setActivePlan(null); setIsFreeTraining(false); }} 
                   markAsCompleted={markAsCompleted}
                   totalWorkoutTime={calculateTotalDuration(activePlan.plan)}
                   isFreeTraining={isFreeTraining}
