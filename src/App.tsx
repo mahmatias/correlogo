@@ -24,6 +24,7 @@ import GoogleCalendarModal from './components/GoogleCalendarModal';
 import { getAuth, getDb } from './lib/firebase';
 import { downloadIcal } from './lib/ical';
 import { keepAwake, allowSleep } from './lib/capacitor/wakeLock';
+import { requestAllPermissions } from './lib/capacitor/permissions';
 import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
 
@@ -278,6 +279,12 @@ export default function App() {
     });
     return () => { unsub(); };
   }, []);
+
+  useEffect(() => {
+    if (user && !isLoading) {
+      requestAllPermissions();
+    }
+  }, [user, isLoading]);
 
   const startWorkout = (plan: WorkoutPlan) => {
     setWorkoutToStart({ plan });

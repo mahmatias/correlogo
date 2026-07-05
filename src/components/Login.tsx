@@ -1,7 +1,9 @@
 import { useState, FormEvent } from 'react';
 import { getAuth } from '../lib/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithCredential, sendPasswordResetEmail } from 'firebase/auth';
 import { getFirebaseErrorPt } from '../lib/firebaseErrorsPtBr';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
 interface Props {
   onSignupClick: () => void;
@@ -35,7 +37,6 @@ export default function Login({ onSignupClick }: Props) {
     const handleGoogleLogin = async () => {
         if (loading) return;
         setLoading(true);
-        const provider = new GoogleAuthProvider();
         const auth = getAuth();
         if (!auth) {
             setError('Serviço de autenticação não configurado.');
@@ -43,7 +44,14 @@ export default function Login({ onSignupClick }: Props) {
             return;
         }
         try {
-            await signInWithPopup(auth, provider);
+            if (Capacitor.isNativePlatform()) {
+                const result = await FirebaseAuthentication.signInWithGoogle();
+                const credential = GoogleAuthProvider.credential(result.credential?.idToken);
+                await signInWithCredential(auth, credential);
+            } else {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+            }
         } catch (err: any) {
             if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
                 setError(getFirebaseErrorPt(err));

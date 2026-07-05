@@ -51,7 +51,6 @@ function init() {
   console.log(`[timing] Firebase init total: ${(performance.now() - t).toFixed(0)}ms`);
 }
 
-// Analytics carregado sob demanda, sem bloquear init
 let analyticsInstance: any = null;
 export const getAnalytics = async () => {
   if (!analyticsInstance) {

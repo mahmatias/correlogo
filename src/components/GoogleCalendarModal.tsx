@@ -2,7 +2,7 @@ import { Calendar, LogOut, RefreshCw, CheckCircle, AlertCircle, X } from 'lucide
 import { useState, useEffect } from 'react';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+const SCOPES = 'https://www.googleapis.com/auth/calendar';
 
 interface GoogleCalendarModalProps {
   open: boolean;
@@ -47,63 +47,55 @@ export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCale
     try {
       setError(null);
       
-      // Load Google Identity Services script if not already loaded
-      const existing = document.getElementById('google-gsi-script') as HTMLScriptElement | null;
+      // Use direct redirect approach with the existing /auth/google/callback endpoint
+      // We send the user to a server page that exchanges the code for a token,
+      // then redirects back to our app with the token in the fragment.
       
-      const initTokenClient = () => {
-        const google = (window as any).google;
-        if (!google?.accounts?.oauth2) {
-          setError('Google Identity Services não carregou. Recarregue a página.');
-          return;
-        }
-
-        const client = google.accounts.oauth2.initTokenClient({
-          client_id: CLIENT_ID,
-          scope: SCOPES,
-          callback: (response: any) => {
-            if (response.access_token) {
-              const token = response.access_token;
-              localStorage.setItem('google_calendar_token', token);
-              setAccessToken(token);
-              setIsConnected(true);
-              setLastSync(new Date());
-            } else if (response.error) {
-              setError(`Google: ${response.error_description || response.error}`);
-            }
-          },
-          error_callback: (err: any) => {
-            setError(`Google: ${err.message || 'Erro OAuth'}`);
-          },
-        });
-        client.requestAccessToken({ prompt: '' });
-      };
+      const state = crypto.randomUUID();
+      sessionStorage.setItem('gcal_oauth_state', state);
       
-      if (existing) {
-        // Script tag exists, but script might still be parsing or already loaded
-        if ((window as any).google?.accounts?.oauth2) {
-          initTokenClient();
-        } else {
-          existing.addEventListener('load', initTokenClient);
-          setTimeout(() => {
-            if (!(window as any).google?.accounts?.oauth2) {
-              setError('Google Identity Services não carregou após 2s. Recarregue a página.');
-            }
-          }, 2000);
-        }
-      } else {
-        const script = document.createElement('script');
-        script.id = 'google-gsi-script';
-        script.src = 'https://accounts.google.com/gsi/client';
-        script.async = true;
-        script.defer = true;
-        script.onload = initTokenClient;
-        script.onerror = () => setError('Falha ao carregar Google Identity Services');
-        document.body.appendChild(script);
-      }
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
+        client_id: CLIENT_ID,
+        redirect_uri: `${window.location.origin}/auth/google/callback`,
+        response_type: 'code',
+        scope: SCOPES,
+        access_type: 'offline',
+        prompt: 'consent',
+        state,
+      })}`;
+      
+      window.location.href = authUrl;
+      
     } catch (err: any) {
       setError(err?.message || 'Erro ao conectar');
     }
   };
+
+  // Handle token from redirect after OAuth completes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('gcal_token');
+    const error = params.get('gcal_error');
+    const state = params.get('gcal_state');
+    
+    if (error) {
+      setError(`Google: ${error}`);
+      // Clean URL
+      window.history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+    
+    if (token && state) {
+      const savedState = sessionStorage.getItem('gcal_oauth_state');
+      if (savedState === state) {
+        sessionStorage.removeItem('gcal_oauth_state');
+        localStorage.setItem('google_calendar_token', token);
+        setAccessToken(token);
+        setIsConnected(true);
+        setLastSync(new Date());
+      }
+    }
+  }, []);
 
   const disconnect = () => {
     localStorage.removeItem('google_calendar_token');
@@ -123,40 +115,102 @@ export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCale
       setIsSyncing(true);
       setError(null);
       
-      const calendarListResponse = await fetch(
-        'https://www.googleapis.com/calendar/v3/users/me/calendarList',
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-      const calendarList = await calendarListResponse.json();
+      // Use cached calendar IDs (faster + avoids emoji encoding issues)
+      let calendarId = localStorage.getItem('gcal_calendar_id');
       
-      let calendarId = calendarList.items?.find(
-        (c: any) => c.summary === 'Corre Logo 🏃'
-      )?.id;
-      
-      if (!calendarId) {
-        const newCalResponse = await fetch(
-          'https://www.googleapis.com/calendar/v3/calendars',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({
-              summary: 'Corre Logo 🏃',
-              description: 'Planos de treino do Corre Logo',
-            }),
-          }
+      if (calendarId) {
+        // Verify it still exists
+        const checkResponse = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
         );
-        const newCal = await newCalResponse.json();
-        calendarId = newCal.id;
+        if (!checkResponse.ok) {
+          calendarId = null;
+          localStorage.removeItem('gcal_calendar_id');
+        }
       }
       
-      let created = 0;
-      for (const plan of plans) {
-        if (!plan.scheduledDate || plan.isRaceMarker) continue;
+      if (!calendarId) {
+        // List calendars to find existing one
+        const calendarListResponse = await fetch(
+          'https://www.googleapis.com/calendar/v3/users/me/calendarList',
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        const calendarList = await calendarListResponse.json();
         
-        const start = new Date(plan.scheduledDate);
+        // Try several name variations
+        const targetNames = ['Corre Logo 🏃', 'Corre Logo'];
+        const found = calendarList.items?.find(
+          (c: any) => targetNames.includes(c.summary)
+        );
+        
+        if (found) {
+          calendarId = found.id;
+          localStorage.setItem('gcal_calendar_id', calendarId);
+        } else {
+          const newCalResponse = await fetch(
+            'https://www.googleapis.com/calendar/v3/calendars',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify({
+                summary: 'Corre Logo 🏃',
+                description: 'Planos de treino do Corre Logo',
+              }),
+            }
+          );
+          const newCal = await newCalResponse.json();
+          if (newCal.error) {
+            throw new Error(newCal.error.message);
+          }
+          calendarId = newCal.id;
+          localStorage.setItem('gcal_calendar_id', calendarId);
+        }
+      }
+      
+      // Filter plans that should be synced
+      const plansToSync = plans.filter((p: any) => p.scheduledDate && !p.isRaceMarker);
+      
+      if (plansToSync.length === 0) {
+        setError('Nenhum treino com data programada para sincronizar');
+        setIsSyncing(false);
+        return;
+      }
+      
+      console.log(`[GCal] Syncing ${plansToSync.length} plans to calendar ${calendarId}`);
+      
+      let created = 0;
+      let deleted = 0;
+      
+      // First: delete all existing events that were created by us (extended property planId)
+      const existingResponse = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?maxResults=2500&privateExtendedProperty=correlogo=true`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const existingData = await existingResponse.json();
+      
+      for (const event of existingData.items || []) {
+        const delResponse = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.id)}`,
+          {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }
+        );
+        if (delResponse.ok || delResponse.status === 410) {
+          deleted++;
+        }
+      }
+      
+      // Now create events
+      created = 0;
+      let errors: string[] = [];
+      
+      for (const plan of plansToSync) {
+        const start = new Date(plan.scheduledDate + 'T00:00:00');
         const end = new Date(start);
         end.setDate(end.getDate() + 1);
         
@@ -172,7 +226,12 @@ export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCale
             .join('\n'),
           start: { date: start.toISOString().split('T')[0] },
           end: { date: end.toISOString().split('T')[0] },
-          extendedProperties: { private: { planId: plan.id } },
+          extendedProperties: {
+            private: {
+              planId: plan.id,
+              correlogo: 'true',
+            },
+          },
         };
         
         const response = await fetch(
@@ -189,10 +248,16 @@ export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCale
         
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error?.message || 'Erro ao criar evento');
+          errors.push(`${plan.name}: ${errorData.error?.message || 'erro'}`);
+          console.error('[GCal] Failed to create event for', plan.name, errorData);
+          continue;
         }
         
         created++;
+      }
+      
+      if (errors.length > 0) {
+        setError(`${created} criados, ${errors.length} erros: ${errors[0]}`);
       }
       
       setEventCount(created);
