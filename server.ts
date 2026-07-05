@@ -15,7 +15,7 @@ async function startServer() {
 
   const CSP_DIRECTIVES = {
     defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "'unsafe-inline'", "https://apis.google.com"],
+    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://apis.google.com", "https://accounts.google.com", "https://*.gstatic.com"],
     styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
     imgSrc: [
       "'self'", "data:",
@@ -33,6 +33,7 @@ async function startServer() {
       "https://firestore.googleapis.com",
       "https://firebasestorage.googleapis.com",
       "wss://*.firebaseio.com",
+      "ws://localhost:24678",
     ],
     frameSrc: ["https://*.firebaseapp.com", "https://accounts.google.com"],
     fontSrc: ["'self'", "https://fonts.gstatic.com"],
@@ -61,7 +62,38 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
-  // Exchange Google OAuth code for access token
+  // OAuth callback page — exchanges code for token, then redirects back to app
+  app.get("/auth/google/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      if (!code) {
+        return res.redirect('/?gcal_error=missing_code');
+      }
+
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: GOOGLE_CLIENT_ID,
+          client_secret: GOOGLE_CLIENT_SECRET,
+          code,
+          grant_type: 'authorization_code',
+          redirect_uri: `http://localhost:3000/auth/google/callback`,
+        }),
+      });
+
+      const tokens = await tokenResponse.json();
+      if (tokens.error) {
+        return res.redirect(`/?gcal_error=${encodeURIComponent(tokens.error_description || tokens.error)}`);
+      }
+
+      res.redirect(`/?gcal_token=${tokens.access_token}&gcal_state=${state || ''}`);
+    } catch (err: any) {
+      res.redirect(`/?gcal_error=${encodeURIComponent(err.message)}`);
+    }
+  });
+
+  // Exchange Google OAuth code for token (POST API for existing flow)
   app.post("/auth/google/callback", async (req, res) => {
     try {
       const { code } = req.body;
@@ -86,7 +118,7 @@ async function startServer() {
         return res.status(400).json({ error: tokens.error_description });
       }
 
-      res.json({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
+      res.json({ access_token: tokens.access_token });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

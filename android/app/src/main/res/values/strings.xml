@@ -4,4 +4,5 @@
     <string name="title_activity_main">Corre Logo</string>
     <string name="package_name">com.correlogo.app</string>
     <string name="custom_url_scheme">com.correlogo.app</string>
+    <string name="default_web_client_id">550159999478-j2a6b9gknlo9vu4t39lpvo00bijpq0tn.apps.googleusercontent.com</string>
 </resources>

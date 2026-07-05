@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1048841310896",
+    "project_id": "correlogo-dev-9a96a",
+    "storage_bucket": "correlogo-dev-9a96a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1048841310896:android:a8854ab217c447a9746aae084845a619ed06b3e8",
+        "android_client_info": {
+          "package_name": "com.correlogo.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "550159999478-j2a6b9gknlo9vu4t39lpvo00bijpq0tn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyChnLy4_tRlu77AJAjN25JbG9oNv7isI2c"
+        }
+      ]
+    }
+  ],
+  "configuration_version": "1"
+}

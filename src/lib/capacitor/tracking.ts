@@ -25,7 +25,7 @@ export interface TrackingPlugin {
   removeAllListeners(): Promise<void>;
 }
 
-const Tracking = registerPlugin<TrackingPlugin>('Tracking');
+export const Tracking = registerPlugin<TrackingPlugin>('Tracking');
 
 export type TrackCallback = (point: { lat: number; lng: number; timestamp: number; steps?: number }) => void;
 
