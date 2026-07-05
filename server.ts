@@ -70,6 +70,8 @@ async function startServer() {
         return res.redirect('/?gcal_error=missing_code');
       }
 
+      const redirectUri = `${process.env.APP_URL || `http://localhost:${PORT}`}/auth/google/callback`;
+
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -78,7 +80,7 @@ async function startServer() {
           client_secret: GOOGLE_CLIENT_SECRET,
           code,
           grant_type: 'authorization_code',
-          redirect_uri: `http://localhost:3000/auth/google/callback`,
+          redirect_uri: redirectUri,
         }),
       });
 
@@ -101,6 +103,8 @@ async function startServer() {
         return res.status(400).json({ error: "Code required" });
       }
 
+      const redirectUri = `${process.env.APP_URL || `http://localhost:${PORT}`}/auth/google/callback`;
+
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -109,7 +113,7 @@ async function startServer() {
           client_secret: GOOGLE_CLIENT_SECRET,
           code,
           grant_type: 'authorization_code',
-          redirect_uri: `${process.env.APP_URL}/auth/google/callback`,
+          redirect_uri: redirectUri,
         }),
       });
 
