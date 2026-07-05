@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Corre Logo</string>
+    <string name="title_activity_main">Corre Logo</string>
+    <string name="package_name">com.correlogo.app</string>
+    <string name="custom_url_scheme">com.correlogo.app</string>
+</resources>
