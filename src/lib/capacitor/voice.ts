@@ -13,7 +13,10 @@ export async function speak(text: string, lang = 'pt-BR') {
   if (isNative()) {
     try {
       await AudioFocus.requestFocus();
+      await TextToSpeech.stop();
       await TextToSpeech.speak({ text, lang, rate: 1.1 });
+    } catch (e) {
+      console.warn('[voice] native TTS error:', e);
     } finally {
       await AudioFocus.abandonFocus();
     }

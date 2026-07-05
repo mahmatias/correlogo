@@ -26,52 +26,82 @@ export default function GoogleCalendarModal({ open, onClose, plans }: GoogleCale
     }
   }, [open]);
 
-  const connect = async () => {
+  // Preload Google Identity Services when modal opens
+  useEffect(() => {
+    if (!open) return;
+    
+    if ((window as any).google?.accounts?.oauth2) return; // Already loaded
+    
+    const existing = document.getElementById('google-gsi-script');
+    if (existing) return; // Script tag already added
+    
+    const script = document.createElement('script');
+    script.id = 'google-gsi-script';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
+  }, [open]);
+
+  const connect = () => {
     try {
       setError(null);
       
-      const width = 500;
-      const height = 600;
-      const left = window.screenX + (window.outerWidth / 2) - (width / 2);
-      const top = window.screenY + (window.outerHeight / 2) - (height / 2);
+      // Load Google Identity Services script if not already loaded
+      const existing = document.getElementById('google-gsi-script') as HTMLScriptElement | null;
       
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
-        client_id: CLIENT_ID,
-        redirect_uri: 'postmessage',
-        response_type: 'token',
-        scope: SCOPES,
-        access_type: 'offline',
-        prompt: 'consent',
-      })}`;
-      
-      const popup = window.open(
-        authUrl,
-        'Google OAuth',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
-      
-      if (!popup) {
-        throw new Error('Popup bloqueado. Permita popups para este site.');
-      }
-      
-      const handleMessage = async (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
-        if (!event.data?.access_token) return;
-        
-        popup.close();
-        window.removeEventListener('message', handleMessage);
-        
-        const token = event.data.access_token;
-        localStorage.setItem('google_calendar_token', token);
-        setAccessToken(token);
-        setIsConnected(true);
-        setLastSync(new Date());
+      const initTokenClient = () => {
+        const google = (window as any).google;
+        if (!google?.accounts?.oauth2) {
+          setError('Google Identity Services não carregou. Recarregue a página.');
+          return;
+        }
+
+        const client = google.accounts.oauth2.initTokenClient({
+          client_id: CLIENT_ID,
+          scope: SCOPES,
+          callback: (response: any) => {
+            if (response.access_token) {
+              const token = response.access_token;
+              localStorage.setItem('google_calendar_token', token);
+              setAccessToken(token);
+              setIsConnected(true);
+              setLastSync(new Date());
+            } else if (response.error) {
+              setError(`Google: ${response.error_description || response.error}`);
+            }
+          },
+          error_callback: (err: any) => {
+            setError(`Google: ${err.message || 'Erro OAuth'}`);
+          },
+        });
+        client.requestAccessToken({ prompt: '' });
       };
       
-      window.addEventListener('message', handleMessage);
-      
+      if (existing) {
+        // Script tag exists, but script might still be parsing or already loaded
+        if ((window as any).google?.accounts?.oauth2) {
+          initTokenClient();
+        } else {
+          existing.addEventListener('load', initTokenClient);
+          setTimeout(() => {
+            if (!(window as any).google?.accounts?.oauth2) {
+              setError('Google Identity Services não carregou após 2s. Recarregue a página.');
+            }
+          }, 2000);
+        }
+      } else {
+        const script = document.createElement('script');
+        script.id = 'google-gsi-script';
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        script.onload = initTokenClient;
+        script.onerror = () => setError('Falha ao carregar Google Identity Services');
+        document.body.appendChild(script);
+      }
     } catch (err: any) {
-      setError(err?.message || 'Erro ao conectar. Tente novamente.');
+      setError(err?.message || 'Erro ao conectar');
     }
   };
 
