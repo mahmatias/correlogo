@@ -1,5 +1,55 @@
 # Handoff
 
+## Android Native Tracking (2026-07-04)
+
+### TrackingService.kt
+- `android/app/src/main/java/com/correlogo/app/TrackingService.kt`
+- Foreground service (`startForeground`) with:
+  - **GPS:** `FusedLocationProviderClient` with `Priority.PRIORITY_HIGH_ACCURACY`, 3s interval, 1s min update interval
+  - **Step counter:** `Sensor.TYPE_STEP_COUNTER`, delta from initial reading, emits `stepUpdate` events
+  - **Notification channel:** `tracking_channel` with Portuguese labels, `IMPORTANCE_LOW`, silent
+  - Lifecycle: `onCreate` sets up sensors/callbacks, `onStartCommand` starts updates, `onDestroy` removes listeners
+- Communication with plugin via `companion object { var currentPlugin: TrackingPlugin? }`
+
+### TrackingPlugin.kt
+- `android/app/src/main/java/com/correlogo/app/TrackingPlugin.kt`
+- `@CapacitorPlugin(name = "Tracking")` with permissions: `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `ACCESS_BACKGROUND_LOCATION`, `ACTIVITY_RECOGNITION`
+- Methods: `startTracking()` (checks fine location, starts foreground service), `stopTracking()`, `getStepCount()`
+- Events: `locationUpdate` (lat/lng/alt/accuracy/speed/timestamp), `stepUpdate` (steps)
+- Set `TrackingService.currentPlugin` in `load()` — service-to-plugin bridge
+
+### MainActivity.java
+- Registers `TrackingPlugin.class` in `onCreate` via `registerPlugin()`
+
+### Build config
+- `android/build.gradle`: Kotlin plugin `org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21` added to classpath
+- `android/app/build.gradle`: `kotlin-android` plugin applied, `com.google.android.gms:play-services-location:21.0.1` dependency added
+
+### Usage from TypeScript
+```typescript
+// Import plugin via Capacitor
+import { Tracking } from '@/plugins/tracking'; // or registerWebPlugin if JS-side needed
+
+// Start tracking
+await Tracking.startTracking();
+
+// Listen for location updates
+Tracking.addListener('locationUpdate', (data: { latitude, longitude, altitude, accuracy, speed, timestamp }) => { ... });
+
+// Listen for step updates
+Tracking.addListener('stepUpdate', (data: { steps }) => { ... });
+
+// Stop tracking
+await Tracking.stopTracking();
+
+// Get current step count
+const { steps } = await Tracking.getStepCount();
+```
+
+### Known limitations
+- Web/iOS stubs not yet implemented — this is Android-only for now
+- No permission request flow in the plugin itself (relies on caller having granted permissions first)
+
 ## Current Functional State (2026-07-04b)
 
 ### Calendar & Plan Rendering

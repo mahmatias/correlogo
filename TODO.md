@@ -33,6 +33,12 @@
 
 ## Concluídos
 
+### 2026-07-04 — Kotlin TrackingPlugin (foreground GPS + step counter)
+- ✅ Android `TrackingService.kt` — foreground service com GPS (FusedLocationProviderClient, 3s interval) + step counter (TYPE_STEP_COUNTER)
+- ✅ Android `TrackingPlugin.kt` — Capacitor plugin (startTracking, stopTracking, getStepCount) com declarações de permissão
+- ✅ `MainActivity.java` registra TrackingPlugin via `registerPlugin(TrackingPlugin.class)`
+- ✅ Kotlin suporte + play-services-location adicionados ao build.gradle
+
 ### 2026-07-04 — Correções no gerador, data editing, marcador de prova
 - ✅ Data editável: bloqueio de digitação manual (`onKeyDown e.preventDefault`) no input date
 - ✅ Gerador iniciante: remove cap de 16 semanas; `mapTableIndex` interpola a tabela runna para qualquer duração (6-52 sem); fim do plano com data de prova insere marcador 🏁
