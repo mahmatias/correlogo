@@ -15,3 +15,7 @@
 - Scaling de duração mínima para geradores Standard e ImprovePace (como já feito no Beginner)
 - Skeleton loading visível até 5s — considerar reduzir timeout
 - favicon.ico 404 cosmético
+- app não solicita permissões ao iniciar
+- app não pega GPS no celular, mas mumuplayer pegou gps
+- app não tem som
+- está utilizando as bibliotecas corretas?
