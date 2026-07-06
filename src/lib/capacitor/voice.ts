@@ -12,13 +12,19 @@ const AudioFocus = registerPlugin<AudioFocusPlugin>('AudioFocus');
 export async function speak(text: string, lang = 'pt-BR') {
   if (isNative()) {
     try {
-      await AudioFocus.requestFocus();
       await TextToSpeech.stop();
-      await TextToSpeech.speak({ text, lang, rate: 1.1 });
+      await AudioFocus.requestFocus();
+      // speak() returns immediately - do NOT abandon focus synchronously
+      // The TTS engine keeps focus naturally while audio is playing
+      await TextToSpeech.speak({ text, lang, rate: 1.0 });
+      // Abandon focus after a delay longer than the typical utterance length
+      const durationMs = Math.max(2000, text.length * 90);
+      setTimeout(() => {
+        AudioFocus.abandonFocus().catch(() => {});
+      }, durationMs);
     } catch (e) {
       console.warn('[voice] native TTS error:', e);
-    } finally {
-      await AudioFocus.abandonFocus();
+      AudioFocus.abandonFocus().catch(() => {});
     }
   } else {
     if ('speechSynthesis' in window) {
@@ -30,7 +36,7 @@ export async function speak(text: string, lang = 'pt-BR') {
         (v) => v.lang === 'pt-BR' && v.name.toLowerCase().includes('female')
       );
       if (femaleVoice) utterance.voice = femaleVoice;
-      utterance.rate = 1.1;
+      utterance.rate = 1.0;
       window.speechSynthesis.speak(utterance);
     }
   }
@@ -39,6 +45,7 @@ export async function speak(text: string, lang = 'pt-BR') {
 export function stopSpeaking() {
   if (isNative()) {
     TextToSpeech.stop().catch(() => {});
+    AudioFocus.abandonFocus().catch(() => {});
   } else if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }

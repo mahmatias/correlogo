@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Play, Pause, SkipForward, Minus, Plus, Square } from 'lucide-react';
 import { WorkoutPlan, formatDuration, formatDistance, getStepTypeLabel, ActivityPoint, getStepDurationSeconds } from '../types';
 import MapComponent from './MapComponent';
-import { startTracking, TrackCallback } from '../lib/capacitor/tracking';
+import { startTracking, TrackCallback, Tracking } from '../lib/capacitor/tracking';
 import { speak as voiceSpeak } from '../lib/capacitor/voice';
 
 interface Props {
@@ -42,12 +42,16 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const [path, setPath] = useState<{lat: number, lng: number, altitude?: number, timestamp: number}[]>([]);
   const [dist, setDist] = useState(0); // km
   const [paceHistory, setPaceHistory] = useState<{timeSeconds: number, pace: number}[]>([]);
-  
+  const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+
   const distRef = useRef(0);
   const speedRef = useRef(10);
   const lapDistRef = useRef(0);
   const pointsRef = useRef<ActivityPoint[]>([]);
   const coordsRef = useRef<{lat: number, lng: number, altitude?: number} | null>(null);
+  const isPausedRef = useRef(false);
+  useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
 
   // Sync coords ref
   useEffect(() => {
@@ -82,7 +86,12 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
 
   // GPS tracking
   useEffect(() => {
-    if (mode !== 'outdoor') return;
+    if (mode !== 'outdoor') {
+      console.log('[WorkerTracker] mode != outdoor, GPS effect skipped');
+      return;
+    }
+
+    console.log('[WorkerTracker] GPS useEffect iniciado, mode=', mode, 'simulateGps=', simulateGps);
 
     let lastCoords: {lat: number, lng: number} | null = null;
     let lastTime: number = Date.now();
@@ -103,7 +112,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
          const d = R * c;
          
-         if (d > 0.001) {
+         if (d > 0.001 && !isPausedRef.current) {
            distRef.current += d;
            lapDistRef.current += d;
            const timeDiffHours = (now - lastTime) / 3600000;
@@ -117,6 +126,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     };
 
     if (simulateGps) {
+      console.log('[WorkerTracker] starting GPS simulator');
       import('../lib/gpsSimulator').then(({ startGpsSimulation }) => {
         cleanup = startGpsSimulation({
           originLat: -15.7975,
@@ -124,21 +134,25 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
           onPosition: (pos: GeolocationPosition) => handlePosition({
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
-            timestamp: pos.coords.timestamp,
+            timestamp: pos.timestamp,
           }),
           onError: (err) => console.error(err),
         });
       });
     } else {
+      console.log('[WorkerTracker] calling startTracking (native plugin)');
       startTracking(handlePosition).then((tracker) => {
+        console.log('[WorkerTracker] startTracking OK, tracker ready');
+        setPermissionError(null);
         cleanup = () => tracker.stop();
       }).catch((err) => {
-        console.error('GPS tracking error:', err);
+        console.error('[WorkerTracker] GPS tracking error:', err);
+        setPermissionError(err?.message || String(err));
       });
     }
 
     return () => { if (cleanup) cleanup(); };
-  }, [mode, simulateGps]);
+  }, [mode, simulateGps, retryKey]);
 
   useEffect(() => {
       return () => {
@@ -330,6 +344,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     const isLastStep = currentStepIndex >= plan.steps.length - 1;
 
     if (isLastStep) {
+      speak("Exercício concluído, parabéns!", true);
       setIsExtended(true);
     } else {
       const nextIndex = currentStepIndex + 1;
@@ -353,7 +368,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
 
   useEffect(() => {
     if (isWorkoutCompleted && !workoutCompletedAnnouncedRef.current) {
-        speak("Exercício Concluído. Parabéns!", true);
+        speak("Agora é só olhar seu relatório", true);
         workoutCompletedAnnouncedRef.current = true;
     }
   }, [isWorkoutCompleted]);
@@ -452,67 +467,95 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   };
 
   return (
-    <div className="flex flex-col items-center p-4 min-h-screen relative bg-bg-deep text-text-primary">
-      {countdown > 0 && (
-        <div className="absolute inset-0 flex text-6xl justify-center items-center h-screen bg-bg-deep z-50">{countdown}</div>
+    <div className="h-full flex flex-col bg-bg-deep text-text-primary overflow-hidden">
+      {permissionError && mode === 'outdoor' && (
+        <div className="flex-shrink-0 w-full px-4 pt-3 pb-1 bg-danger/10 border-b border-danger/30 text-danger">
+          <p className="font-semibold text-sm mb-1">Permissão de localização necessária</p>
+          <p className="text-xs mb-2 text-text-secondary">{permissionError}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setPermissionError(null); setRetryKey(k => k + 1); }}
+              className="flex-1 py-2 rounded bg-bg-elevated text-text-primary text-xs font-medium"
+            >
+              Tentar novamente
+            </button>
+            <button
+              onClick={async () => { try { await Tracking.openAppSettings(); } catch {} }}
+              className="flex-1 py-2 rounded bg-accent/80 text-white text-xs font-medium"
+            >
+              Abrir Configurações
+            </button>
+          </div>
+        </div>
       )}
-      <div className="w-full max-w-md">
-        <div className="text-center text-text-secondary text-sm uppercase tracking-wider mb-1">Atual</div>
-        <div className="text-center text-3xl font-bold text-accent-secondary mb-6 uppercase">{isExtended ? 'Corrida Livre' : getStepTypeLabel(step.type)}</div>
-        
-        <div className="grid grid-cols-3 gap-2 text-center mb-4">
+      {countdown > 0 && (
+        <div className="fixed inset-0 flex text-6xl justify-center items-center bg-bg-deep z-50">{countdown}</div>
+      )}
+      <div className="flex-1 flex flex-col px-6 py-3 pb-[calc(48px+env(safe-area-inset-bottom,0px))] w-full overflow-hidden">
+        <div className="flex-shrink-0 text-center text-text-secondary text-[11px] uppercase tracking-wider">Atual</div>
+        <div className="flex-shrink-0 text-center text-3xl font-bold text-accent-secondary uppercase">{isExtended ? 'Corrida Livre' : getStepTypeLabel(step.type)}</div>
+
+        <div className="flex-shrink-0 grid grid-cols-3 gap-2 text-center mt-1">
           <div>
-            <div className="text-text-secondary text-xs uppercase">Dist. Total</div>
+            <div className="text-text-secondary text-[12px] uppercase">Dist. Total</div>
             <div className="text-lg font-bold">{formatDistance(displayDistance)}</div>
           </div>
           <div>
-            <div className="text-text-secondary text-xs uppercase">Tempo total</div>
+            <div className="text-text-secondary text-[12px] uppercase">Tempo total</div>
             <div className="text-lg font-bold">{formatTime(elapsedSeconds)}</div>
           </div>
           <div>
-            <div className="text-text-secondary text-xs uppercase">Vel. Média</div>
+            <div className="text-text-secondary text-[12px] uppercase">Vel. Média</div>
             <div className="text-lg font-bold">{(elapsedSeconds > 0 ? (displayDistance / (elapsedSeconds / 3600)) : 0).toFixed(1)} KM/h</div>
           </div>
         </div>
-             {/* Step objective */}
-        <div className="relative bg-bg-elevated rounded p-1 mb-2 overflow-hidden w-full h-5">
-            <div key={currentStepIndex} className={`absolute top-1/2 -translate-y-1/2 ${!isPaused && countdown === 0 ? 'animate-marquee' : ''} text-xs text-text-primary whitespace-nowrap`}>
-                {isFreeTraining ? 'Corrida Livre' : `${isDistanceStep ? formatDistance(stepTargetDistance) : formatDuration(step.durationSeconds)} ${getStepTypeLabel(step.type)}${step.targetPace ? ` @ ${(60/step.targetPace).toFixed(1)} KM/h` : ''}`}
+
+        <div className={`flex-shrink-0 relative bg-bg-elevated rounded p-1 mt-1 overflow-hidden w-full ${mode === 'treadmill' ? 'h-10' : 'h-5'}`}>
+            <div key={currentStepIndex} className={`absolute top-1/2 -translate-y-1/2 ${!isPaused && countdown === 0 ? 'animate-marquee' : ''} text-[10px] text-text-primary whitespace-nowrap`}>
+                {isFreeTraining ? 'Corrida Livre' : `${isDistanceStep ? formatDistance(stepTargetDistance) : formatDuration(step.durationSeconds)} ${getStepTypeLabel(step.type)}${step.targetPace ? ` @ ${(60/step.targetPace).toFixed(1)} km/h` : ''}`}
             </div>
         </div>
 
-        {/* Progress bars */}
-        <div className="w-full bg-bg-elevated h-2 rounded-full mb-1">
+        <div className={`flex-shrink-0 w-full bg-bg-elevated ${mode === 'treadmill' ? 'h-5' : 'h-2.5'} rounded-full mt-1`}>
             <div className="bg-accent-secondary h-full rounded-full" style={{width: `${isDistanceStep ? Math.min((lapDistance / (stepTargetDistance || 1)) * 100, 100) : Math.min((lapSeconds / (step.durationSeconds || 1)) * 100, 100)}%`}}></div>
         </div>
-        
-        <div className="w-full bg-bg-elevated h-2 rounded-full mb-8">
+
+        <div className={`flex-shrink-0 w-full bg-bg-elevated ${mode === 'treadmill' ? 'h-5' : 'h-2.5'} rounded-full mt-1`}>
             <div className="bg-accent-secondary h-full rounded-full" style={{width: `${Math.min(((elapsedSeconds + skippedTime) / totalWorkoutTime) * 100, 100)}%`}}></div>
         </div>
 
-        {mode === 'outdoor' && !isWorkoutCompleted && countdown === 0 && <div className="w-full mb-6 h-64"><MapComponent coords={coords} path={path} /></div>}
+        {mode === 'outdoor' && !isWorkoutCompleted && countdown === 0 && (
+          <div className="flex-1 min-h-64 w-full rounded-lg overflow-hidden mt-1">
+            <MapComponent coords={coords} path={path} />
+          </div>
+        )}
 
-        {/* Step Distance and Time — countdown mode */}
-        <div className="text-center mb-2 p-4 bg-bg-surface border border-border rounded-xl">
+        <div className={(mode === 'treadmill' ? 'flex-1 min-h-0' : 'flex-shrink-0') + ' mt-1'}>
+          <div className="w-full h-full px-3 py-2 bg-bg-surface border border-border rounded-xl flex flex-col items-center justify-center">
             {isDistanceStep ? (
                 <>
-                    <div className="text-4xl font-bold">{formatDistance(Math.max(0, stepTargetDistance - lapDistance))}</div>
-                    <div className="text-text-secondary uppercase tracking-widest text-xs">Dist. restante</div>
-                    <div className="text-2xl font-bold mt-2">{formatTime(lapSeconds)}</div>
-                    <div className="text-text-secondary uppercase tracking-widest text-xs">Tempo da Volta</div>
+                    <div className="text-4xl font-bold leading-tight">{formatDistance(Math.max(0, stepTargetDistance - lapDistance))}</div>
+                    <div className="text-text-secondary uppercase tracking-widest text-[10px]">Dist. restante</div>
+                    <div className="text-base font-bold mt-0.5">{formatTime(lapSeconds)}</div>
+                    <div className="text-text-secondary uppercase tracking-widest text-[10px]">Tempo da Volta</div>
                 </>
             ) : (
                 <>
-                    <div className="text-4xl font-bold">{formatDistance(lapDistance)}</div>
-                    <div className="text-text-secondary uppercase tracking-widest text-xs">Dist. da Volta</div>
-                    <div className="text-2xl font-bold mt-2">{formatTime(Math.max(0, step.durationSeconds - lapSeconds))}</div>
-                    <div className="text-text-secondary uppercase tracking-widest text-xs">Tempo restante</div>
+                    <div className="text-4xl font-bold leading-tight">{formatDistance(lapDistance)}</div>
+                    <div className="text-text-secondary uppercase tracking-widest text-[10px]">Dist. da Volta</div>
+                    {!isFreeTraining && (
+                      <>
+                        <div className="text-base font-bold mt-0.5">{formatTime(Math.max(0, step.durationSeconds - lapSeconds))}</div>
+                        <div className="text-text-secondary uppercase tracking-widest text-[10px]">Tempo restante</div>
+                      </>
+                    )}
                 </>
             )}
+          </div>
         </div>
 
         {mode === 'treadmill' && (
-            <div className="flex items-center justify-between bg-bg-elevated rounded-xl p-2 mb-6">
+            <div className="flex-shrink-0 flex items-center justify-between bg-bg-elevated rounded-xl p-2 mt-1">
                 <button 
                     onMouseDown={() => { if (speedTouchRef.current) return; if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
                     onMouseUp={() => { stopAdjusting(); }}
@@ -521,15 +564,15 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                     onTouchEnd={() => { stopAdjusting(); setTimeout(() => { speedTouchRef.current = false; }, 100); }}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startAdjusting(-0.1); } }}
                     onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') stopAdjusting(); }}
-                    className="p-4 rounded-lg bg-bg-elevated"
+                    className="p-2 rounded-lg bg-bg-elevated"
                     style={{ touchAction: 'manipulation' }}
                     aria-label="Diminuir velocidade"
                 >
-                    <Minus />
+                    <Minus size={22} />
                 </button>
                 <div className="flex flex-col items-center">
                     <div className="text-2xl font-bold text-accent-secondary">{currentSpeed.toFixed(1)} KM/h</div>
-                    <div className="text-xs text-text-muted uppercase">Velocidade</div>
+                    <div className="text-[10px] text-text-muted uppercase">Velocidade</div>
                 </div>
                 <button 
                     onMouseDown={() => { if (speedTouchRef.current) return; if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(0.1); } }}
@@ -539,62 +582,64 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                     onTouchEnd={() => { stopAdjusting(); setTimeout(() => { speedTouchRef.current = false; }, 100); }}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startAdjusting(0.1); } }}
                     onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') stopAdjusting(); }}
-                    className="p-4 rounded-lg bg-bg-elevated"
+                    className="p-2 rounded-lg bg-bg-elevated"
                     style={{ touchAction: 'manipulation' }}
                     aria-label="Aumentar velocidade"
                 >
-                    <Plus />
+                    <Plus size={22} />
                 </button>
             </div>
         )}
 
-        {isPaused || isExtended ? (
-            <button 
-                onMouseDown={startFinish}
-                onMouseUp={stopFinish}
-                onMouseLeave={stopFinish}
-                onTouchStart={startFinish}
-                onTouchEnd={stopFinish}
-                className="w-full flex items-center justify-center gap-2 bg-accent text-white py-4 rounded-full font-bold mb-4 uppercase relative overflow-hidden"
-            >
-                <div className="absolute inset-0 bg-accent-secondary/45" style={{ width: `${finishProgress}%` }}></div>
-                <Square aria-hidden="true" /> Finalizar treino
-            </button>
-        ) : (
-            <button 
-                onClick={nextStep} 
-                disabled={currentStepIndex >= plan.steps.length - 1}
-                className={`w-full flex items-center justify-center gap-2 bg-bg-elevated text-text-primary py-4 rounded-full font-bold mb-4 uppercase ${currentStepIndex >= plan.steps.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-                <SkipForward aria-hidden="true" /> Próxima volta
-            </button>
-        )}
-        <button onClick={() => setIsPaused(!isPaused)} className="w-full flex items-center justify-center gap-2 bg-accent-secondary text-white py-4 rounded-full font-bold uppercase mb-4">
-            {isPaused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />} {isPaused ? 'Continuar' : 'Pausar'}
-        </button>
+        <div className="flex-shrink-0 space-y-2 mt-auto">
+          {isPaused || isExtended ? (
+              <button 
+                  onMouseDown={startFinish}
+                  onMouseUp={stopFinish}
+                  onMouseLeave={stopFinish}
+                  onTouchStart={startFinish}
+                  onTouchEnd={stopFinish}
+                  className="w-full flex items-center justify-center gap-2 bg-accent text-white py-3 rounded-full font-bold uppercase relative overflow-hidden"
+              >
+                  <div className="absolute inset-0 bg-accent-secondary/45" style={{ width: `${finishProgress}%` }}></div>
+                  <Square size={18} aria-hidden="true" /> Finalizar
+              </button>
+          ) : (
+              <button 
+                  onClick={nextStep} 
+                  disabled={currentStepIndex >= plan.steps.length - 1}
+                  className={`w-full flex items-center justify-center gap-2 bg-bg-elevated text-text-primary py-3 rounded-full font-bold uppercase ${currentStepIndex >= plan.steps.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                  <SkipForward size={18} aria-hidden="true" /> Próxima volta
+              </button>
+          )}
+          <button onClick={() => setIsPaused(!isPaused)} className="w-full flex items-center justify-center gap-2 bg-accent-secondary text-white py-3 rounded-full font-bold uppercase">
+              {isPaused ? <Play size={18} aria-hidden="true" /> : <Pause size={18} aria-hidden="true" />} {isPaused ? 'Continuar' : 'Pausar'}
+          </button>
+        </div>
+      </div>
 
-        {isWorkoutCompleted && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70" role="dialog" aria-modal="true" aria-label="Treino finalizado">
-                <div className="p-8 rounded-3xl shadow-2xl w-full max-w-sm bg-bg-surface border border-border">
-                    <h2 className="text-2xl font-bold mb-8 text-center text-text-primary">Treino Finalizado</h2>
-                    <div className="flex flex-col gap-4">
-                        <button 
-                            onClick={() => { markAsCompleted(plan.id, { points: pointsRef.current, distanceKm: dist, timeSeconds: elapsedSeconds, mode }); onStop(); }} 
-                            className="w-full bg-accent-secondary hover:opacity-90 text-white p-4 rounded-xl font-bold transition-colors"
-                        >
-                            SALVAR RELATÓRIO
-                        </button>
-                        <button 
-                            onClick={onStop} 
-                            className="w-full bg-bg-elevated hover:opacity-80 text-text-secondary p-4 rounded-xl font-bold transition-colors border border-border"
-                        >
-                            DESCARTAR RELATÓRIO
-                        </button>
-                    </div>
+      {isWorkoutCompleted && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/70" role="dialog" aria-modal="true" aria-label="Treino finalizado">
+            <div className="p-8 rounded-3xl shadow-2xl w-full max-w-sm bg-bg-surface border border-border">
+                <h2 className="text-2xl font-bold mb-8 text-center text-text-primary">Treino Finalizado</h2>
+                <div className="flex flex-col gap-4">
+                    <button 
+                        onClick={() => { markAsCompleted(plan.id, { points: pointsRef.current, distanceKm: dist, timeSeconds: elapsedSeconds, mode }); onStop(); }} 
+                        className="w-full bg-accent-secondary hover:opacity-90 text-white p-4 rounded-xl font-bold transition-colors"
+                    >
+                        SALVAR RELATÓRIO
+                    </button>
+                    <button 
+                        onClick={onStop} 
+                        className="w-full bg-bg-elevated hover:opacity-80 text-text-secondary p-4 rounded-xl font-bold transition-colors border border-border"
+                    >
+                        DESCARTAR RELATÓRIO
+                    </button>
                 </div>
             </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

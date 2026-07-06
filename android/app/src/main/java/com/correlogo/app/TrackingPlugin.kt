@@ -11,6 +11,9 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.getcapacitor.annotation.Permission
 
+import android.os.Build
+import android.util.Log
+
 @CapacitorPlugin(
     name = "Tracking",
     permissions = [
@@ -27,22 +30,59 @@ class TrackingPlugin : Plugin() {
 
     override fun load() {
         super.load()
+        Log.d("CorreLogo", "TrackingPlugin loaded and initialized")
         TrackingService.currentPlugin = this
     }
 
     @PluginMethod
     fun requestLocationPermission(call: PluginCall) {
+        Log.d("CorreLogo", "TrackingPlugin.requestLocationPermission called");
         val ctx = context
         val fineGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val coarseGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
         if (fineGranted && coarseGranted) {
+            Log.d("CorreLogo", "TrackingPlugin: location already granted");
             call.resolve(JSObject().apply { put("location", "granted") })
             return
         }
 
+        Log.d("CorreLogo", "TrackingPlugin: requesting location permission via system dialog");
         pendingCall = call
         pluginRequestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 9001)
+    }
+
+    @PluginMethod
+    fun checkLocationPermissions(call: PluginCall) {
+        val ctx = context
+        val fineGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val background = if (fineGranted) {
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+        } else false
+        val ret = JSObject()
+        ret.put("location", if (fineGranted && coarseGranted) "granted" else "denied")
+        ret.put("background", if (background) "granted" else "denied")
+        call.resolve(ret)
+    }
+
+    @PluginMethod
+    fun requestBackgroundLocationPermission(call: PluginCall) {
+        val ctx = context
+        // Background location can only be requested if fine/coarse are already granted
+        val fineGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!fineGranted) {
+            call.reject("Fine location must be granted first")
+            return
+        }
+
+        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            call.resolve(JSObject().apply { put("background", "granted") })
+            return
+        }
+
+        pendingCall = call
+        pluginRequestPermissions(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), 9002)
     }
 
     @PluginMethod
@@ -56,9 +96,13 @@ class TrackingPlugin : Plugin() {
             return
         }
 
-        val intent = Intent(ctx, TrackingService::class.java)
-        ctx.startForegroundService(intent)
-        call.resolve()
+        try {
+            val intent = Intent(ctx, TrackingService::class.java)
+            ctx.startForegroundService(intent)
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject("Falha ao iniciar serviço de tracking: ${e.message}")
+        }
     }
 
     @PluginMethod
@@ -69,6 +113,38 @@ class TrackingPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun openAppSettings(call: PluginCall) {
+        Log.d("CorreLogo", "TrackingPlugin.openAppSettings called");
+        val uri = android.net.Uri.parse("package:" + context.packageName)
+        try {
+            // Android 11+ (API 30): tenta abrir direto na tela de permissões
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val intent = Intent("android.settings.APPLICATION_PERMISSION_SETTINGS")
+                intent.data = uri
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+                Log.d("CorreLogo", "openAppSettings: permission settings OK")
+                call.resolve()
+                return
+            }
+        } catch (e: Exception) {
+            Log.w("CorreLogo", "openAppSettings: permission settings failed, falling back: ${e.message}")
+        }
+        // Fallback: App Info (funciona em todos os Android)
+        try {
+            val intent = Intent("android.settings.APPLICATION_DETAILS_SETTINGS")
+            intent.data = uri
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+            Log.d("CorreLogo", "openAppSettings: details settings OK")
+            call.resolve()
+        } catch (e: Exception) {
+            Log.e("CorreLogo", "openAppSettings: both intents failed: ${e.message}")
+            call.reject("Falha ao abrir configurações: ${e.message}")
+        }
+    }
+
+    @PluginMethod
     fun getStepCount(call: PluginCall) {
         val ret = JSObject().apply { put("steps", lastSteps) }
         call.resolve(ret)
@@ -76,22 +152,33 @@ class TrackingPlugin : Plugin() {
 
     override fun handleRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.handleRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode != 9001) return
         val call = pendingCall ?: return
         pendingCall = null
 
-        val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-        if (!allGranted) {
-            call.reject("Permissão de localização não concedida")
-            return
-        }
-
-        if (call.methodName == "requestLocationPermission") {
-            call.resolve(JSObject().apply { put("location", "granted") })
-        } else {
-            val intent = Intent(context, TrackingService::class.java)
-            context.startForegroundService(intent)
-            call.resolve()
+        if (requestCode == 9001) {
+            val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+            if (!allGranted) {
+                call.reject("Permissão de localização não concedida")
+                return
+            }
+            if (call.methodName == "requestLocationPermission") {
+                call.resolve(JSObject().apply { put("location", "granted") })
+            } else {
+                try {
+                    val intent = Intent(context, TrackingService::class.java)
+                    context.startForegroundService(intent)
+                    call.resolve()
+                } catch (e: Exception) {
+                    call.reject("Falha ao iniciar serviço de tracking: ${e.message}")
+                }
+            }
+        } else if (requestCode == 9002) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            if (granted) {
+                call.resolve(JSObject().apply { put("background", "granted") })
+            } else {
+                call.reject("Permissão de localização em background não concedida")
+            }
         }
     }
 

@@ -24,7 +24,8 @@
 - Descreva detalhadamente o que foi feito, o contexto técnico e o impacto na aplicação para garantir total controle evolutivo do projeto.
 
 ## Build Validation
-- Sempre execute o build (`npm run build`) para certificar-se de que correções e atualizações estão funcionando e isentas de erros de sintaxe ou de importação.
+- Sempre execute `npm run build` para certificar-se de que correções e atualizações estão funcionando e isentas de erros de sintaxe ou de importação.
+- **Antes de qualquer build**, copie `.env.apk` → `.env` (`Copy-Item -Path ".env.apk" -Destination ".env" -Force`). O `.env.apk` é a única fonte de verdade para o Firebase **prod** (`correlogo-prod`). **Nunca** copie `.env.dev` para `.env` — isso quebra o APK e o servidor. `.env` nunca deve ser commitado.
 
 ## UI & Component Patterns
 - **Button component**: Use `<Button variant="primary|secondary|ghost|danger" size="sm|md|lg">` em vez de `<button>` raw.
@@ -65,9 +66,48 @@
 - **No dead deps**: Não instalar `@google/genai`, `@vis.gl/react-google-maps`, `motion` — nunca importados no app.
 
 ## Firebase Projects
-- **Dev** (`.env` local): `correlogo-dev-9a96a` — Firestore em modo teste (expira 2026-07-25)
-- **Prod** (servidor AWS): `correlogo-prod` — credenciais no `.env` do servidor
+- **Dev** (`.env.dev`): `correlogo-dev-9a96a` — Firestore em modo teste (expira 2026-07-25). Usado APENAS para desenvolvimento local web.
+- **Prod** para APK (`.env.apk`): `correlogo-prod` — **única fonte de verdade para builds de APK**. Sempre copiar `.env.apk` → `.env` antes de qualquer `npm run build` para APK.
+- **Prod** servidor AWS: `correlogo-prod` — credenciais no `.env` do servidor (não confundir com `.env.apk` local).
 - `firebase-applet-config.json` foi removido do git (projeto `zealous-arcanum-nwfkz` não é mais usado)
+- ⚠️ **Nunca** copiar `.env.dev` para `.env` — isso faz o APK apontar para o projeto dev, quebrando a autenticação em produção.
+
+## Android / Capacitor — Ground Rules for Agent
+
+Estas regras garantem que qualquer alteração minha nunca quebre o build do APK:
+
+1. **Sempre rodar o pipeline completo após qualquer mudança que toque em:**
+   - Código TS/JS (web build) — `npm run build`
+   - Plugins Capacitor — `npx cap sync android` + `npm run build`
+   - Kotlin/Java nativo — `gradlew assembleDebug`
+   - Dependências (`npm install`) — `npm run build` + `npx cap sync`
+
+2. **Nunca remover ou renomear dependências** sem verificar se são usadas por plugins Capacitor (ex: `@capacitor-firebase/authentication`, `@capacitor-community/text-to-speech`, `@capacitor/local-notifications`). Usar `npm ls <pkg>` antes.
+
+3. **Nunca editar `android/` manualmente**, exceto:
+   - `android/app/google-services.json` — pode ser substituído pelo oficial do Firebase Console
+   - `android/app/src/main/java/com/correlogo/app/` — plugins custom
+   - `android/app/src/main/AndroidManifest.xml` — permissões
+   - Todo o resto é gerenciado por `npx cap sync` (qualquer edição é sobrescrita)
+
+4. **Ao instalar novo plugin Capacitor**, ranquear:
+   - `npm install` → `npx cap sync android` → `npm run build` → `gradlew assembleDebug`
+   - Verificar se o plugin apareceu em `[info] Found N Capacitor plugins for android`
+
+5. **Web app e Android compartilham o mesmo `dist/`**. Se o `vite build` falhar, o APK não sai. `npm run build` é pré-condição.
+
+6. **Nunca `git add` sem verificar `git status` + `git diff`**. Confirmar que arquivos do Android não foram tocados indevidamente.
+
+7. **Pipeline completo de validação** quando terminar qualquer sessão que mexa em Capacitor/Android:
+   ```bash
+   Copy-Item -Path ".env.apk" -Destination ".env" -Force
+   npm run build && npx cap sync android && (cd android && gradlew assembleDebug)
+   ```
+
+8. **JAVA_HOME** na máquina local está em `C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot`. Antes de `gradlew`, definir:
+   ```powershell
+   $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"
+   ```
 
 ## Production Infrastructure — Read Before Touching Build, Env, or Server Config
 

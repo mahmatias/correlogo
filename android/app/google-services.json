@@ -1,28 +1,46 @@
 {
   "project_info": {
-    "project_number": "1048841310896",
-    "project_id": "correlogo-dev-9a96a",
-    "storage_bucket": "correlogo-dev-9a96a.firebasestorage.app"
+    "project_number": "985879764466",
+    "project_id": "correlogo-prod",
+    "storage_bucket": "correlogo-prod.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1048841310896:android:a8854ab217c447a9746aae084845a619ed06b3e8",
+        "mobilesdk_app_id": "1:985879764466:android:69fcb098786921a43f1f6b",
         "android_client_info": {
           "package_name": "com.correlogo.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "550159999478-j2a6b9gknlo9vu4t39lpvo00bijpq0tn.apps.googleusercontent.com",
+          "client_id": "985879764466-51n7oq4gpqcqj0nv6dhepabh1ej5lnts.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.correlogo.app",
+            "certificate_hash": "7ead858552d9f32c59e4937312319b288c86bec6"
+          }
+        },
+        {
+          "client_id": "985879764466-4nt4bctv9h3oiv7o4r15r2cnn115lh61.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyChnLy4_tRlu77AJAjN25JbG9oNv7isI2c"
+          "current_key": "AIzaSyBXoqpBzniy4HVpxnGgqIkwA7lPO-uTf2o"
         }
-      ]
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "985879764466-4nt4bctv9h3oiv7o4r15r2cnn115lh61.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"

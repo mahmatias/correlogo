@@ -45,14 +45,38 @@ export default function Login({ onSignupClick }: Props) {
         }
         try {
             if (Capacitor.isNativePlatform()) {
+                console.log('[GoogleLogin] calling FirebaseAuthentication.signInWithGoogle()');
                 const result = await FirebaseAuthentication.signInWithGoogle();
-                const credential = GoogleAuthProvider.credential(result.credential?.idToken);
-                await signInWithCredential(auth, credential);
+                console.log('[GoogleLogin] signInWithGoogle result keys:', Object.keys(result));
+                console.log('[GoogleLogin] result.user:', result.user?.displayName, result.user?.email);
+                console.log('[GoogleLogin] result.credential:', result.credential ? 'present' : 'undefined');
+                if (result.credential) {
+                    console.log('[GoogleLogin] credential keys:', Object.keys(result.credential));
+                    console.log('[GoogleLogin] idToken present:', !!result.credential.idToken);
+                    console.log('[GoogleLogin] accessToken present:', !!result.credential.accessToken);
+                }
+                const idToken = result.credential?.idToken;
+                const accessToken = result.credential?.accessToken;
+                if (idToken) {
+                    console.log('[GoogleLogin] calling GoogleAuthProvider.credential()');
+                    const credential = GoogleAuthProvider.credential(idToken, accessToken || undefined);
+                    console.log('[GoogleLogin] calling signInWithCredential(auth, credential)');
+                    await signInWithCredential(auth, credential);
+                    console.log('[GoogleLogin] signInWithCredential OK');
+                } else {
+                    console.error('[GoogleLogin] No idToken in credential result');
+                    setError('Erro: Google não retornou token de autenticação');
+                }
+                setLoading(false);
             } else {
                 const provider = new GoogleAuthProvider();
+                console.log('[GoogleLogin] calling signInWithPopup (web)');
                 await signInWithPopup(auth, provider);
+                console.log('[GoogleLogin] signInWithPopup OK');
             }
         } catch (err: any) {
+            console.error('[GoogleLogin] ERROR:', err?.code, err?.message);
+            console.error('[GoogleLogin] full error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
             if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
                 setError(getFirebaseErrorPt(err));
             }

@@ -1,10 +1,13 @@
 package com.correlogo.app
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.location.Location
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -14,6 +17,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -55,8 +59,17 @@ class TrackingService : Service(), SensorEventListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!checkLocationPermission()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         val notification = buildNotification()
-        startForeground(NOTIFICATION_ID, notification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
 
         val locationRequest = LocationRequest.Builder(3000L)
             .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
@@ -131,5 +144,9 @@ class TrackingService : Service(), SensorEventListener {
             .setOngoing(true)
             .setSilent(true)
             .build()
+    }
+
+    private fun checkLocationPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
     }
 }
