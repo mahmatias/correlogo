@@ -5,6 +5,8 @@
 
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData } from './types';
 import WorkoutTracker from './components/WorkoutTracker';
 import ImportPlan from './components/ImportPlan';
@@ -25,6 +27,8 @@ import { getAuth, getDb } from './lib/firebase';
 import { downloadIcal } from './lib/ical';
 import { keepAwake, allowSleep } from './lib/capacitor/wakeLock';
 import { requestAllPermissions } from './lib/capacitor/permissions';
+import { Tracking } from './lib/capacitor/tracking';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
 
@@ -47,7 +51,10 @@ function formatDateBR(d: Date): string {
 
 const SessionSummary = lazy(() => import('./components/SessionSummary'));
 
+console.log('[CorreLogo-JS] App.tsx carregado - módulo avaliado');
+
 export default function App() {
+  console.log('[CorreLogo-JS] App componente renderizado');
   const [user, setUser] = useState<User | null>(null);
   const [showSignup, setShowSignup] = useState(false);
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
@@ -75,6 +82,9 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showMonthCalendar, setShowMonthCalendar] = useState(false);
   const [showGoogleCalendarModal, setShowGoogleCalendarModal] = useState(false);
+  const [pendingOAuthToken, setPendingOAuthToken] = useState<string | null>(null);
+  const [showBackgroundPrompt, setShowBackgroundPrompt] = useState(false);
+  const [appCameFromSettings, setAppCameFromSettings] = useState(false);
   const getWeekStart = (d: Date) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -280,11 +290,155 @@ export default function App() {
     return () => { unsub(); };
   }, []);
 
+  // Native auth state listener — with skipNativeAuth:true o native plugin não
+  // gerencia auth state diretamente; auth fica por conta do onAuthStateChanged
+  // do Firebase JS SDK (que recebe o credential do native sign-in).
   useEffect(() => {
-    if (user && !isLoading) {
-      requestAllPermissions();
+    if (!Capacitor.isNativePlatform()) return;
+    const capUnsub = FirebaseAuthentication.addListener('authStateChange', (event) => {
+      console.log('[App.tsx] native authStateChange (skipNativeAuth=true):', event.user ? 'evento ignorado (JS SDK gerencia auth)' : 'logout');
+    });
+    return () => { capUnsub.remove(); };
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let sub: { remove: () => void } | null = null;
+    CapApp.addListener('appUrlOpen', (event: { url: string }) => {
+      console.log('[deeplink] appUrlOpen:', event.url);
+      try {
+        const url = new URL(event.url);
+        if (url.protocol === 'com.correlogo.app:' && url.hostname === 'oauth') {
+          const token = url.searchParams.get('token');
+          const error = url.searchParams.get('error');
+          const state = url.searchParams.get('state');
+          const expectedState = sessionStorage.getItem('gcal_oauth_state');
+          if (state && expectedState && state === expectedState) {
+            sessionStorage.removeItem('gcal_oauth_state');
+          }
+          if (token) {
+            localStorage.setItem('google_calendar_token', token);
+            setPendingOAuthToken(token);
+            setShowGoogleCalendarModal(true);
+          } else if (error) {
+            setPendingOAuthToken(null);
+            setShowGoogleCalendarModal(true);
+          }
+        }
+      } catch (e) {
+        console.warn('[deeplink] parse error', e);
+      }
+    }).then((s) => { sub = s; });
+
+    return () => { sub?.remove(); };
+  }, []);
+
+  // Back button: double-press to exit (only on main screen, not during workout)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || activePlan) return;
+
+    let lastBack = 0;
+    let handler: { remove: () => void };
+
+    CapApp.addListener('backButton', () => {
+      const now = Date.now();
+      if (now - lastBack < 2000) {
+        CapApp.exitApp();
+      } else {
+        lastBack = now;
+        showFeedback('success', 'Pressione VOLTAR novamente para fechar o app');
+      }
+    }).then((h) => { handler = h; });
+
+    return () => { handler?.remove(); };
+  }, [activePlan]);
+
+  const doGpsWarmup = async () => {
+    try {
+      console.log('[App.tsx] iniciando warmup GPS silencioso');
+      await Tracking.startTracking();
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      await Tracking.stopTracking();
+      console.log('[App.tsx] warmup GPS concluído');
+    } catch (warmupErr: any) {
+      console.warn('[App.tsx] warmup GPS falhou:', warmupErr?.message);
     }
-  }, [user, isLoading]);
+  };
+
+  const checkRunWarmup = async () => {
+    try {
+      const result: any = await Tracking.checkLocationPermissions();
+      if (result.location === 'granted') {
+        setPermissionsNeeded(false);
+        if (result.background === 'granted') {
+          await doGpsWarmup();
+        } else {
+          setShowBackgroundPrompt(true);
+        }
+      }
+    } catch (e: any) {
+      console.warn('[App.tsx] checkRunWarmup falhou:', e?.message);
+    }
+  };
+
+  const handleRequestPermissionsClick = async () => {
+    console.log('[App.tsx] Botão "Conceder Permissões" clicado');
+    try {
+      await requestAllPermissions();
+      showFeedback('success', 'Permissões solicitadas!');
+      // Check permission state: if fine/coarse granted → check background
+      await checkRunWarmup();
+    } catch (e: any) {
+      console.error('[App.tsx] erro ao pedir permissões', e);
+      showFeedback('error', 'Erro: ' + (e?.message || e));
+    }
+  };
+
+  // Listen for app resume to re-check permissions after user visits settings
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let sub: { remove: () => void } | null = null;
+    CapApp.addListener('appStateChange', (state) => {
+      if (state.isActive && showBackgroundPrompt) {
+        console.log('[App.tsx] app voltou ao foco — re-checkando permissão background');
+        checkRunWarmup();
+      }
+    }).then((s) => { sub = s; });
+    return () => { sub?.remove(); };
+  }, [showBackgroundPrompt]);
+
+  // Painel de permissões pendentes — disparado assim que detecta o estado
+  const [permissionsNeeded, setPermissionsNeeded] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    console.log('[App.tsx] checkLocationPermissions disparou (user mudou)');
+    (async () => {
+      try {
+        const result: any = await Tracking.checkLocationPermissions();
+        console.log('[App.tsx] checkLocationPermissions ->', result);
+        if (result.location !== 'granted') setPermissionsNeeded(true);
+      } catch (e: any) {
+        console.warn('[App.tsx] checkLocationPermissions falhou:', e?.message);
+      }
+    })();
+  }, [user]);
+
+  // Aciona permissões quando o app termina de inicializar (incl. login restaurado de cache)
+  useEffect(() => {
+    if (!initialized) return;
+    if (!user) return;
+    console.log('[App.tsx] permissões useEffect disparou (initialized=true, user set)');
+    (async () => {
+      try {
+        await requestAllPermissions();
+        await checkRunWarmup();
+      } catch (e: any) {
+        console.warn('[App.tsx] requestAllPermissions falhou:', e?.message);
+      }
+    })();
+  }, [initialized, user]);
 
   const startWorkout = (plan: WorkoutPlan) => {
     setWorkoutToStart({ plan });
@@ -301,10 +455,13 @@ export default function App() {
   };
 
   const confirmWorkoutMode = (mode: 'treadmill' | 'outdoor') => {
+    console.log('[App.tsx] confirmWorkoutMode called, mode=', mode, 'simulateGps=', workoutToStart?.simulateGps);
     if (workoutToStart) {
       if (mode === 'outdoor') {
+        console.log('[App.tsx] outdoors, ligou keepAwake');
         keepAwake();
       }
+      console.log('[App.tsx] setActivePlan disparado, mode=', mode);
       setActivePlan({ plan: workoutToStart.plan, mode, sessionId: `${workoutToStart.plan.id}-${Date.now()}`, simulateGps: workoutToStart.simulateGps });
       setWorkoutToStart(null);
     }
@@ -496,6 +653,27 @@ export default function App() {
     }
   }
 
+  const openAppSettings = () => {
+    if (Capacitor.isNativePlatform()) {
+      // Caminho feliz: pedir ACCESS_BACKGROUND_LOCATION. A partir do Android 11
+      // (API 30), o sistema exibe um diálogo nativo que, após o usuário aceitar,
+      // já leva direto para a tela do app com as opções de localização
+      // ("Permitir o tempo todo", "Durante o uso", etc) — exatamente o que o
+      // usuário precisa para escolher background location.
+      Tracking.requestBackgroundLocationPermission()
+        .then(() => {
+          console.log('[openAppSettings] requestBackgroundLocationPermission OK');
+        })
+        .catch((err) => {
+          console.warn('[openAppSettings] background permission flow failed, abrindo settings:', err);
+          Tracking.openAppSettings().catch((settingsErr) => {
+            console.error('[openAppSettings] plugin error:', settingsErr);
+            showFeedback('error', 'Não foi possível abrir as configurações');
+          });
+        });
+    }
+  };
+
   const handleLogout = () => {
     signOut(getAuth());
   };
@@ -559,23 +737,45 @@ export default function App() {
   const greetingName = profile?.displayName || user?.displayName || 'Corredor';
 
   return (
-    <div className="min-h-screen">
+      <div className="min-h-screen h-screen flex flex-col bg-bg-deep overflow-hidden">
       {saveFeedback && (
         <div className={`fixed top-4 right-4 z-[9999] px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all duration-300 ${saveFeedback.type === 'success' ? 'bg-green-600' : 'bg-danger'}`} role="alert">
           {saveFeedback.message}
         </div>
       )}
-      <main className="w-full max-w-xl mx-auto p-4 pt-8">
+      {permissionsNeeded && (
+        <div className="fixed top-0 left-0 right-0 z-[9998] p-4 bg-danger text-white shadow-lg">
+          <div className="max-w-xl mx-auto flex flex-col gap-2">
+            <p className="font-semibold">⚠️ Permissão de Localização necessária para treinos ao ar livre</p>
+            <p className="text-sm">O app precisa de acesso à localização para registrar trajeto, passos e mapa.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleRequestPermissionsClick}
+                className="px-4 py-2 rounded bg-white text-danger font-semibold text-sm"
+              >
+                Conceder Permissão
+              </button>
+              <button
+                onClick={() => setPermissionsNeeded(false)}
+                className="px-4 py-2 rounded bg-danger/20 text-white text-sm"
+              >
+                Lembrar depois
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <main className={`flex-1 w-full max-w-xl mx-auto ${activePlan ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {checkingAuth || !user ? (
           checkingAuth ? (
-            <div className="flex flex-col gap-4 pt-8">
+            <div className="flex flex-col gap-4 pt-8 p-4">
               <div className="h-8 w-48 bg-bg-elevated rounded animate-pulse" />
               <div className="h-40 bg-bg-elevated rounded animate-pulse" />
               <div className="h-40 bg-bg-elevated rounded animate-pulse" />
             </div>
           ) : showSignup ? <Signup onLoginClick={() => setShowSignup(false)} /> : <Login onSignupClick={() => setShowSignup(true)} />
         ) : isLoading ? (
-          <div className="flex flex-col gap-4 pt-8">
+          <div className="flex flex-col gap-4 pt-8 p-4">
             <div className="h-8 w-48 bg-bg-elevated rounded animate-pulse" />
             <div className="h-40 bg-bg-elevated rounded animate-pulse" />
             <div className="h-40 bg-bg-elevated rounded animate-pulse" />
@@ -636,7 +836,10 @@ export default function App() {
 
                       <div className="flex gap-4">
                           <Button variant="secondary" className="flex-1" onClick={() => setWorkoutToStart(null)}>Voltar</Button>
-                          <Button className="flex-1" disabled={!workoutToStart.mode} onClick={() => confirmWorkoutMode(workoutToStart.mode as 'treadmill' | 'outdoor')}>
+                          <Button className="flex-1" disabled={!workoutToStart.mode} onClick={() => {
+                            console.log('[App.tsx] Iniciar click, mode=', workoutToStart.mode, 'simulateGps=', workoutToStart.simulateGps);
+                            confirmWorkoutMode(workoutToStart.mode as 'treadmill' | 'outdoor');
+                          }}>
                             Iniciar
                           </Button>
                       </div>
@@ -656,13 +859,18 @@ export default function App() {
                   isFreeTraining={isFreeTraining}
                 />
             ) : isEditing ? (
+              <div className="p-4">
               <WorkoutEditor onSave={handleSaveManualPlan} onCancel={() => setIsEditing(false)} />
+              </div>
             ) : showGenerator ? (
+              <div className="p-4">
               <TrainingGenerator onGenerate={(program) => {
                 setProgramToReview(program);
                 setShowGenerator(false);
               }} onCancel={() => setShowGenerator(false)} />
+              </div>
             ) : programToReview ? (
+              <div className="p-4">
               <ProgramReview
                 program={programToReview}
                 onConfirm={(finalProgram) => {
@@ -672,45 +880,49 @@ export default function App() {
                 }}
                 onCancel={() => setProgramToReview(null)}
               />
+              </div>
             ) : (
               <>
-              <div className="flex justify-between items-center mb-8">
-                <h1 className="text-2xl font-bold text-text-primary">Corre Logo 🏃</h1>
-                <div className='flex gap-2'>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleDarkMode}
-                  aria-label={isLightMode ? 'Alternar para modo escuro' : 'Alternar para modo claro'}
-                >
-                  {isLightMode ? '🌙' : '☀️'}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowHistory(true)}
-                  aria-label="Histórico de treinos"
-                >
-                  <BarChart2 size={20} />
-                </Button>
-                <button
-                  onClick={() => setShowUserProfile(true)}
-                  className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center hover:opacity-90 transition-opacity overflow-hidden"
-                  aria-label="Perfil do usuário"
-                >
-                  {user.photoURL ? (
-                    <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xs font-bold">
-                      {(profile?.displayName || user.email || '?')[0].toUpperCase()}
-                    </span>
-                  )}
-                </button>
+              <div className="sticky top-0 z-10 bg-bg-deep px-4 pb-2 pt-4">
+                <div className="flex justify-between items-center">
+                  <h1 className="text-2xl font-bold text-text-primary">Corre Logo 🏃</h1>
+                  <div className='flex gap-2'>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleDarkMode}
+                    aria-label={isLightMode ? 'Alternar para modo escuro' : 'Alternar para modo claro'}
+                  >
+                    {isLightMode ? '🌙' : '☀️'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowHistory(true)}
+                    aria-label="Histórico de treinos"
+                  >
+                    <BarChart2 size={20} />
+                  </Button>
+                  <button
+                    onClick={() => setShowUserProfile(true)}
+                    className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center hover:opacity-90 transition-opacity overflow-hidden"
+                    aria-label="Perfil do usuário"
+                  >
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-bold">
+                        {(profile?.displayName || user.email || '?')[0].toUpperCase()}
+                      </span>
+                    )}
+                  </button>
+                  </div>
                 </div>
+
+                <p className="text-text-secondary mt-1">Olá, <strong>{greetingName}</strong></p>
               </div>
 
-              <p className="text-text-secondary mb-4">Olá, <strong>{greetingName}</strong></p>
-
+              <div className="px-4 pb-4">
               <div className="mt-4 bg-bg-surface border border-border rounded-xl overflow-hidden">
                 <button
                   onClick={() => setShowMonthCalendar(!showMonthCalendar)}
@@ -925,6 +1137,7 @@ export default function App() {
                   ))
                 )}
               </div>
+              </div>
               </>
             )}
             {planToUncomplete && (
@@ -998,7 +1211,34 @@ export default function App() {
           open={showGoogleCalendarModal}
           onClose={() => setShowGoogleCalendarModal(false)}
           plans={plans}
+          pendingOAuthToken={pendingOAuthToken}
+          onOAuthTokenConsumed={() => setPendingOAuthToken(null)}
         />
+        {showBackgroundPrompt && (
+          <Modal open={true} onClose={() => setShowBackgroundPrompt(false)} title="Permissão de Localização">
+            <div className="flex flex-col items-center gap-4">
+              <p className="text-text-secondary text-sm text-center">
+                Para que o GPS funcione corretamente durante todo o treino, mesmo com a tela desligada,
+                é necessário permitir o acesso à localização <strong>"Permitir o tempo todo"</strong>.
+              </p>
+              <p className="text-text-muted text-xs text-center">
+                Toque em "Permitir tempo todo" e o sistema abrirá a tela de permissões
+                com as opções de localização do Corre Logo.
+              </p>
+              <p className="text-text-muted text-[10px] text-center">
+                Após escolher, volte ao app e toque em "Já ativei".
+              </p>
+              <div className="flex flex-col gap-3 w-full mt-2">
+                <Button size="lg" onClick={openAppSettings}>
+                  Permitir tempo todo
+                </Button>
+                <Button variant="secondary" size="lg" onClick={() => { setShowBackgroundPrompt(false); setPermissionsNeeded(false); }}>
+                  Já ativei
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        )}
       </main>
     </div>
   );

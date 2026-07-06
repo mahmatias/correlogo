@@ -4,10 +4,7 @@ const config: CapacitorConfig = {
   appId: 'com.correlogo.app',
   appName: 'Corre Logo',
   webDir: 'dist',
-  server: {
-    androidScheme: 'https',
-    cleartext: true,
-  },
+  // No server config - let Capacitor load from local assets by default
   plugins: {
     LocalNotifications: {
       smallIcon: 'ic_stat_icon_config',

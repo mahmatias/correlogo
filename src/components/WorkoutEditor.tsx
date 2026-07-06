@@ -173,22 +173,31 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
                             </div>
                             {step.type === 'run' ? (
                                 <div className="flex flex-col gap-2 text-sm">
-                                    <div className="flex gap-2">
-                                        <label className="flex items-center gap-1">Dist (km): <input type="number" step="0.1" value={step.targetDistance ?? 1} onChange={e => {
-                                            const dist = parseFloat(e.target.value);
-                                            const speedKmh = 60 / (step.targetPace || 1);
-                                            updateStep(block.id, step.id, { targetDistance: dist, durationSeconds: Math.round((dist / speedKmh) * 3600) });
-                                        }} className="w-16 p-1 border border-border rounded bg-bg-elevated text-text-primary" /></label>
-                                        <label className="flex items-center gap-1">ou Segs: <input type="number" value={step.durationSeconds ?? ''} onChange={e => {
-                                            const secs = parseInt(e.target.value);
-                                            const speedKmh = 60 / (step.targetPace || 1);
-                                            updateStep(block.id, step.id, { durationSeconds: secs, targetDistance: (secs / 3600) * speedKmh });
-                                        }} className="w-16 p-1 border border-border rounded bg-bg-elevated text-text-primary" /></label>
-                                        <label className="flex items-center gap-1">Ritmo: <input type="text" placeholder="m:ss" value={paceToMmss(step.targetPace)} onChange={e => {
-                                            const pace = mmssToPace(e.target.value);
-                                            const speedKmh = 60 / pace;
-                                            updateStep(block.id, step.id, { targetPace: pace, durationSeconds: Math.round(((step.targetDistance || 1) / speedKmh) * 3600) });
-                                        }} className="w-16 p-1 border border-border rounded bg-bg-elevated text-text-primary" /></label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <label className="flex flex-col gap-1">
+                                            <span className="text-xs text-text-muted">Dist (km)</span>
+                                            <input type="number" step="0.1" value={step.targetDistance ?? 1} onChange={e => {
+                                                const dist = parseFloat(e.target.value);
+                                                const speedKmh = 60 / (step.targetPace || 1);
+                                                updateStep(block.id, step.id, { targetDistance: dist, durationSeconds: Math.round((dist / speedKmh) * 3600) });
+                                            }} className="w-full p-1 border border-border rounded bg-bg-elevated text-text-primary" />
+                                        </label>
+                                        <label className="flex flex-col gap-1">
+                                            <span className="text-xs text-text-muted">ou Segs</span>
+                                            <input type="number" value={step.durationSeconds ?? ''} onChange={e => {
+                                                const secs = parseInt(e.target.value);
+                                                const speedKmh = 60 / (step.targetPace || 1);
+                                                updateStep(block.id, step.id, { durationSeconds: secs, targetDistance: (secs / 3600) * speedKmh });
+                                            }} className="w-full p-1 border border-border rounded bg-bg-elevated text-text-primary" />
+                                        </label>
+                                        <label className="flex flex-col gap-1">
+                                            <span className="text-xs text-text-muted">Ritmo (m:ss)</span>
+                                            <input type="text" placeholder="5:00" value={paceToMmss(step.targetPace)} onChange={e => {
+                                                const pace = mmssToPace(e.target.value);
+                                                const speedKmh = 60 / pace;
+                                                updateStep(block.id, step.id, { targetPace: pace, durationSeconds: Math.round(((step.targetDistance || 1) / speedKmh) * 3600) });
+                                            }} className="w-full p-1 border border-border rounded bg-bg-elevated text-text-primary" />
+                                        </label>
                                     </div>
                                     <label className="flex items-center gap-2">
                                         Progressão por:
@@ -208,10 +217,10 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
                         </div>
                     ))}
 
-                    <div className="flex gap-2 mt-2">
+                    <div className="grid grid-cols-2 gap-2 mt-2">
                         {(['warmup', 'run', 'rest', 'cooldown'] as WorkoutStep['type'][]).map(type => (
-                            <button key={type} onClick={() => addStep(block.id, type)} className="p-2 bg-accent-secondary/80 text-white rounded text-sm hover:bg-accent-secondary transition-colors">
-                                <Plus size={16} className="inline mr-1" /> {getStepTypeLabel(type)}
+                            <button key={type} onClick={() => addStep(block.id, type)} className="flex items-center justify-center gap-1 p-2 bg-accent-secondary/80 text-white rounded text-sm hover:bg-accent-secondary transition-colors">
+                                <Plus size={16} /> {getStepTypeLabel(type)}
                             </button>
                         ))}
                     </div>

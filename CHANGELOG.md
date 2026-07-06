@@ -1,6 +1,79 @@
 # Changelog
 
-## [2026-07-05]
+## [2026-07-06e]
+- **WorkoutTracker layout final (outdoor + treadmill):** usuário confirmou "tudo funcionando perfeitamente" após ~12 iterações.
+- **CSS overflow global:** `html, body, #root` com `overflow: hidden` (index.css) — barrou phantom scroll no WebView Android.
+- **MapComponent fix:** `h-64` → `h-full` (`MapComponent.tsx:62`) — era o bug que silenciosamente fixava o mapa em 256px ignorando o `h-*` do pai.
+- **Outdoor mode:** mapa `flex-1 min-h-64` — preenche espaço entre progress bars e lap card, mínimo 256px.
+- **Treadmill mode:** speed controls `flex-shrink-0`, lap card `flex-1 min-h-0` + conteúdo interno `flex flex-col items-center justify-center h-full`.
+- **Botões âncora bottom:** `mt-auto` no container + `pb-[calc(48px+env(safe-area-inset-bottom,0px))]` para safe-area.
+- **Removed spacer:** `<div className="flex-1">` que comia 40% do espaço eliminado.
+- **Treadmill-only size bumps:** marquee `h-5` → `h-10`, progress bars `h-2.5` → `h-5` via conditional.
+- **Free training polish:** "Tempo restante" escondido quando `isFreeTraining === true`.
+- **SHA-1 resolvido:** novo debug keystore gerado, SHA-1 `7E:AD:85:85:52:D9:F3:2C:59:E4:93:73:12:31:9B:28:8C:86:BE:C6` registrado no Firebase Console para `correlogo-prod`.
+- **Google OAuth FUNCIONANDO:** confirmado pelo usuário após SHA-1 + google-services.json correto.
+- **Permission dialogs:** notificação, atividade, localização aparecem após login (Promise.race removido + plugins registrados).
+- **APK build + install:** pipeline completo passa em todas as ~12 iterações.
+
+## [2026-07-06d]
+- **WorkoutTracker layout final (outdoor):** mapa flex-1 preenche espaço entre progress bars e lap card. `MapComponent.tsx:62` mudou `h-64` → `h-full` (era o bug: map era silenciosamente fixado em 256px ignorando o `h-*` pai). Minimum 256px, mas cresce com folga.
+- **WorkoutTracker layout final (treadmill):** speed controls revertido pra `flex-shrink-0`, lap card virou `flex-1 min-h-0` apenas no modo esteira. Conteúdo interno do lap card (`text-center` → `flex flex-col items-center justify-center h-full`) preenche o tableto e centraliza verticalmente.
+- **Botões âncora bottom:** `mt-auto` empurra para o rodapé; container `pb-[calc(48px+env(safe-area-inset-bottom,0px))]` garante que o botão (~44px) fica inteiro acima do safe-area (corrige botão cortado pela navigation bar do Android).
+- **Removed spacer** que causava 40% de vazio.
+- **Treadmill-only size bumps:** marquee `h-5` → `h-10`, progress bars `h-2.5` → `h-5` (apenas quando `mode === 'treadmill'`). Outdoor inalterado.
+- **CSS overflow em html, body e #root** (`index.css`) — barrou o phantom scroll que aparecia no WebView Android.
+- **Free training polish:** "Tempo restante" escondido quando `isFreeTraining === true` (não faz sentido em corrida livre — sempre `0:00`).
+- **APK rebuild:** build e install passam em todas as iterações. Última versão: outdoor e treadmill visualmente fechados, sem vazios, botões âncora, mapa perfeito.
+
+## [2026-07-06a]
+- **WorkoutTracker layout (Issue 1):** inner container `flex-1 flex flex-col` com `overflow-hidden` em vez de `overflow-y-auto`. Lap info ganha `flex-1` para expandir e preencher espaço vertical. Todos os demais elementos `flex-shrink-0`. Botões em `space-y-3`. Conteúdo ocupa 4/5+ da tela sem scroll.
+- **Sticky header (Issue 2):** `<main>` perdeu `p-4` (causava gap de 16px no topo do sticky). Sticky header ganhou `px-4 pt-4 pb-2`. Dashboard content envelopado em `<div className="px-4 pb-4">`. WorkoutEditor/TrainingGenerator/ProgramReview com `p-4` wrapper. Header agora fixa exatamente em top-0.
+- **GPS "Abrir Configurações" (Issue 3):** novo método nativo `openAppSettings()` no `TrackingPlugin.kt` — abre `ACTION_APPLICATION_DETAILS_SETTINGS` com `Uri.parse("package:" + packageName)`. Interface TS atualizada. `openAppSettings()` em App.tsx agora chama `Tracking.openAppSettings()`.
+- **Back button double-press (Issue 4):** listener `backButton` via `@capacitor/app`. Primeira press → toast "Pressione VOLTAR novamente...". Segunda press em 2s → `exitApp()`. Só ativo quando `!activePlan`.
+- **Google OAuth logging (Issue 5):** logs detalhados no console nativo: `result.keys`, `result.user`, `result.credential`, `idToken`/`accessToken` flags, `signInWithCredential` chamada, erro completo com `JSON.stringify(err, getOwnPropertyNames)`.
+- **Distance pause fix (Issue 6):** `isPausedRef` sincronizado com `isPaused`. GPS `handlePosition` só computa distância quando `!isPausedRef.current`. Mapa continua atualizando coords e path durante pausa.
+- **Audio ducking (Issue 7):** `AudioFocusPlugin.kt` troca `AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE` → `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`. Remove `setWillPauseWhenDucked(true)`. Música reduz ~80% em vez de pausar. Sistema restaura volume ao abandonar foco.
+- **Workout end flow (Issue 8):** última etapa completa → TTS "Exercício concluído, parabéns!" + `setIsExtended(true)`. Finalizar treino → TTS "Agora é só olhar seu relatório" + modal Save/Discard.
+- **Terminology:** "treinos outdoor" → "treinos ao ar livre" no banner de permissão.
+- **APK rebuild:** `assembleDebug` bem-sucedido (APK 6.8 MB, v1.0.4).
+
+## [2026-07-05e]
+- **WorkoutTracker layout:** removido `<div className="flex-1" />` que criava espaço vazio enorme no modo esteira. Mapa outdoor com altura fixa `h-44` em vez de `flex-1` (não mais empurra botões pra baixo da tela). Container reestruturado para `h-full flex flex-col` + `overflow-y-auto` no conteúdo, sem flex-1 spacer nem `mt-auto`. Margens ajustadas (`mb-6`→`mb-3`, etc). Cabe tudo numa tela sem scroll em ambos os modos.
+- **Sticky header:** trocado `sticky -top-4` → `sticky top-0` no header do dashboard. Removido `pt-4` do sticky (padding fica no `<main>`). Header agora fixa corretamente no topo ao scrollar.
+- **GPS warmup + modal:** novo fluxo de permissão background. Após usuário conceder localização "Durante o Uso", modal pergunta se quer ativar "Permitir o tempo todo". Botão "Abrir Configurações" → intent para Android Settings. Listener `appStateChange` detecta retorno do app e re-checka. Warmup (startTracking→3s→stopTracking) só dispara após usuário confirmar que ativou background ou re-check automático detectar background=granted. Código duplicado extraído para `doGpsWarmup()` + `checkRunWarmup()`.
+- **Modo full-screen (Android nav bar):** `MainActivity.java` adicionado `View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION` + `View.SYSTEM_UI_FLAG_HIDE_NAVIGATION` + `View.SYSTEM_UI_FLAG_FULLSCREEN` + `View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY` + `onWindowFocusChanged` para re-aplicar ao ganhar foco. CSS safe-area movido de `body` para `#root` com `env(safe-area-inset-bottom)`.
+- **Google Login (skipNativeAuth):** revertido `skipNativeAuth: false` → `true` no `capacitor.config.ts`. `Login.tsx` agora recebe `result.credential?.idToken` nativo e chama `GoogleAuthProvider.credential(idToken, accessToken)` + `signInWithCredential(auth, credential)` — autentica contra Firebase **prod** (`.env`). `auth.ts` atualizado com mesmo fluxo. Listener `authStateChange` mantido como no-op (evento ignorado).
+- **Imports:** removidos imports duplicados `FirebaseAuthentication` e `Capacitor` em App.tsx. Adicionado `Tracking` import.
+- **APK rebuild:** build `assembleDebug` bem-sucedido (APK 6.4 MB, v1.0.4).
+
+## [2026-07-05d]
+- **Android APK build (v1.0.4):** version bump no `android/app/build.gradle.kts` (versionName 1.0.4, versionCode 4). Build bem-sucedido com `assembleDebug` (APK 6.4 MB). JDK 21, SDK 35.
+- **AndroidManifest.xml:** adicionado `deny=android.permission.SCHEDULE_EXACT_ALARM` para evitar conflito com permissões de notificação.
+- **docs/todo.md:** resolvido conflito de merge pendente (HEAD vs d2909f4f). Consolidadas tarefas de permissões, GPS e som como pendentes.
+
+## [2026-07-05c]
+- **AudioFocusPlugin.kt reescrito:** novo callback `abandonAudioFocusOnPause` para liberar foco corretamente quando o usuário pausa manualmente. Removido `abandonAudioFocus` redundante. `onRequestFocusResult` agora usa `onActivityResult` em vez de callback direto para tratar comportamento assíncrono do `requestAudioFocus` no Android 12+.
+- **TrackingPlugin.kt:** `startService` movido para `load()` em vez de `startTracking()`, garantindo que o foreground service esteja rodando antes dos sensores. `handleRequestPermissionsResult` sobrescrito com `@Override` tipado. Novo `UpdateFencingPlugin.java` suporta `updateLocationFencing()` via Capacitor bridge.
+- **TrackingService.kt:** `onStartCommand` agora usa `LocationRequest.Builder` + `Task.whenComplete` em vez de `addOnSuccessListener`. FusedLocationClient agora usa `Priority.PRIORITY_BALANCED_POWER_ACCURACY` e intervalos realistas (5s). Step counter delta fixo para cálculo correto.
+- **WorkoutTracker.tsx — TTS refatorado:** `speakOnInterval()` substitui o antigo `speakIntervalRef` para exibir contagem regressiva via TTS nos estágios de tempo/distância. `window.speechSynthesis` (Chrome custom tab-friendly) substitui `TTSPlugin.speak` para vozes durante o treino; `TTSPlugin` mantido para notificações pós-treino.
+- **src/lib/capacitor/voice.ts:** simplificado — TTS nativo usado apenas para `speakPostWorkout()`, com `queueStrategy: 1` (clear) e `rate: 1.0`.
+- **GoogleCalendarModal.tsx:** ajustes no botão de conectar (desabilitado durante loading), limpeza de eventos antigos via `extendedProperty.planId`, filtro de planos futuros (não exibe `completed`).
+- **App.tsx:** `requestAllPermissions()` agora aguarda `isNativePlatform()` e `!checkingAuth` para evitar loop. Novas funções `handleGoogleCalendarOpen`/`handleGoogleCalendarClose`. `handleDeleteSession` agora usa `writeBatch` corretamente com `doc()`. Modal de Calendar integrado ao fluxo de seleção de plano. `handleFinishSession` corrigido: previne duplicação de sessões com `lastCompletedSessionId`.
+- **Server.ts:** novo route `GET /auth/google/callback` com detecção de Capacitor (`state.startsWith('c3_')`) — redireciona para deep link `com.correlogo.app://oauth/callback?token=...` para dispositivo móvel. Web mantém `/?gcal_token=...`.
+- **AGENTS.md:** adicionadas seções de Changeling & Handoff, Build Validation, UI & Component Patterns, Firebase Error Handling, Dependencies, Android/Capacitor Ground Rules, Production Infrastructure.
+- **Capacitor:** `@capacitor/browser@8.0.3` + `@capacitor/app@8.1.0` instalados para OAuth via Chrome Custom Tab. `capacitor.config.ts` atualizado com nova appId `com.softnuvem.corre.logo`.
+
+## [2026-07-05b]
+- **Fix Calendar redirect_uri_mismatch no Android (Capacitor):** o `redirect_uri = ${window.location.origin}/auth/google/callback` produzia `http://localhost/auth/google/callback` no WebView (sem porta), URI que NÃO está nas authorized redirect URIs. Reescrito fluxo para detectar `isNativePlatform()` e enviar `redirect_uri = https://correlogo.sytes.net/auth/google/callback` (URL autorizada do Google Cloud Console) com `state = c3_<UUID>`. Novo pacote `@capacitor/browser@8.0.3` + `@capacitor/app@8.1.0` instalados para abrir OAuth em Chrome Custom Tab e ouvir o callback via intent custom scheme.
+- **Server-side Capacitor detection:** `server.ts /auth/google/callback` detecta `state.startsWith('c3_')` e redireciona para `com.correlogo.app://oauth/callback?token=<access_token>&state=<state>`. Mantém o redirect de web (`/?gcal_token=...`) para o caso não-Capacitor.
+- **Deep-link AndroidManifest.xml:** adicionado `<intent-filter>` para scheme `com.correlogo.app` na `MainActivity` — quando o servidor redireciona para o scheme custom, o Android abre o app automaticamente.
+- **`appUrlOpen` listener em App.tsx:** parseia `com.correlogo.app://oauth/callback?token=...`, armazena em `localStorage` (`google_calendar_token`) e abre o modal de Calendar já conectado.
+- **Modal de Calendar bifurca web/native:** `GoogleCalendarModal.tsx` detecta `isNativePlatform()` e usa `Browser.open({ url })` em vez de `window.location.href`; na web mantém o fluxo de redirect.
+- **Fix permissões na primeira execução:** novo `PermissionsPlugin.kt` (Capacitor plugin) solicita `POST_NOTIFICATIONS` (Android 13+) e `ACTIVITY_RECOGNITION` (Android 10+) quando o usuário logga. `TrackingPlugin.kt` continua responsável pela permissão de localização. `requestAllPermissions()` em `App.tsx` agora dispara em `useEffect([user, isLoading])` sem aguardar `isLoading=false` (caso o Firestore esteja offline).
+- **Build:** AGP 8.7.2 não suporta `androidx.browser:browser:1.9.0` — adicionado `force 'androidx.browser:browser:1.8.0'` em `capacitor.build.gradle` via `resolutionStrategy { force }`. APK regerado: `android/app/build/outputs/apk/debug/app-debug.apk` (6.86 MB).
+- **`server.ts` CSP:** adicionado `https://accounts.google.com` ao `connectSrc` para o chrome custom tab funcionar, e ajustes em `imgSrc`/`scriptSrcElem`/`defaultSrc` para suportar fontes de imagem externas do Google Profile.
+
+## [2026-07-05a]
 - **Fix OAuth invalid_client:** server .env estava sem `VITE_GOOGLE_CLIENT_ID`; adicionado ao `.env` do servidor + rebuild
 - **Fix OAuth bad request:** GET `/auth/google/callback` no server.ts usava `redirect_uri` hardcoded `http://localhost:3000`, mas o Google exige que o `redirect_uri` do token exchange seja **idêntico** ao da auth request do frontend. Corrigido para usar `APP_URL` (mesmo pattern do POST route)
 - **Deploy:** server.cjs copiado para produção, PM2 restartado

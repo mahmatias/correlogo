@@ -17,8 +17,11 @@ export interface StepUpdate {
 
 export interface TrackingPlugin {
   requestLocationPermission(): Promise<{ location: string }>;
+  checkLocationPermissions(): Promise<{ location: string; background: string }>;
+  requestBackgroundLocationPermission(): Promise<{ background: string }>;
   startTracking(): Promise<void>;
   stopTracking(): Promise<void>;
+  openAppSettings(): Promise<void>;
   getStepCount(): Promise<{ steps: number }>;
   addListener(eventName: 'locationUpdate', listener: (data: LocationUpdate) => void): Promise<void>;
   addListener(eventName: 'stepUpdate', listener: (data: StepUpdate) => void): Promise<void>;
@@ -31,13 +34,38 @@ export type TrackCallback = (point: { lat: number; lng: number; timestamp: numbe
 
 export async function startTracking(onPosition: TrackCallback): Promise<{ stop: () => void }> {
   if (isNative()) {
-    const permResult = await Tracking.requestLocationPermission();
-    if (permResult.location !== 'granted') {
-      throw new Error('Permissão de localização não concedida');
+    console.log('[tracking] startTracking called (native)');
+    // First check current permission state
+    let status = await Tracking.checkLocationPermissions();
+    console.log('[tracking] initial permission status:', status);
+    if (status.location !== 'granted') {
+      console.log('[tracking] requesting location permission...');
+      const permResult = await Tracking.requestLocationPermission();
+      console.log('[tracking] location permission result:', permResult);
+      if (permResult.location !== 'granted') {
+        throw new Error('Permissão de localização não concedida. Ative em Configurações → Aplicativos → Corre Logo → Permissões → Localização.');
+      }
+      // Re-check after asking
+      status = await Tracking.checkLocationPermissions();
     }
-    await Tracking.startTracking();
+    if (status.location !== 'granted') {
+      throw new Error('Permissão de localização negada. Ative manualmente em Configurações do Android.');
+    }
 
-    Tracking.addListener('locationUpdate', (data) => {
+    try {
+      if (status.background !== 'granted') {
+        console.log('[tracking] requesting background location permission...');
+        await Tracking.requestBackgroundLocationPermission();
+      }
+    } catch (e) {
+      console.warn('[tracking] Background location not granted, tracking may stop when minimized:', e);
+    }
+
+    console.log('[tracking] calling startTracking native...');
+    await Tracking.startTracking();
+    console.log('[tracking] startTracking native resolved');
+
+    await Tracking.addListener('locationUpdate', (data) => {
       onPosition({
         lat: data.latitude,
         lng: data.longitude,

@@ -20,6 +20,13 @@ apply from: "variables.gradle"
 
 allprojects {
     repositories {
+        configurations.all {
+            resolutionStrategy {
+                force 'androidx.browser:browser:1.8.0'
+            }
+        }
+    }
+    repositories {
         google()
         mavenCentral()
     }

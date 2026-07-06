@@ -7,9 +7,12 @@ export async function signInWithGoogleNative(): Promise<void> {
     throw new Error('signInWithGoogleNative is only available on native platforms');
   }
   const result = await FirebaseAuthentication.signInWithGoogle();
-  const credential = GoogleAuthProvider.credential(result.credential?.idToken);
-  const auth = getAuth();
-  await signInWithCredential(auth, credential);
+  const idToken = result.credential?.idToken;
+  const accessToken = result.credential?.accessToken;
+  if (idToken) {
+    const credential = GoogleAuthProvider.credential(idToken, accessToken || undefined);
+    await signInWithCredential(getAuth(), credential);
+  }
 }
 
 export async function signOutNative(): Promise<void> {

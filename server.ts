@@ -34,8 +34,19 @@ async function startServer() {
       "https://firebasestorage.googleapis.com",
       "wss://*.firebaseio.com",
       "ws://localhost:24678",
+      "https://accounts.google.com",
     ],
     frameSrc: ["https://*.firebaseapp.com", "https://accounts.google.com"],
+    defaultSrc: ["'self'", "https:", "http:", "data:", "blob:"],
+    objectSrc: ["'self'", "blob:"],
+    scriptSrcElem: ["'self'", "'unsafe-inline'", "https://accounts.google.com", "https://apis.google.com", "https://*.gstatic.com"],
+    imgSrc: [
+      "'self'", "data:", "blob:",
+      "https://*.tile.openstreetmap.org",
+      "https://*.basemaps.cartocdn.com",
+      "https://server.arcgisonline.com",
+      "https://lh3.googleusercontent.com",
+    ],
     fontSrc: ["'self'", "https://fonts.gstatic.com"],
     mediaSrc: ["'self'"],
     formAction: ["'self'"],
@@ -89,10 +100,32 @@ async function startServer() {
         return res.redirect(`/?gcal_error=${encodeURIComponent(tokens.error_description || tokens.error)}`);
       }
 
-      res.redirect(`/?gcal_token=${tokens.access_token}&gcal_state=${state || ''}`);
+      const stateStr = typeof state === 'string' ? state : '';
+      const isCapacitor = stateStr.startsWith('c3_');
+
+      if (isCapacitor) {
+        // Native Angular/Capacitor app — redirect to custom scheme so the app receives the token.
+        return res.redirect(
+          `com.correlogo.app://oauth/callback?token=${encodeURIComponent(tokens.access_token)}&state=${encodeURIComponent(stateStr)}`
+        );
+      }
+
+      res.redirect(`/?gcal_token=${tokens.access_token}&gcal_state=${stateStr}`);
     } catch (err: any) {
-      res.redirect(`/?gcal_error=${encodeURIComponent(err.message)}`);
+      const state = req.query.state;
+      const isCapacitor = typeof state === 'string' && state.startsWith('c3_');
+      const dest = isCapacitor
+        ? `com.correlogo.app://oauth/callback?error=${encodeURIComponent(err.message)}`
+        : `/?gcal_error=${encodeURIComponent(err.message)}`;
+      res.redirect(dest);
     }
+  });
+
+  // Capacitor custom-scheme cache for native Google Calendar sync
+  app.get("/auth/google/callback/cache", async (req, res) => {
+    const { token, state } = req.query;
+    if (!token) return res.status(400).send("missing token");
+    res.redirect(`com.correlogo.app://oauth/callback?token=${encodeURIComponent(String(token))}&state=${encodeURIComponent(String(state || ''))}`);
   });
 
   // Exchange Google OAuth code for token (POST API for existing flow)
