@@ -5,6 +5,8 @@ import MapComponent from './MapComponent';
 import { startTracking, TrackCallback, Tracking, startKeepAlive, stopKeepAlive, startNativeTimer, pauseNativeTimer, resumeNativeTimer, stopNativeTimer, onTimerTick } from '../lib/capacitor/tracking';
 import { isNative } from '../lib/capacitor/platform';
 import { speak as voiceSpeak } from '../lib/capacitor/voice';
+import { exportWorkoutToSamsungHealth } from '../lib/capacitor/samsung-health';
+import type { WorkoutExport, SyncStatus } from '../lib/capacitor/samsung-health';
 
 interface Props {
   plan: WorkoutPlan;
@@ -20,9 +22,10 @@ interface Props {
   isFreeTraining?: boolean;
   simulateGps?: boolean;
   key?: string;
+  onSyncResult?: (status: SyncStatus) => void;
 }
 
-export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime, isFreeTraining, simulateGps }: Props) {
+export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime, isFreeTraining, simulateGps, onSyncResult }: Props) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedRef = useRef(0);
@@ -75,6 +78,13 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
 		  
 		  return () => clearTimeout(timer);
 	  }
+	}, [countdown]);
+
+  // Track workout start time
+  useEffect(() => {
+      if (countdown === 0) {
+          sessionStartTimeRef.current = Date.now();
+      }
   }, [countdown]);
 
   // Sync refs to state
@@ -428,6 +438,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const playStartAnnouncedRef = useRef<boolean>(false);
   const workoutCompletedAnnouncedRef = useRef<boolean>(false);
   const lastKmStartTimeRef = useRef<number>(0); // Timestamp of start of current km
+  const sessionStartTimeRef = useRef(Date.now());
   const almostThereAnnouncedRef = useRef<boolean>(false);
   const halfLapAnnouncedRef = useRef<boolean>(false);
   const halfWorkoutAnnouncedRef = useRef<boolean>(false);
@@ -559,6 +570,27 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
         speak("Agora é só olhar seu relatório", true);
         workoutCompletedAnnouncedRef.current = true;
         stopNativeTimer();
+
+        const exportData: WorkoutExport = {
+            startTime: sessionStartTimeRef.current,
+            endTime: Date.now(),
+            durationSeconds: elapsedRef.current,
+            distanceKm: distRef.current,
+            exerciseType: mode === 'treadmill' ? 'treadmill' : 'running',
+            avgSpeedKmh: speedRef.current,
+            route: mode === 'outdoor' ? pointsRef.current
+                .filter(p => p.lat && p.lon)
+                .map(p => ({
+                    lat: p.lat!,
+                    lng: p.lon!,
+                    altitude: p.altitude,
+                    timestamp: sessionStartTimeRef.current + p.timestampSeconds * 1000,
+                }))
+                : undefined,
+        };
+        exportWorkoutToSamsungHealth(exportData).then(result => {
+            if (onSyncResult) onSyncResult(result.status);
+        });
     }
   }, [isWorkoutCompleted]);
 
