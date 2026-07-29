@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, BarChart2, ClipboardList, Trash2 } from 'lucide-react';
+import { ArrowLeft, Calendar, BarChart2, ClipboardList, Trash2, CheckCircle2, Upload, AlertTriangle } from 'lucide-react';
 import { TrainingSession, formatDistance, formatDuration } from '../types';
 import { useState } from 'react';
 import Modal from './Modal';
@@ -9,9 +9,10 @@ interface Props {
   onClose: () => void;
   onSelectSession: (session: TrainingSession) => void;
   onDeleteSession: (sessionId: string) => void;
+  onExportSession?: (session: TrainingSession) => void;
 }
 
-export default function SessionHistory({ sessions, onClose, onSelectSession, onDeleteSession }: Props) {
+export default function SessionHistory({ sessions, onClose, onSelectSession, onDeleteSession, onExportSession }: Props) {
   const [sessionToDelete, setSessionToDelete] = useState<TrainingSession | null>(null);
   return (
     <div className="fixed inset-0 z-50 flex flex-col p-6 overflow-y-auto bg-bg-deep text-text-primary" role="dialog" aria-modal="true" aria-label="Histórico de treinos">
@@ -39,6 +40,27 @@ export default function SessionHistory({ sessions, onClose, onSelectSession, onD
                                 <span className="text-sm flex items-center gap-1 text-text-muted">
                                     <Calendar size={14} /> {new Date(session.date).toLocaleDateString()}
                                 </span>
+                                {session.syncStatus === 'synced' && (
+                                    <span className="text-green-500 text-xs flex items-center gap-1 ml-2">
+                                        <CheckCircle2 size={12} /> Sincronizado
+                                    </span>
+                                )}
+                                {session.syncStatus === 'pending' && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onExportSession?.(session); }}
+                                        className="text-amber-500 text-xs flex items-center gap-1 ml-2 underline"
+                                    >
+                                        <Upload size={12} /> Pendente
+                                    </button>
+                                )}
+                                {session.syncStatus === 'failed' && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onExportSession?.(session); }}
+                                        className="text-red-500 text-xs flex items-center gap-1 ml-2 underline"
+                                    >
+                                        <AlertTriangle size={12} /> Falhou
+                                    </button>
+                                )}
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setSessionToDelete(session); }}
                                     className="p-2 text-text-muted hover:text-danger hover:bg-bg-elevated rounded-full"

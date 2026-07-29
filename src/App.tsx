@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
@@ -29,6 +29,8 @@ import { keepAwake, allowSleep } from './lib/capacitor/wakeLock';
 import { requestAllPermissions } from './lib/capacitor/permissions';
 import { Tracking } from './lib/capacitor/tracking';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+import { exportWorkoutToSamsungHealth } from './lib/capacitor/samsung-health';
+import type { WorkoutExport } from './lib/capacitor/samsung-health';
 import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
 
@@ -59,6 +61,7 @@ export default function App() {
   const [showSignup, setShowSignup] = useState(false);
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
+  const latestSessionIdRef = useRef<string | null>(null);
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
   const [activePlan, setActivePlan] = useState<{plan: WorkoutPlan, mode: 'treadmill' | 'outdoor', sessionId: string, simulateGps?: boolean} | null>(null);
   const [isFreeTraining, setIsFreeTraining] = useState(false);
@@ -636,7 +639,8 @@ CapApp.addListener('backButton', () => {
             totalDistanceKm: totalDistance,
             avgSpeedKmh: avgSpeed,
             completed: true,
-            points: sessionStats.points
+            points: sessionStats.points,
+            syncStatus: undefined,
         };
         
         try {
@@ -650,6 +654,7 @@ CapApp.addListener('backButton', () => {
               return updated;
             });
             setSelectedSession(newSession);
+            latestSessionIdRef.current = newSession.id;
         } catch (e) {
             console.error("Erro ao salvar sessão no Firestore (mantida apenas localmente):", e);
             showFeedback('error', 'Falha ao salvar treino no servidor. Dados mantidos localmente.');
@@ -661,6 +666,7 @@ CapApp.addListener('backButton', () => {
               return updated;
             });
             setSelectedSession(newSession);
+            latestSessionIdRef.current = newSession.id;
         }
     }
   }
@@ -891,6 +897,35 @@ CapApp.addListener('backButton', () => {
                   }
                   showFeedback('success', 'Sessão removida do histórico.');
                 }}
+                onExportSession={async (session) => {
+                    const exportData: WorkoutExport = {
+                        startTime: new Date(session.date).getTime(),
+                        endTime: new Date(session.date).getTime() + session.totalDurationSeconds * 1000,
+                        durationSeconds: session.totalDurationSeconds,
+                        distanceKm: session.totalDistanceKm,
+                        exerciseType: session.mode === 'treadmill' ? 'treadmill' : 'running',
+                        avgSpeedKmh: session.avgSpeedKmh,
+                        route: session.mode === 'outdoor' ? session.points
+                            .filter(p => p.lat && p.lon)
+                            .map(p => ({
+                                lat: p.lat!,
+                                lng: p.lon!,
+                                altitude: p.altitude,
+                                timestamp: new Date(session.date).getTime() + (p.timestampSeconds || 0) * 1000,
+                            }))
+                            : undefined,
+                    };
+                    const result = await exportWorkoutToSamsungHealth(exportData);
+                    setSessions(prev => {
+                        const updated = prev.map(s => s.id === session.id ? { ...s, syncStatus: result.status } : s);
+                        if (user) localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                        return updated;
+                    });
+                    if (user && !session.id.startsWith('local-')) {
+                        setDoc(doc(getDb(), 'users', user.uid, 'sessions', session.id), { syncStatus: result.status }, { merge: true }).catch(() => {});
+                    }
+                    showFeedback(result.success ? 'success' : 'error', result.success ? 'Treino sincronizado com Samsung Health!' : 'Falha ao sincronizar. Tente novamente.');
+                }}
               />
             )}
             {selectedSession && (
@@ -951,6 +986,19 @@ CapApp.addListener('backButton', () => {
                   markAsCompleted={markAsCompleted}
                   totalWorkoutTime={calculateTotalDuration(activePlan.plan)}
                   isFreeTraining={isFreeTraining}
+                  onSyncResult={(status) => {
+                      if (!user) return;
+                      const sessionId = latestSessionIdRef.current;
+                      if (!sessionId) return;
+                      setSessions(prev => {
+                          const updated = prev.map(s => s.id === sessionId ? { ...s, syncStatus: status } : s);
+                          localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                          return updated;
+                      });
+                      if (!sessionId.startsWith('local-')) {
+                          setDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionId), { syncStatus: status }, { merge: true }).catch(() => {});
+                      }
+                  }}
                 />
             ) : isEditing ? (
               <div className="p-4">
