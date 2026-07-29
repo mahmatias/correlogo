@@ -45,7 +45,7 @@
 ```bash
 # Verificar functions/.env
 GOOGLE_CLIENT_ID=985879764466-kd0plotbh6349qrniqv09enasnajst1i.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
+GOOGLE_CLIENT_SECRET=GOCSPX_REPLACE_WITH_YOUR_SECRET
 
 # Verificar redirect_uri no Cloud Function
 const redirectUri = "https://correlogo.web.app/auth/google/callback";
