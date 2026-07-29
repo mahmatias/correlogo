@@ -106,6 +106,84 @@ class TrackingPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun startKeepAlive(call: PluginCall) {
+        try {
+            val intent = Intent(context, TrackingService::class.java)
+            context.startForegroundService(intent)
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject("Falha ao iniciar keep-alive: ${e.message}")
+        }
+    }
+
+    @PluginMethod
+    fun stopKeepAlive(call: PluginCall) {
+        try {
+            val intent = Intent(context, TrackingService::class.java).apply {
+                putExtra("action", "stop_timer")
+            }
+            context.startService(intent)
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject("Falha ao parar keep-alive: ${e.message}")
+        }
+    }
+
+    @PluginMethod
+    fun startTimer(call: PluginCall) {
+        val elapsed = call.getLong("elapsedSeconds", 0L)
+        try {
+            val intent = Intent(context, TrackingService::class.java).apply {
+                putExtra("action", "start_timer")
+                putExtra("elapsedSeconds", elapsed)
+            }
+            context.startService(intent)
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject("Falha ao iniciar timer: ${e.message}")
+        }
+    }
+
+    @PluginMethod
+    fun pauseTimer(call: PluginCall) {
+        try {
+            val intent = Intent(context, TrackingService::class.java).apply {
+                putExtra("action", "pause_timer")
+            }
+            context.startService(intent)
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject("Falha ao pausar timer: ${e.message}")
+        }
+    }
+
+    @PluginMethod
+    fun resumeTimer(call: PluginCall) {
+        try {
+            val intent = Intent(context, TrackingService::class.java).apply {
+                putExtra("action", "resume_timer")
+            }
+            context.startService(intent)
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject("Falha ao retomar timer: ${e.message}")
+        }
+    }
+
+    @PluginMethod
+    fun stopTimer(call: PluginCall) {
+        try {
+            val intent = Intent(context, TrackingService::class.java).apply {
+                putExtra("action", "stop_timer")
+            }
+            context.startService(intent)
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject("Falha ao parar timer: ${e.message}")
+        }
+    }
+
+    @PluginMethod
     fun stopTracking(call: PluginCall) {
         val intent = Intent(context, TrackingService::class.java)
         context.stopService(intent)
@@ -190,5 +268,10 @@ class TrackingPlugin : Plugin() {
 
     fun emitLocation(data: JSObject) {
         notifyListeners("locationUpdate", data)
+    }
+
+    fun emitTimerTick(elapsedSeconds: Int) {
+        val obj = JSObject().apply { put("elapsed", elapsedSeconds) }
+        notifyListeners("timerTick", obj)
     }
 }

@@ -1,5 +1,193 @@
 # Handoff
 
+## Session Context (2026-07-29 — 4 Bug Fixes + Samsung Health Plan)
+
+### O que foi feito
+
+#### Bug Fixes (4)
+1. **Timer durante countdown:** JS `setInterval` conflitava com native timer `Handler`. JS timer retorna early em modo esteira+nativo — native timer é única fonte da verdade
+2. **Distância pulando na troca de passo:** `distRef.current = elapsed * dPerSec` recalculava do zero. Fix: acúmulo incremental via `prevElapsedRef`
+3. **TTS metade não disparava:** closure estale do `lapSeconds`. Fix: usar `lapElapsed` local + refs
+4. **Volume música não restaurava:** `setWillPauseWhenDucked(true)` contradizia `MAY_DUCK`. Fix: removido do `AudioFocusPlugin.kt`
+
+#### Samsung Health
+- Spec aprovada: `docs/superpowers/specs/2026-07-29-samsung-health-integration-design.md`
+- Plano de implementação: `docs/superpowers/plans/2026-07-29-samsung-health-sync.md`
+- Pre-flight scan: 4 gaps corrigidos (App.tsx wiring, syncStatus persistence, Kotlin API fire-and-forget, task ordering)
+- Build + APK: `Corre Logo v1.1.apk` gerado com sucesso
+
+### Pendentes
+- Executar SDD Samsung Health (Tasks 1-6 do plano)
+- Botão Nav Back (modal)
+- Foto do perfil
+- Dados PII
+
+---
+
+## Session Context (2026-07-25 — TTS Metade + Audio Ducking Fix + WakeLock)
+
+### O que foi feito
+- **TTS "Chegamos na metade dessa volta!":** dispara em etapas de Corrida >180s (tempo) ou 50% da distância. Ignora aquecimento/caminhada/desaquecimento
+- **TTS "Chegamos na metade do treino!":** dispara uma vez aos 50% do tempo total (ignorado no Treino Livre)
+- **Audio ducking fix:** `abandonFocus()` chamado imediatamente após `await TextToSpeech.speak()` — descobrimos que o plugin Capacitor TTS resolve a Promise em `UtteranceProgressListener.onDone()`, então `await speak()` já espera o TTS terminar no Android (comentário original estava errado)
+- **WakeLock (foreground service):** `PARTIAL_WAKE_LOCK` adquirido no `onStartCommand`, liberado no `onDestroy` — mantém CPU ativa durante treino, impede morte do serviço ao apagar tela
+- **Modo esteira keep-alive:** novos métodos `startKeepAlive`/`stopKeepAlive` no `TrackingPlugin.kt` — inicia o foreground service sem GPS. `WorkoutTracker.tsx` chama no mount quando `mode === 'treadmill'`
+- **Deploy:** Web em `correlogo.web.app` + APK v1.1 (versionCode 9, 6.9 MB)
+
+### Pendentes
+- Botão Nav Back (modal)
+- Foto do perfil
+- Dados PII
+
+---
+
+## Session Context (2026-07-21b — Migração AWS → Firebase Hosting + Cloud Functions)
+
+### O que foi feito
+- **Migração completa AWS EC2 → Firebase Hosting + Cloud Functions:**
+  - Cloud Function `authCallback` (v2, Node.js 22): troca Google OAuth code → token, redireciona web (query params) ou APK (custom scheme `com.correlogo.app://oauth/callback`)
+  - Cloud Function `healthCheck`: GET `/api/health` retorna `{"status":"ok"}`
+  - Firebase Hosting: serve `dist/` (SPA), rewrites pra Cloud Functions, CSP + security headers no `firebase.json`
+  - Domínio: `correlogo.web.app` (novo) — `correlogo.sytes.net` (AWS) continua rodando como fallback
+- **Limpeza de deps do servidor:** removidos `express`, `helmet`, `cors`, `express-rate-limit`, `google-auth-library`, `dotenv`, `esbuild`, `@types/express`
+- **Simplificação de scripts:** `"dev": "vite"`, `"build": "vite build"` (sem esbuild server.cjs)
+- **Remoção de `server.ts`** — substituído por Firebase Hosting + Cloud Functions
+- **Remoção de CSP meta tag do `index.html`** — CSP agora fica no `firebase.json` (headers do Firebase Hosting)
+- **Atualização de domínio:** redirect URI em `GoogleCalendarModal.tsx` mudou de `correlogo.sytes.net` → `correlogo.web.app`
+- **CSP expandida no Firebase Hosting:** `script-src` inclui `https://apis.google.com`, `https://accounts.google.com`, `https://securetoken.googleapis.com`, `https://www.gstatic.com` (necessário pra Firebase Auth web)
+- **Cloud Functions `.env`:** variáveis `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` via `.env` (não `functions.config()` deprecated)
+- **APK build:** versionCode 8, `Corre Logo v1.0.apk` — OAuth nativo funciona com `correlogo-prod`
+- **Firestore rules:** publicadas via Firebase Console
+- **Blaze plan ativado** no `correlogo-prod` (necessário pra Cloud Functions, custo $0 dentro do free tier)
+
+### Infraestrutura final
+- **Firebase project:** `correlogo-prod`
+- **Hosting URL:** `https://correlogo.web.app` (site: `correlogo`)
+- **Cloud Functions:** `authCallback` + `healthCheck` (us-central1, Node.js 22, v2)
+- **Firestore:** rules deployadas (auth required, scoped por UID)
+- **AWS EC2:** interrompido (2026-07-21) — domínio `correlogo.sytes.net` não é mais servido
+
+### Próximos passos
+1. ✅ ~~Desligar AWS EC2~~ — **Interrompido (2026-07-21)**
+2. Corrigir exibição da foto do perfil (dívida técnica)
+3. Corrigir Botão Nav Back (modal treino manual)
+4. Testar Reschedule cascade em conjunto
+
+### Files touched
+- `functions/package.json` — criado (deps Cloud Function)
+- `functions/tsconfig.json` — criado
+- `functions/.gitignore` — criado (node_modules, lib, .env)
+- `functions/.env` — criado (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET — gitignored)
+- `functions/src/index.ts` — criado (authCallback + healthCheck)
+- `firebase.json` — substituído (hosting rewrites + headers + functions)
+- `package.json` — removidas deps do server, scripts simplificados
+- `index.html` — removida tag CSP meta
+- `server.ts` — deletado
+- `src/components/GoogleCalendarModal.tsx` — redirect URI → `correlogo.web.app`
+- `CHANGELOG.md`, `TODO.md`, `HANDOFF.md` — docs atualizados
+
+---
+
+### O que foi feito
+- **Fix export .tcx/.gpx no Android**: Instalado `@capacitor/filesystem@7.1.8`. `saveFile()` em `SessionSummary.tsx` agora bifurca via `isNative()`:
+  - Nativo: `Filesystem.writeFile()` em `Directory.ExternalStorage/Download/CorreLogo/`
+  - Web: mantém `Blob` + `<a download>` original
+  - Toast "Arquivo salvo" via `showFeedback` prop
+- **Fix mapa no resumo da sessão**:
+  - CSP do `index.html` atualizado com domínios dos tiles: `https://*.tile.openstreetmap.org`, `https://*.basemaps.cartocdn.com`, `https://server.arcgisonline.com`
+  - Container do mapa alterado de `h-64` para `height: 300px` inline (`SessionSummary.tsx:103`)
+  - Adicionado `map.invalidateSize()` no `MapBounds` do `MapComponent.tsx` — resolve height 10px na web
+- **Firestore rules expirando**: `correlogo-dev` em Test Mode expira em 4 dias. `firestore.rules` já versionado com regras corretas (auth required, scoped por UID). **Necessita deploy** via Firebase Console ou `firebase deploy --only firestore:rules`
+- **APK build**: `BUILD SUCCESSFUL` com `@capacitor/filesystem` plugin registrado
+
+### Próximos passos
+1. 🔴 **Urgente**: Deploy das Firestore rules no `correlogo-dev` (4 dias)
+2. Testar Export TCX/GPX no device Android físico
+3. Testar mapa no resumo (web + APK)
+4. Corrigir Botão Nav Back (modal treino manual)
+5. Testar Reschedule cascade em conjunto
+
+### Files touched
+- `src/components/SessionSummary.tsx` — `saveFile()` c/ Capacitor Filesystem + `showFeedback` prop + altura mapa 300px
+- `src/components/MapComponent.tsx` — `invalidateSize()` no `MapBounds`
+- `src/App.tsx` — `showFeedback` passado para `SessionSummary`
+- `index.html` — CSP inclui tiles OSM, Carto, Esri
+- `firestore.rules` — já versionado, precisa deploy
+- `package.json` — `@capacitor/filesystem` adicionado
+- `android/` — `npx cap sync android` registrou plugin
+- `CHANGELOG.md`, `TODO.md`, `HANDOFF.md` — docs atualizados
+
+---
+## Session Context (2026-07-10d — Reavaliação Geral do Projeto)
+
+### O que foi feito
+- **Revisão completa das pendências**: itens concluídos removidos da lista, itens antigos reavaliados
+- **Atualização de docs**: `TODO.md`, `CHANGELOG.md`, `HANDOFF.md` sincronizados
+- **Status atualizado**:
+  - ✅ Concluídos: Repetição manual, Escalonamento Standard/ImprovePace, Onboarding, 5 melhorias (loading, CSP, APK export, cascata, áudio ducking), TTS fix, UX fixes
+  - ⚠️ Em teste: CSP meta tag, Áudio ducking
+  - ❌ Bugs pendentes: Reschedule cascade (precisa testar em conjunto), Botão Nav Back (fecha app em vez de fechar modal)
+  - 📋 Para reavaliar: 11 itens antigos (dotenv, performance, deps duplicadas, estrutura de dados, onSnapshot, etc.)
+
+### Próximos passos sugeridos
+1. **Testar durante a semana**: CSP (foto perfil), Áudio ducking
+2. **Próxima sessão de correções**:
+   - Testar **Reschedule cascade** em conjunto (criar plano em usuário diferente)
+   - Corrigir **Botão Nav Back** (fechar modal primeiro)
+   - Validar **Toast corrigido**
+3. **Depois das correções**: Priorizar reavaliação dos 11 itens antigos ou novas features
+
+### Files touched
+- `TODO.md` — removidos itens concluídos, adicionada seção "Em Correção / Teste"
+- `CHANGELOG.md` — nova entrada 2026-07-10d
+- `HANDOFF.md` — nova seção de contexto 2026-07-10d
+
+---
+
+## Session Context (2026-07-10c — 5 Melhorias)
+
+### What was accomplished
+
+**5 melhorias independentes implementadas e validadas (build aprovado):**
+
+1. **Loading screen** — substitui dois skeletons `animate-pulse` por tela limpa com logo seta-rastro (SVG inline, `var(--color-accent)`) + "Corre Logo" + spinner circular (`border-accent border-t-transparent animate-spin`). Mesma tela para auth check e data load.
+
+2. **CSP meta tag** — adicionado `<meta http-equiv="Content-Security-Policy">` no `index.html` com `default-src 'self'`, `img-src 'self' data: https://lh3.googleusercontent.com`, `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`, `font-src 'self' https://fonts.gstatic.com`, `script-src 'self' 'unsafe-inline'`, `connect-src 'self' https:`. Resolve fotos de perfil Google não carregando no Capacitor WebView (antes o CSP só existia no server.ts, não no HTML base).
+
+3. **APK export automation** — `scripts/export-apk.ps1`: extrai `versionName` do `build.gradle`, copia `app-debug.apk` → `Corre Logo v{version}.apk`, incrementa `versionCode`. `package.json` ganhou script `build:apk` que orquestra `build → cap sync → assembleDebug → export`.
+
+4. **Reschedule cascade** — modal de reagendamento refatorado:
+   - `handleDateChange(planId, newDate, mode: 'single' | 'cascade')`
+   - Funções auxiliares: `parseDate`, `daysBetween`, `addDays`
+   - Modo cascade: calcula delta (`newDate - oldDate`), filtra planos por mesmo `generatedFromProgramId` com `scheduledDate >= oldDate`, aplica offset
+   - Modal tem dois botões: "Reagendar apenas este" (primary) e "Reagendar este e seguintes" (secondary), mais Cancelar (ghost)
+
+5. **Áudio ducking fix** — `AudioFocusPlugin.kt`: `setWillPauseWhenDucked(false)` → `true` (Android gerencia restauro do volume). `voice.ts`: timer `max(2000, text.length * 90)` → `max(500, text.length * 60)` (volume volta mais rápido após TTS curto).
+
+### Files touched
+- `src/App.tsx` — loading screen (2x skeleton blocks), reschedule modal + handleDateChange + helpers
+- `index.html` — CSP meta tag
+- `package.json` — novo script `build:apk`
+- `scripts/export-apk.ps1` — (novo) script PowerShell de export
+- `android/app/src/main/java/com/correlogo/app/AudioFocusPlugin.kt` — setWillPauseWhenDucked(true)
+- `src/lib/capacitor/voice.ts` — timer reduzido
+- `docs/superpowers/specs/2026-07-10-5-improvements-design.md` — design aprovado
+- `docs/superpowers/plans/2026-07-10-5-improvements.md` — implementation plan
+
+### Build validation
+- `npm run build` passou (vite + esbuild server.cjs). Warnings pré-existentes (duplicate keys no server.ts CSP, chunk size).
+- TODO: `npm run build:apk` requer APK assemble para validar script de export (AGENTS.md ground rule 7).
+
+### ✅ Concluído (não mais pendente)
+- Todas as 5 melhorias implementadas e validadas
+- Fix TTS repetitivo: `spokenCompletionRef` adicionado ao WorkoutTracker
+- APK gerado via `npm run build:apk` — `Corre Logo v1.0.apk` (versionCode 3)
+
+### ⚠️ Ainda pendente (não tocado nesta sessão)
+- **Foto do perfil no APK** — CSP configurado, **precisa testar no device** se carrega
+- **Reagendamento em cascata** — código implementado, **precisa validar** se plano tem `generatedFromProgramId` e se há outros planos com mesma origem
+- Mesmo pendências da sessão anterior (openAppSettings, scaling duração Standard/ImprovePace, favicon.ico 404, etc.)
+
 ## Session Context (2026-07-06e — Finalização WorkoutTracker + OAuth completo)
 
 ### What was accomplished

@@ -14,14 +14,11 @@ export async function speak(text: string, lang = 'pt-BR') {
     try {
       await TextToSpeech.stop();
       await AudioFocus.requestFocus();
-      // speak() returns immediately - do NOT abandon focus synchronously
-      // The TTS engine keeps focus naturally while audio is playing
+      // On Android, the plugin resolves the Promise in UtteranceProgressListener.onDone(),
+      // so await here actually waits for TTS to finish speaking.
       await TextToSpeech.speak({ text, lang, rate: 1.0 });
-      // Abandon focus after a delay longer than the typical utterance length
-      const durationMs = Math.max(2000, text.length * 90);
-      setTimeout(() => {
-        AudioFocus.abandonFocus().catch(() => {});
-      }, durationMs);
+      // TTS is done — abandon focus so the music player restores volume.
+      await AudioFocus.abandonFocus().catch(() => {});
     } catch (e) {
       console.warn('[voice] native TTS error:', e);
       AudioFocus.abandonFocus().catch(() => {});

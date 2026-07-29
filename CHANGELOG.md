@@ -1,5 +1,100 @@
 # Changelog
 
+## [2026-07-29] — 4 Bug Fixes + Samsung Health Plan
+
+### Bug Fixes
+
+#### Bug #1: Timer counting during countdown (warmup start at 04:55 instead of 05:00)
+- **Root cause:** Dual-timer conflict — JS `setInterval` and native timer `Handler` both writing to `elapsedSeconds`/`lapSeconds`. JS timer incremented while native timer was counting down, so by the time the countdown reached 0, elapsed was already at ~5s
+- **Fix:** JS timer returns early (`return`) for treadmill+native timer mode; native timer acts as sole source of truth
+
+#### Bug #2: Total distance jumping on step change (500m → 1.2km → 700m)
+- **Root cause:** `distRef.current = elapsed * dPerSec` recalculated total distance FROM SCRATCH each frame using current speed. When a step changed, `dPerSec` changed, causing the accumulated distance to jump
+- **Fix:** Incremental accumulation via `prevElapsedRef` — `distRef.current += delta * dPerSec`. Distance now only grows by the delta
+
+#### Bug #3: Half-lap/half-workout TTS not firing
+- **Root cause:** `lapSeconds` variable captured in `onTimerTick` callback closure was stale — the closure was created once at listener registration with the initial value `0`
+- **Fix:** Use `lapElapsed` (local variable passed into the callback) or `elapsedRef.current - lapStartElapsedRef.current` (ref, no stale closure)
+
+#### Bug #4: Music volume not restoring after TTS
+- **Root cause:** `setWillPauseWhenDucked(true)` told Android that Corre Logo would PAUSE when ducked, contradicting `MAY_DUCK` behavior. Android cached this and never restored other apps' volume after TTS
+- **Fix:** Removed `setWillPauseWhenDucked(true)` from `AudioFocusPlugin.kt`
+
+### Samsung Health Integration Plan
+- Spec written and approved: `docs/superpowers/specs/2026-07-29-samsung-health-integration-design.md`
+- Implementation plan created: `docs/superpowers/plans/2026-07-29-samsung-health-sync.md`
+- Pre-flight scan identified 4 gaps (App.tsx wiring, syncStatus persistence, Kotlin API, task ordering), corrected
+
+---
+
+## [2026-07-25] — TTS Metade + Audio Ducking Fix + WakeLock
+
+**APK v1.1 (versionCode 9) — Deploy:**
+- Web: `https://correlogo.web.app` ✅
+- APK: `Corre Logo v1.1.apk` (6.2 MB)
+
+### TTS Metade (Volta/Treino)
+- **TTS "Chegamos na metade dessa volta!":** dispara ao atingir 50% de etapas de Corrida (>180s em tempo, ou 50% da distância em etapas por distância). Não dispara em aquecimento, caminhada, descanso ou desaquecimento
+- **TTS "Chegamos na metade do treino!":** dispara uma vez ao atingir 50% do tempo total do treino (ignorado no Treino Livre)
+
+### Audio Ducking Fix
+- **Bug:** `abandonFocus()` era chamado via `setTimeout` enquanto o TTS ainda estava tocando. O player de música nunca recebia o sinal de restauração porque o TTS ainda detinha o foco de áudio
+- **Causa raiz:** comentário no código original dizia `// speak() returns immediately`, mas isso é **falso no Android** — o plugin Capacitor TTS resolve a Promise em `UtteranceProgressListener.onDone()`, ou seja, `await TextToSpeech.speak()` **espera o TTS terminar de falar**
+- **Fix:** `abandonFocus()` chamado imediatamente após `await TextToSpeech.speak()` — sem `setTimeout`, sem state module-level. Timing perfeito: foco é abandonado no instante em que o TTS termina
+
+### WakeLock (Foreground Service)
+- **Bug:** CPU podia dormir quando a tela apagava, matando o TrackingService mesmo sendo foreground
+- **Fix:** `PARTIAL_WAKE_LOCK` adquirido no `onStartCommand` e liberado no `onDestroy` — mantém a CPU ativa durante o treino
+- **Permissão:** `WAKE_LOCK` adicionada ao `AndroidManifest.xml`
+- **Modo esteira:** foreground service NÃO era iniciado no modo esteira (só no outdoor via `startTracking`). Fix: novos métodos `startKeepAlive`/`stopKeepAlive` no `TrackingPlugin` — inicia o foreground service + WakeLock sem precisar de permissão de GPS. Chamado no mount do `WorkoutTracker` quando `mode === 'treadmill'`
+- **APK:** `Corre Logo v1.1.apk` (versionCode 9, 6.9 MB)
+
+## [2026-07-21c] — Fix Reschedule Cascade
+- **Bug:** `generatedFromProgramId` nunca era atribuído aos planos quando um programa era gerado, causando silêncio no cascade (condição `programId &&` retornava false)
+- **Fix:** Adicionado campo `generatedFromProgramId?: string` ao tipo `WorkoutPlan` (`types.ts:72`). Ao confirmar programa, cada plano recebe `generatedFromProgramId: finalProgram.id` (`App.tsx:939`)
+- **Compatibilidade retroativa:** Lógica do cascade agora usa `programName` como fallback quando `generatedFromProgramId` não existe (planos antigos). Se `generatedFromProgramId` existe, usa match por ID; senão, usa match por `programName`
+- **Resultado:** Reagendar um treino com "Reagendar este e seguintes" agora desloca todos os planos do mesmo programa a partir da data original — funciona tanto para planos novos quanto antigos
+
+## [2026-07-21b] — Migração AWS → Firebase Hosting + Cloud Functions
+- **Cloud Function `authCallback` (v2, Node.js 22):** troca Google OAuth code → access_token. Redireciona web via query params (`/?gcal_token=...`) ou APK via custom scheme (`com.correlogo.app://oauth/callback?token=...`). Secrets via `.env` (não `functions.config()`)
+- **Cloud Function `healthCheck`:** GET `/api/health` → `{"status":"ok"}`
+- **Firebase Hosting:** serve `dist/` (SPA), rewrites pra Cloud Functions, CSP + X-Content-Type-Options + X-Frame-Options + Referrer-Policy via `firebase.json` headers
+- **Domínio:** `correlogo.web.app` (novo) — `correlogo.sytes.net` (AWS) continua rodando como fallback
+- **Limpeza de deps:** removidos `express`, `helmet`, `cors`, `express-rate-limit`, `google-auth-library`, `dotenv`, `esbuild`, `@types/express`
+- **Scripts simplificados:** `"dev": "vite"`, `"build": "vite build"` (sem esbuild server.cjs)
+- **`server.ts` removido** — substituído por Firebase Hosting + Cloud Functions
+- **CSP meta tag removida do `index.html`** — agora fica no `firebase.json` (mais restritiva, inclui domínios Google pra Auth)
+- **APK:** redirect URI atualizado pra `correlogo.web.app`, versionCode 8
+- **Blaze plan ativado** (necessário pra Cloud Functions, custo $0 dentro do free tier)
+
+## [2026-07-21] — Fix Export TCX/GPX Android + Fix Mapa Resumo + Firestore Rules
+- **Export .tcx/.gpx no Android:** instalado `@capacitor/filesystem@7.1.8`. `saveFile()` salva em `Download/CorreLogo/` via `Filesystem.writeFile()` (nativo) em vez de `Blob`+`<a download>` (web). Toast "Arquivo salvo" ao final
+- **Mapa no resumo da sessão:** CSP do `index.html` agora inclui `https://*.tile.openstreetmap.org`, `https://*.basemaps.cartocdn.com`, `https://server.arcgisonline.com` — tiles carregam no APK. Container do mapa alterado de `h-64` para `height: 300px` inline. Adicionado `map.invalidateSize()` no `MapBounds` para corrigir altura de 10px na web
+- **Requisito pendente:** Firestore rules do `correlogo-dev` expirando em 4 dias. `firestore.rules` já versionado com rules corretas — deploy manual necessário via Firebase Console ou `firebase deploy --only firestore:rules`
+
+## [2026-07-10d] — Reavaliação Geral + Status das Pendências
+- **Concluídos**: Repetição manual, Escalonamento Standard/ImprovePace, Onboarding
+- **Em teste**: CSP meta tag (foto perfil), Áudio ducking
+- **Precisa corrigir**: Reschedule cascade (testar em conjunto), Botão Nav Back (fecha app em vez de fechar modal)
+- **Reavaliar**: 11 itens da lista antiga (dotenv, performance, deps duplicadas, estrutura de dados, onSnapshot, etc.)
+
+## [2026-07-10c] — UX Fixes (Toast, Back Button, Input Focus) + CSP Tentativa
+- **Toast centralizado:** feedbacks movidos para `bottom-24 left-1/2 -translate-x-1/2` (100px do fundo)
+- **Botão Nav Back:** botão físico de voltar do Android agora fecha modais/telas secundárias (perfil, histórico, gerador, workoutToStart, modais de exclusão/reagendamento, calendar, signup). **Exceção:** desabilitado durante workout
+- **Input foco automático:** campo "Repetir bloco" seleciona todo o texto ao receber foco, permitindo digitação imediata
+- **CSP Android:** adicionado `captureInput: true` e `server.androidScheme: 'https'` no `capacitor.config.ts` — **foto do perfil pode ainda não carregar, requer teste no device**
+
+## [2026-07-10b] — Fix TTS repetitivo + APK v1.0 (versionCode 3)
+- **Fix TTS repetitivo:** `spokenCompletionRef` impede que `speak("Exercício concluído, parabéns!")` dispare mais de uma vez ao final do treino programado, resolvendo loop durante o modo treino livre
+- **APK gerado:** `Corre Logo v1.0.apk` via `npm run build:apk` — pipeline completo validado
+
+## [2026-07-10] — 5 Melhorias (Loading, CSP, APK Export, Cascata, Áudio Ducking)
+- **Loading screen:** skeletons substituídos por tela com logo seta-rastro SVG + spinner circular + "Corre Logo" centralizado
+- **CSP meta tag:** adicionado `Content-Security-Policy` no `index.html` com `img-src 'self' data: https://lh3.googleusercontent.com` — fotos do Google Profile carregam no Capacitor WebView
+- **APK export automation:** `scripts/export-apk.ps1` extrai `versionName`, copia APK com nome padronizado, incrementa `versionCode`. Script `build:apk` no `package.json` orquestra pipeline completo
+- **Reschedule cascade:** modal com dois botões — "Reagendar apenas este" (single) e "Reagendar este e seguintes" (cascade). Cascade calcula delta e aplica offset a planos do mesmo `generatedFromProgramId`
+- **Áudio ducking fix:** `setWillPauseWhenDucked(false)` → `true` em `AudioFocusPlugin.kt` (sistema restaura volume). Timer reduzido de `max(2000, text.length * 90)` → `max(500, text.length * 60)`
+
 ## [2026-07-06e]
 - **WorkoutTracker layout final (outdoor + treadmill):** usuário confirmou "tudo funcionando perfeitamente" após ~12 iterações.
 - **CSS overflow global:** `html, body, #root` com `overflow: hidden` (index.css) — barrou phantom scroll no WebView Android.

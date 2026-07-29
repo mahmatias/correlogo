@@ -152,6 +152,7 @@ export default function WorkoutEditor({ onSave, onCancel, initialPlan }: { onSav
                                 max="99"
                                 value={block.repeat}
                                 onChange={e => changeBlockRepeat(block.id, parseInt(e.target.value) || 1)}
+                                onFocus={e => e.target.select()}
                                 className="w-12 p-1 border border-border rounded bg-bg-surface text-text-primary text-sm text-center"
                             />
                             <span className="text-xs opacity-70">x</span>

@@ -21,10 +21,17 @@ export interface TrackingPlugin {
   requestBackgroundLocationPermission(): Promise<{ background: string }>;
   startTracking(): Promise<void>;
   stopTracking(): Promise<void>;
+  startKeepAlive(): Promise<void>;
+  stopKeepAlive(): Promise<void>;
+  startTimer(options: { elapsedSeconds: number }): Promise<void>;
+  pauseTimer(): Promise<void>;
+  resumeTimer(): Promise<void>;
+  stopTimer(): Promise<void>;
   openAppSettings(): Promise<void>;
   getStepCount(): Promise<{ steps: number }>;
   addListener(eventName: 'locationUpdate', listener: (data: LocationUpdate) => void): Promise<void>;
   addListener(eventName: 'stepUpdate', listener: (data: StepUpdate) => void): Promise<void>;
+  addListener(eventName: 'timerTick', listener: (data: { elapsed: number }) => void): Promise<void>;
   removeAllListeners(): Promise<void>;
 }
 
@@ -103,4 +110,63 @@ export async function startTracking(onPosition: TrackCallback): Promise<{ stop: 
       if (cleanup) cleanup();
     },
   };
+}
+
+export async function startKeepAlive(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    await Tracking.startKeepAlive();
+  } catch (e) {
+    console.warn('[tracking] startKeepAlive failed:', e);
+  }
+}
+
+export async function stopKeepAlive(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    await Tracking.stopKeepAlive();
+  } catch (e) {
+    console.warn('[tracking] stopKeepAlive failed:', e);
+  }
+}
+
+export async function startNativeTimer(elapsedSeconds: number): Promise<void> {
+  if (!isNative()) return;
+  try {
+    await Tracking.startTimer({ elapsedSeconds });
+  } catch (e) {
+    console.warn('[tracking] startTimer failed:', e);
+  }
+}
+
+export async function pauseNativeTimer(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    await Tracking.pauseTimer();
+  } catch (e) {
+    console.warn('[tracking] pauseTimer failed:', e);
+  }
+}
+
+export async function resumeNativeTimer(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    await Tracking.resumeTimer();
+  } catch (e) {
+    console.warn('[tracking] resumeTimer failed:', e);
+  }
+}
+
+export async function stopNativeTimer(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    await Tracking.stopTimer();
+  } catch (e) {
+    console.warn('[tracking] stopTimer failed:', e);
+  }
+}
+
+export function onTimerTick(callback: (elapsed: number) => void): Promise<import('@capacitor/core').PluginListenerHandle> | null {
+  if (!isNative()) return null;
+  return Tracking.addListener('timerTick', (data) => callback(data.elapsed));
 }

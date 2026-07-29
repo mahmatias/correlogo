@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Play, Pause, SkipForward, Minus, Plus, Square } from 'lucide-react';
 import { WorkoutPlan, formatDuration, formatDistance, getStepTypeLabel, ActivityPoint, getStepDurationSeconds } from '../types';
 import MapComponent from './MapComponent';
-import { startTracking, TrackCallback, Tracking } from '../lib/capacitor/tracking';
+import { startTracking, TrackCallback, Tracking, startKeepAlive, stopKeepAlive, startNativeTimer, pauseNativeTimer, resumeNativeTimer, stopNativeTimer, onTimerTick } from '../lib/capacitor/tracking';
+import { isNative } from '../lib/capacitor/platform';
 import { speak as voiceSpeak } from '../lib/capacitor/voice';
 
 interface Props {
@@ -51,6 +52,8 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const pointsRef = useRef<ActivityPoint[]>([]);
   const coordsRef = useRef<{lat: number, lng: number, altitude?: number} | null>(null);
   const isPausedRef = useRef(false);
+  const prevElapsedRef = useRef<number>(0); // previous native timer elapsed for incremental distance
+  const spokenCompletionRef = useRef(false);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
 
   // Sync coords ref
@@ -84,11 +87,21 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     return () => clearInterval(timer);
   }, []);
 
-  // GPS tracking
+  // GPS tracking + keep-alive + native timer
   useEffect(() => {
+    if (countdown > 0) return; // aguarda regressiva terminar
+
     if (mode !== 'outdoor') {
-      console.log('[WorkerTracker] mode != outdoor, GPS effect skipped');
-      return;
+      console.log('[WorkerTracker] mode != outdoor, starting keep-alive + native timer');
+      startKeepAlive();
+      // Start native timer (immune to WebView background throttling)
+      if (isNative()) {
+        startNativeTimer(0);
+      }
+      return () => {
+        stopNativeTimer();
+        stopKeepAlive();
+      };
     }
 
     console.log('[WorkerTracker] GPS useEffect iniciado, mode=', mode, 'simulateGps=', simulateGps);
@@ -111,14 +124,30 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                    Math.sin(dLon/2) * Math.sin(dLon/2);
          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
          const d = R * c;
-         
+
          if (d > 0.001 && !isPausedRef.current) {
            distRef.current += d;
            lapDistRef.current += d;
+           lastMovementTimeRef.current = now;
            const timeDiffHours = (now - lastTime) / 3600000;
            if (timeDiffHours > 0) {
              speedRef.current = d / timeDiffHours;
            }
+         }
+
+         // Auto-pause: speed < 1 km/h for 5s while moving
+         const speedKmh = d / ((now - lastTime) / 3600000 || 1);
+         if (!isPausedRef.current && !isAutoPausedRef.current && speedKmh < 1.0 && (now - lastMovementTimeRef.current) > 5000) {
+           isAutoPausedRef.current = true;
+           setIsPaused(true);
+           speak("Pausando o Treino", true);
+         }
+
+         // Auto-resume: speed > 2 km/h (only if auto-paused, not manual)
+         if (isPausedRef.current && isAutoPausedRef.current && speedKmh > 3.0) {
+           isAutoPausedRef.current = false;
+           setIsPaused(false);
+           speak("Continuando o Treino", true);
          }
       }
       lastCoords = { lat: pos.lat, lng: pos.lng };
@@ -152,7 +181,92 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     }
 
     return () => { if (cleanup) cleanup(); };
-  }, [mode, simulateGps, retryKey]);
+  }, [mode, simulateGps, retryKey, countdown]);
+
+  // Native timer tick listener (treadmill mode — immune to background throttling)
+  useEffect(() => {
+    if (mode !== 'treadmill' || !isNative()) return;
+
+    const handle = onTimerTick((elapsed) => {
+      setElapsedSeconds(elapsed);
+      elapsedRef.current = elapsed;
+
+      // Incremental distance (doesn't recalculate from scratch — avoid jump on speed change)
+      const dPerSec = speedRef.current / 3600;
+      if (prevElapsedRef.current >= 0) {
+        const delta = elapsed - prevElapsedRef.current;
+        if (delta > 0) {
+          distRef.current += delta * dPerSec;
+        }
+      }
+      prevElapsedRef.current = elapsed;
+
+      // Lap tracking via lapStartElapsedRef
+      const lapElapsed = elapsed - lapStartElapsedRef.current;
+      const lapDist = lapElapsed * dPerSec;
+      lapDistRef.current = lapDist;
+      setLapDistance(lapDist);
+      setLapSeconds(lapElapsed);
+
+      // Accumulate point
+      const newPoint: ActivityPoint = {
+        timestampSeconds: elapsed,
+        speedKmh: speedRef.current,
+        distanceKm: distRef.current,
+        stepIndex: stepIndexRef.current,
+      };
+      if (coordsRef.current) {
+        newPoint.lat = coordsRef.current.lat;
+        newPoint.lon = coordsRef.current.lng;
+        if (coordsRef.current.altitude !== undefined) {
+          newPoint.altitude = coordsRef.current.altitude;
+        }
+      }
+      pointsRef.current.push(newPoint);
+
+      // KM announcement
+      const currentKm = Math.floor(distRef.current);
+      if (currentKm > lastKmAnnouncedRef.current && currentKm > 0) {
+        const timeSinceLastKm = elapsed - lastKmStartTimeRef.current;
+        const paceMinPerKm = timeSinceLastKm / 60;
+        const paceMins = Math.floor(paceMinPerKm);
+        const paceSecs = Math.round((paceMinPerKm - paceMins) * 60);
+        speak(`Quilômetro ${currentKm} completado. Último quilômetro em ${paceMins} minutos e ${paceSecs} segundos`, true);
+        lastKmAnnouncedRef.current = currentKm;
+        lastKmStartTimeRef.current = elapsed;
+      }
+
+      // Half-lap TTS
+      if (!halfLapAnnouncedRef.current) {
+        const currentStepObj = plan.steps[stepIndexRef.current];
+        if (currentStepObj?.type === 'run') {
+          if (currentStepObj.basis === 'distance') {
+            const tDist = getStepTargetDistance(currentStepObj);
+            if (tDist > 0 && lapDistRef.current >= tDist / 2) {
+              halfLapAnnouncedRef.current = true;
+              speak("Chegamos na metade dessa volta!", true);
+            }
+          } else {
+            const dur = getStepDurationSeconds(currentStepObj);
+            if (dur > 180 && lapElapsed >= dur / 2) {
+              halfLapAnnouncedRef.current = true;
+              speak("Chegamos na metade dessa volta!", true);
+            }
+          }
+        }
+      }
+
+      // Half-workout TTS
+      if (!halfWorkoutAnnouncedRef.current && !isFreeTraining) {
+        if (elapsed >= totalWorkoutTime / 2) {
+          halfWorkoutAnnouncedRef.current = true;
+          speak("Chegamos na metade do treino!", true);
+        }
+      }
+    });
+
+    return () => { if (handle) handle.then(h => h.remove()); };
+  }, [mode, countdown, isPaused]);
 
   useEffect(() => {
       return () => {
@@ -162,10 +276,46 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
 
   // Main timer
   const stepIndexRef = useRef(0);
+  const lapStartElapsedRef = useRef(0); // total elapsed when current step started (for native timer lap calc)
 
   useEffect(() => {
     if (!isPaused && countdown === 0) {
         intervalRef.current = setInterval(() => {
+          // Native timer is source of truth for treadmill+native — skip time/distance
+          if (mode === 'treadmill' && isNative()) {
+            // Only accumulate points + pace history (time/distance handled by native timer)
+            const newPoint: ActivityPoint = {
+                timestampSeconds: elapsedRef.current,
+                speedKmh: speedRef.current,
+                distanceKm: distRef.current,
+                stepIndex: stepIndexRef.current,
+            };
+            if (coordsRef.current) {
+                newPoint.lat = coordsRef.current.lat;
+                newPoint.lon = coordsRef.current.lng;
+                if (coordsRef.current.altitude !== undefined) {
+                    newPoint.altitude = coordsRef.current.altitude;
+                }
+            }
+            pointsRef.current.push(newPoint);
+
+            const pace = speedRef.current > 0 ? (60 / speedRef.current) : 0;
+            setPaceHistory(p => [...p, { timeSeconds: elapsedRef.current, pace }]);
+
+            // KM announcement (native timer doesn't have this)
+            const currentKm = Math.floor(distRef.current);
+            if (currentKm > lastKmAnnouncedRef.current && currentKm > 0) {
+              const timeSinceLastKm = elapsedRef.current - lastKmStartTimeRef.current;
+              const paceMinPerKm = timeSinceLastKm / 60;
+              const paceMins = Math.floor(paceMinPerKm);
+              const paceSecs = Math.round((paceMinPerKm - paceMins) * 60);
+              speak(`Quilômetro ${currentKm} completado. Último quilômetro em ${paceMins} minutos e ${paceSecs} segundos`, true);
+              lastKmAnnouncedRef.current = currentKm;
+              lastKmStartTimeRef.current = elapsedRef.current;
+            }
+            return;
+          }
+
           setElapsedSeconds(s => s + 1);
           setLapSeconds(s => s + 1);
           
@@ -206,6 +356,35 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
             speak(`Quilômetro ${currentKm} completado. Último quilômetro em ${paceMins} minutos e ${paceSecs} segundos`, true);
             lastKmAnnouncedRef.current = currentKm;
             lastKmStartTimeRef.current = elapsedRef.current;
+          }
+
+          // Half-lap TTS: announce at 50% of step duration (run steps only)
+          if (!halfLapAnnouncedRef.current) {
+            const currentStepObj = plan.steps[stepIndexRef.current];
+            if (currentStepObj?.type === 'run') {
+              if (currentStepObj.basis === 'distance') {
+                const tDist = getStepTargetDistance(currentStepObj);
+                if (tDist > 0 && lapDistRef.current >= tDist / 2) {
+                  halfLapAnnouncedRef.current = true;
+                  speak("Chegamos na metade dessa volta!", true);
+                }
+              } else {
+                const dur = getStepDurationSeconds(currentStepObj);
+                const lapTimeSeconds = elapsedRef.current - lapStartElapsedRef.current;
+                if (dur > 180 && lapTimeSeconds >= dur / 2) {
+                  halfLapAnnouncedRef.current = true;
+                  speak("Chegamos na metade dessa volta!", true);
+                }
+              }
+            }
+          }
+
+          // Half-workout TTS: announce once at 50% of total workout time
+          if (!halfWorkoutAnnouncedRef.current && !isFreeTraining) {
+            if ((elapsedRef.current + 0) >= totalWorkoutTime / 2) {
+              halfWorkoutAnnouncedRef.current = true;
+              speak("Chegamos na metade do treino!", true);
+            }
           }
 
           const pace = speedRef.current > 0 ? (60 / speedRef.current) : 0;
@@ -250,7 +429,11 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const workoutCompletedAnnouncedRef = useRef<boolean>(false);
   const lastKmStartTimeRef = useRef<number>(0); // Timestamp of start of current km
   const almostThereAnnouncedRef = useRef<boolean>(false);
+  const halfLapAnnouncedRef = useRef<boolean>(false);
+  const halfWorkoutAnnouncedRef = useRef<boolean>(false);
   const speedTouchRef = useRef(false); // blocks synthesized mouse events on mobile
+  const isAutoPausedRef = useRef(false); // true when auto-pause triggered (not manual)
+  const lastMovementTimeRef = useRef(Date.now()); // last time GPS detected movement
 
   const speak = (text: string, force = false) => {
     if (!force && (isFreeTraining || isExtended)) return;
@@ -280,6 +463,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
             if (countdown > 0) return; // wait for countdown to finish
             lastStepIndexRef.current = currentStepIndex;
             almostThereAnnouncedRef.current = false;
+            halfLapAnnouncedRef.current = false;
             const ptType = currentStep.type === 'warmup' ? 'Aquecimento' : currentStep.type === 'run' ? 'Corrida' : currentStep.type === 'cooldown' ? 'Desaquecimento' : currentStep.type === 'rest' ? 'Caminhada' : currentStep.type;
             const stepDuration = getStepDurationSeconds(currentStep);
             const targetDist = getStepTargetDistance(currentStep);
@@ -344,7 +528,10 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     const isLastStep = currentStepIndex >= plan.steps.length - 1;
 
     if (isLastStep) {
-      speak("Exercício concluído, parabéns!", true);
+      if (!spokenCompletionRef.current) {
+        spokenCompletionRef.current = true;
+        speak("Exercício concluído, parabéns!", true);
+      }
       setIsExtended(true);
     } else {
       const nextIndex = currentStepIndex + 1;
@@ -352,6 +539,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       setCurrentStepIndex(nextIndex);
       stepIndexRef.current = nextIndex;
       setLapSeconds(0);
+      lapStartElapsedRef.current = elapsedRef.current;
       lapDistRef.current = 0; // Reset for next lap
       setLapDistance(0);
     }
@@ -370,8 +558,19 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     if (isWorkoutCompleted && !workoutCompletedAnnouncedRef.current) {
         speak("Agora é só olhar seu relatório", true);
         workoutCompletedAnnouncedRef.current = true;
+        stopNativeTimer();
     }
   }, [isWorkoutCompleted]);
+
+  // Native timer pause/resume (treadmill)
+  useEffect(() => {
+    if (mode !== 'treadmill' || !isNative()) return;
+    if (isPaused) {
+      pauseNativeTimer();
+    } else if (countdown === 0) {
+      resumeNativeTimer();
+    }
+  }, [isPaused, mode, countdown]);
 
   
   const displayDistance = dist;
@@ -392,6 +591,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       setCurrentStepIndex(nextIndex);
       stepIndexRef.current = nextIndex;
       setLapSeconds(0);
+      lapStartElapsedRef.current = elapsedRef.current;
       lapDistRef.current = 0;
       setLapDistance(0);
     } else {
@@ -510,43 +710,51 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
           </div>
         </div>
 
-        <div className={`flex-shrink-0 relative bg-bg-elevated rounded p-1 mt-1 overflow-hidden w-full ${mode === 'treadmill' ? 'h-10' : 'h-5'}`}>
-            <div key={currentStepIndex} className={`absolute top-1/2 -translate-y-1/2 ${!isPaused && countdown === 0 ? 'animate-marquee' : ''} text-[10px] text-text-primary whitespace-nowrap`}>
+        {/* Marquee — unified height/font for both modes */}
+        <div className="flex-shrink-0 relative bg-bg-elevated rounded p-1 mt-1 overflow-hidden w-full h-9">
+            <div key={currentStepIndex} className={`absolute top-1/2 -translate-y-1/2 ${!isPaused && countdown === 0 ? 'animate-marquee' : ''} text-base text-text-primary whitespace-nowrap`}>
                 {isFreeTraining ? 'Corrida Livre' : `${isDistanceStep ? formatDistance(stepTargetDistance) : formatDuration(step.durationSeconds)} ${getStepTypeLabel(step.type)}${step.targetPace ? ` @ ${(60/step.targetPace).toFixed(1)} km/h` : ''}`}
             </div>
         </div>
 
-        <div className={`flex-shrink-0 w-full bg-bg-elevated ${mode === 'treadmill' ? 'h-5' : 'h-2.5'} rounded-full mt-1`}>
+        {/* Step progress bar — unified, with percentage */}
+        <div className="text-[9px] uppercase tracking-wider text-text-secondary mt-1 mb-0.5">Progresso da Volta</div>
+        <div className="flex-shrink-0 relative w-full h-[18px] bg-bg-elevated rounded-full mt-0.5">
             <div className="bg-accent-secondary h-full rounded-full" style={{width: `${isDistanceStep ? Math.min((lapDistance / (stepTargetDistance || 1)) * 100, 100) : Math.min((lapSeconds / (step.durationSeconds || 1)) * 100, 100)}%`}}></div>
+            <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white drop-shadow-sm pointer-events-none">{isDistanceStep ? Math.min(Math.round((lapDistance / (stepTargetDistance || 1)) * 100), 100) : Math.min(Math.round((lapSeconds / (step.durationSeconds || 1)) * 100), 100)}%</span>
         </div>
 
-        <div className={`flex-shrink-0 w-full bg-bg-elevated ${mode === 'treadmill' ? 'h-5' : 'h-2.5'} rounded-full mt-1`}>
+        {/* Total progress bar — unified, with percentage */}
+        <div className="text-[9px] uppercase tracking-wider text-text-secondary mt-1 mb-0.5">Progresso do Treino</div>
+        <div className="flex-shrink-0 relative w-full h-[18px] bg-bg-elevated rounded-full mt-0.5">
             <div className="bg-accent-secondary h-full rounded-full" style={{width: `${Math.min(((elapsedSeconds + skippedTime) / totalWorkoutTime) * 100, 100)}%`}}></div>
+            <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white drop-shadow-sm pointer-events-none">{Math.min(Math.round(((elapsedSeconds + skippedTime) / totalWorkoutTime) * 100), 100)}%</span>
         </div>
 
         {mode === 'outdoor' && !isWorkoutCompleted && countdown === 0 && (
-          <div className="flex-1 min-h-64 w-full rounded-lg overflow-hidden mt-1">
+          <div className="w-full rounded-lg overflow-hidden mt-2" style={{ flex: '0.85', minHeight: 120 }}>
             <MapComponent coords={coords} path={path} />
           </div>
         )}
 
-        <div className={(mode === 'treadmill' ? 'flex-1 min-h-0' : 'flex-shrink-0') + ' mt-1'}>
+        {/* Distance box — unified: primary = what's left to complete goal */}
+        <div className={(mode === 'treadmill' ? 'flex-1 min-h-0' : 'flex-shrink-0') + ' mt-2'}>
           <div className="w-full h-full px-3 py-2 bg-bg-surface border border-border rounded-xl flex flex-col items-center justify-center">
             {isDistanceStep ? (
                 <>
-                    <div className="text-4xl font-bold leading-tight">{formatDistance(Math.max(0, stepTargetDistance - lapDistance))}</div>
-                    <div className="text-text-secondary uppercase tracking-widest text-[10px]">Dist. restante</div>
-                    <div className="text-base font-bold mt-0.5">{formatTime(lapSeconds)}</div>
+                    <div className="text-[42px] font-bold leading-tight">{formatDistance(Math.max(0, stepTargetDistance - lapDistance))}</div>
+                    <div className="text-text-secondary uppercase tracking-widest text-[10px]">Distância Restante</div>
+                    <div className="text-xl font-bold mt-2">{formatTime(lapSeconds)}</div>
                     <div className="text-text-secondary uppercase tracking-widest text-[10px]">Tempo da Volta</div>
                 </>
             ) : (
                 <>
-                    <div className="text-4xl font-bold leading-tight">{formatDistance(lapDistance)}</div>
-                    <div className="text-text-secondary uppercase tracking-widest text-[10px]">Dist. da Volta</div>
+                    <div className="text-[42px] font-bold leading-tight">{formatTime(Math.max(0, step.durationSeconds - lapSeconds))}</div>
+                    <div className="text-text-secondary uppercase tracking-widest text-[10px]">Tempo Restante</div>
                     {!isFreeTraining && (
                       <>
-                        <div className="text-base font-bold mt-0.5">{formatTime(Math.max(0, step.durationSeconds - lapSeconds))}</div>
-                        <div className="text-text-secondary uppercase tracking-widest text-[10px]">Tempo restante</div>
+                        <div className="text-xl font-bold mt-2">{formatDistance(lapDistance)}</div>
+                        <div className="text-text-secondary uppercase tracking-widest text-[10px]">Distância Percorrida</div>
                       </>
                     )}
                 </>
@@ -555,7 +763,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
         </div>
 
         {mode === 'treadmill' && (
-            <div className="flex-shrink-0 flex items-center justify-between bg-bg-elevated rounded-xl p-2 mt-1">
+            <div className="flex-shrink-0 flex items-center justify-between bg-bg-elevated rounded-xl p-2 mt-2">
                 <button 
                     onMouseDown={() => { if (speedTouchRef.current) return; if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
                     onMouseUp={() => { stopAdjusting(); }}
@@ -591,7 +799,8 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
             </div>
         )}
 
-        <div className="flex-shrink-0 space-y-2 mt-auto">
+        {/* Buttons — stacked, full width (both modes) */}
+        <div className={`flex-shrink-0 flex flex-col gap-2 ${mode === 'outdoor' ? 'mt-auto pb-1' : 'mt-2'}`}>
           {isPaused || isExtended ? (
               <button 
                   onMouseDown={startFinish}
@@ -599,7 +808,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                   onMouseLeave={stopFinish}
                   onTouchStart={startFinish}
                   onTouchEnd={stopFinish}
-                  className="w-full flex items-center justify-center gap-2 bg-accent text-white py-3 rounded-full font-bold uppercase relative overflow-hidden"
+                  className="w-full flex items-center justify-center gap-2 bg-accent text-white py-3 rounded-xl font-bold uppercase relative overflow-hidden"
               >
                   <div className="absolute inset-0 bg-accent-secondary/45" style={{ width: `${finishProgress}%` }}></div>
                   <Square size={18} aria-hidden="true" /> Finalizar
@@ -608,12 +817,12 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
               <button 
                   onClick={nextStep} 
                   disabled={currentStepIndex >= plan.steps.length - 1}
-                  className={`w-full flex items-center justify-center gap-2 bg-bg-elevated text-text-primary py-3 rounded-full font-bold uppercase ${currentStepIndex >= plan.steps.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`w-full flex items-center justify-center gap-2 bg-bg-elevated text-text-primary py-3 rounded-xl font-bold uppercase ${currentStepIndex >= plan.steps.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                   <SkipForward size={18} aria-hidden="true" /> Próxima volta
               </button>
           )}
-          <button onClick={() => setIsPaused(!isPaused)} className="w-full flex items-center justify-center gap-2 bg-accent-secondary text-white py-3 rounded-full font-bold uppercase">
+          <button onClick={() => { if (!isPaused) { isAutoPausedRef.current = false; lastMovementTimeRef.current = Date.now(); } setIsPaused(!isPaused); }} className="w-full flex items-center justify-center gap-2 bg-accent-secondary text-white py-3 rounded-xl font-bold uppercase">
               {isPaused ? <Play size={18} aria-hidden="true" /> : <Pause size={18} aria-hidden="true" />} {isPaused ? 'Continuar' : 'Pausar'}
           </button>
         </div>

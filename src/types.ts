@@ -69,6 +69,7 @@ export interface WorkoutPlan {
   manual?: boolean;
   scheduledDate?: string; // "YYYY-MM-DD"
   isRaceMarker?: boolean; // marcador visual no calendário para data da prova
+  generatedFromProgramId?: string; // ID do programa que gerou este plano (para cascade)
 }
 
 export interface ActivityPoint {
