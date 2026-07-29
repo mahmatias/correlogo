@@ -97,6 +97,7 @@ export interface TrainingSession {
   avgSpeedKmh: number;
   completed: boolean;
   points: ActivityPoint[];
+  syncStatus?: 'synced' | 'pending' | 'failed';
 }
 
 export type TrainingPhase = 'base' | 'build' | 'peak' | 'taper';
