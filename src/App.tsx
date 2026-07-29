@@ -85,6 +85,7 @@ export default function App() {
   const [pendingOAuthToken, setPendingOAuthToken] = useState<string | null>(null);
   const [showBackgroundPrompt, setShowBackgroundPrompt] = useState(false);
   const [appCameFromSettings, setAppCameFromSettings] = useState(false);
+  const [backAction, setBackAction] = useState<(() => void) | null>(null);
   const getWeekStart = (d: Date) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -99,6 +100,26 @@ export default function App() {
     setSaveFeedback({ type, message });
     setTimeout(() => setSaveFeedback(null), 3000);
   };
+
+  // Define a ação do botão back baseada no estado atual
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || activePlan) {
+      setBackAction(null);
+      return;
+    }
+
+    if (showSignup) setBackAction(() => () => setShowSignup(false));
+    else if (showUserProfile) setBackAction(() => () => setShowUserProfile(false));
+    else if (showHistory) setBackAction(() => () => setShowHistory(false));
+    else if (showGenerator) setBackAction(() => () => setShowGenerator(false));
+    else if (programToReview) setBackAction(() => () => setProgramToReview(null));
+    else if (workoutToStart) setBackAction(() => () => setWorkoutToStart(null));
+    else if (planToDelete) setBackAction(() => () => setPlanToDelete(null));
+    else if (reschedulePlanId) setBackAction(() => () => setReschedulePlanId(null));
+    else if (showGoogleCalendarModal) setBackAction(() => () => setShowGoogleCalendarModal(false));
+    else if (showBackgroundPrompt) setBackAction(() => () => setShowBackgroundPrompt(false));
+    else setBackAction(null);
+  }, [showSignup, showUserProfile, showHistory, showGenerator, programToReview, workoutToStart, planToDelete, reschedulePlanId, showGoogleCalendarModal, showBackgroundPrompt, activePlan]);
 
   const applyThemeClass = (light?: boolean) => {
     const isLight = light ?? !window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -341,7 +362,12 @@ export default function App() {
     let lastBack = 0;
     let handler: { remove: () => void };
 
-    CapApp.addListener('backButton', () => {
+CapApp.addListener('backButton', () => {
+      if (backAction) {
+        // Se há uma ação definida (modal/tela aberta), executa ela
+        backAction();
+        return;
+      }
       const now = Date.now();
       if (now - lastBack < 2000) {
         CapApp.exitApp();
@@ -352,7 +378,7 @@ export default function App() {
     }).then((h) => { handler = h; });
 
     return () => { handler?.remove(); };
-  }, [activePlan]);
+  }, [activePlan, backAction, showFeedback]);
 
   const doGpsWarmup = async () => {
     try {
@@ -683,8 +709,69 @@ export default function App() {
     setSettings(newSettings);
   };
 
-  const handleDateChange = (planId: string, newDate: string) => {
-    const updated = plans.map(p => p.id === planId ? { ...p, scheduledDate: newDate || undefined } : p);
+  const parseDate = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const daysBetween = (a: string, b: string) => Math.round((parseDate(b).getTime() - parseDate(a).getTime()) / 86400000);
+  const addDays = (date: string, days: number) => {
+    const d = parseDate(date);
+    d.setDate(d.getDate() + days);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const formatDateKeyLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const snapToSameDayOfWeek = (candidateDate: string, originalDayOfWeek: number) => {
+    const d = parseDate(candidateDate);
+    const diff = (originalDayOfWeek - d.getDay() + 7) % 7;
+    d.setDate(d.getDate() + diff);
+    return formatDateKeyLocal(d);
+  };
+
+  const handleDateChange = (planId: string, newDate: string, mode: 'single' | 'cascade' = 'single') => {
+    if (!newDate) return;
+    const targetPlan = plans.find(p => p.id === planId);
+    if (!targetPlan || !targetPlan.scheduledDate) {
+      const updated = plans.map(p => p.id === planId ? { ...p, scheduledDate: newDate } : p);
+      updatePlansState(updated);
+      return;
+    }
+    if (mode === 'single') {
+      const updated = plans.map(p => p.id === planId ? { ...p, scheduledDate: newDate } : p);
+      updatePlansState(updated);
+      return;
+    }
+    const programId = targetPlan.generatedFromProgramId;
+    const programName = targetPlan.programName;
+    const programPlans = plans
+      .filter(p => p.scheduledDate && (
+        programId ? p.generatedFromProgramId === programId : !!(programName && p.programName === programName)
+      ))
+      .sort((a, b) => a.scheduledDate!.localeCompare(b.scheduledDate!));
+    const trainingDays = [...new Set(programPlans.map(p => parseDate(p.scheduledDate!).getDay()))].sort((a, b) => a - b);
+    const targetIdx = programPlans.findIndex(p => p.id === planId);
+    const afterPlans = programPlans.slice(targetIdx + 1);
+    const rescheduled: { id: string; date: string }[] = [];
+    let cursor = newDate;
+    for (const p of afterPlans) {
+      const cursorDow = parseDate(cursor).getDay();
+      let nextDay = trainingDays.find(d => d > cursorDow);
+      let nextDate: string;
+      if (nextDay !== undefined) {
+        const d = parseDate(cursor);
+        d.setDate(d.getDate() + ((nextDay - cursorDow + 7) % 7));
+        nextDate = formatDateKeyLocal(d);
+      } else {
+        nextDay = trainingDays[0];
+        const d = parseDate(cursor);
+        d.setDate(d.getDate() + ((nextDay - cursorDow + 7) % 7 || 7));
+        nextDate = formatDateKeyLocal(d);
+      }
+      rescheduled.push({ id: p.id, date: nextDate });
+      cursor = nextDate;
+    }
+    const rescheduleMap = new Map(rescheduled.map(r => [r.id, r.date]));
+    const updated = plans.map(p => {
+      if (p.id === planId) return { ...p, scheduledDate: newDate };
+      if (rescheduleMap.has(p.id)) return { ...p, scheduledDate: rescheduleMap.get(p.id)! };
+      return p;
+    });
     updatePlansState(updated);
   };
 
@@ -739,7 +826,7 @@ export default function App() {
   return (
       <div className="min-h-screen h-screen flex flex-col bg-bg-deep overflow-hidden">
       {saveFeedback && (
-        <div className={`fixed top-4 right-4 z-[9999] px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all duration-300 ${saveFeedback.type === 'success' ? 'bg-green-600' : 'bg-danger'}`} role="alert">
+        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999] max-w-[90%] px-4 py-2 rounded-lg shadow-lg text-white text-sm font-medium text-center transition-all duration-300 ${saveFeedback.type === 'success' ? 'bg-green-600' : 'bg-danger'}`} role="alert">
           {saveFeedback.message}
         </div>
       )}
@@ -768,17 +855,23 @@ export default function App() {
       <main className={`flex-1 w-full max-w-xl mx-auto ${activePlan ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {checkingAuth || !user ? (
           checkingAuth ? (
-            <div className="flex flex-col gap-4 pt-8 p-4">
-              <div className="h-8 w-48 bg-bg-elevated rounded animate-pulse" />
-              <div className="h-40 bg-bg-elevated rounded animate-pulse" />
-              <div className="h-40 bg-bg-elevated rounded animate-pulse" />
+            <div className="flex flex-col items-center justify-center min-h-screen bg-bg-deep p-4">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-16 h-16 mb-6" aria-hidden="true">
+                <path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="var(--color-accent)" />
+                <path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="var(--color-accent)" opacity="0.6" />
+              </svg>
+              <h1 className="text-2xl font-bold text-text-primary mb-6">Corre Logo</h1>
+              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
             </div>
           ) : showSignup ? <Signup onLoginClick={() => setShowSignup(false)} /> : <Login onSignupClick={() => setShowSignup(true)} />
         ) : isLoading ? (
-          <div className="flex flex-col gap-4 pt-8 p-4">
-            <div className="h-8 w-48 bg-bg-elevated rounded animate-pulse" />
-            <div className="h-40 bg-bg-elevated rounded animate-pulse" />
-            <div className="h-40 bg-bg-elevated rounded animate-pulse" />
+          <div className="flex flex-col items-center justify-center min-h-screen bg-bg-deep p-4">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-16 h-16 mb-6" aria-hidden="true">
+              <path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="var(--color-accent)" />
+              <path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="var(--color-accent)" opacity="0.6" />
+            </svg>
+            <h1 className="text-2xl font-bold text-text-primary mb-6">Corre Logo</h1>
+            <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <>
@@ -805,6 +898,7 @@ export default function App() {
               <SessionSummary 
                 session={selectedSession} 
                 plan={plans.find(p => p.id === selectedSession.planId)}
+                showFeedback={showFeedback}
                 onClose={() => setSelectedSession(null)} 
                 onSuggestAdjustment={(adjustedPlan) => {
                   const updatedPlans = plans.map(p =>
@@ -874,7 +968,7 @@ export default function App() {
               <ProgramReview
                 program={programToReview}
                 onConfirm={(finalProgram) => {
-                  const allPlans = finalProgram.weeks.flatMap(w => w.plans);
+                  const allPlans = finalProgram.weeks.flatMap(w => w.plans.map(p => ({ ...p, generatedFromProgramId: finalProgram.id })));
                   updatePlansState([...plans, ...allPlans], 'Programa gerado com sucesso!');
                   setProgramToReview(null);
                 }}
@@ -885,7 +979,13 @@ export default function App() {
               <>
               <div className="sticky top-0 z-10 bg-bg-deep px-4 pb-2 pt-4">
                 <div className="flex justify-between items-center">
-                  <h1 className="text-2xl font-bold text-text-primary">Corre Logo 🏃</h1>
+                  <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+                    Corre Logo
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-7 h-7" aria-hidden="true">
+                      <path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="var(--color-accent)" />
+                      <path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="var(--color-accent)" opacity="0.6" />
+                    </svg>
+                  </h1>
                   <div className='flex gap-2'>
                   <Button
                     variant="ghost"
@@ -1181,14 +1281,34 @@ export default function App() {
                     type="date"
                     defaultValue={plans.find(p => p.id === reschedulePlanId)?.scheduledDate || ''}
                     autoFocus
-                    onChange={(e) => {
-                      handleDateChange(reschedulePlanId, e.target.value);
-                      setReschedulePlanId(null);
-                    }}
+                    onChange={() => {}}
                     style={{ colorScheme: 'dark' }}
+                    id="reschedule-date-input"
                     className="w-full p-3 border border-border rounded-lg bg-bg-elevated text-text-primary text-base focus:outline-none focus:border-accent cursor-pointer"
                   />
-                  <Button variant="secondary" className="w-full" onClick={() => setReschedulePlanId(null)}>
+                  <div className="flex flex-col gap-2 w-full">
+                    <Button
+                      variant="primary"
+                      className="w-full"
+                      onClick={() => {
+                        const input = document.getElementById('reschedule-date-input') as HTMLInputElement;
+                        if (input?.value) { handleDateChange(reschedulePlanId, input.value, 'single'); setReschedulePlanId(null); }
+                      }}
+                    >
+                      Reagendar apenas este
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      className="w-full"
+                      onClick={() => {
+                        const input = document.getElementById('reschedule-date-input') as HTMLInputElement;
+                        if (input?.value) { handleDateChange(reschedulePlanId, input.value, 'cascade'); setReschedulePlanId(null); }
+                      }}
+                    >
+                      Reagendar este e seguintes
+                    </Button>
+                  </div>
+                  <Button variant="ghost" className="w-full" onClick={() => setReschedulePlanId(null)}>
                     Cancelar
                   </Button>
                 </div>

@@ -38,7 +38,6 @@ class AudioFocusPlugin : Plugin() {
             // o volume automaticamente ao abandonar o foco.
             val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
                 .setAudioAttributes(attributes)
-                .setWillPauseWhenDucked(false)
                 .setOnAudioFocusChangeListener { focusChange ->
                     Log.d("CorreLogo", "AudioFocus change: $focusChange");
                 }

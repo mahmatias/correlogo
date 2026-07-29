@@ -35,6 +35,7 @@ const layers = {
 function MapBounds({ path }: { path: { lat: number; lng: number }[] }) {
     const map = useMap();
     useEffect(() => {
+        map.invalidateSize();
         if (path.length > 0) {
             const bounds = L.latLngBounds(path.map(p => [p.lat, p.lng] as [number, number]));
             map.fitBounds(bounds, { padding: [20, 20] });

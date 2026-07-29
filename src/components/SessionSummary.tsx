@@ -6,12 +6,15 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 const MapComponent = lazy(() => import('./MapComponent'));
 import { generateTCX, generateGPX } from '../lib/exportUtils';
 import { evaluateSessionPerformance, suggestAdjustment } from '../lib/evaluatePerformance';
+import { isNative } from '../lib/capacitor/platform';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
 interface Props {
   session: TrainingSession;
   plan?: WorkoutPlan;
   onClose: () => void;
   onSuggestAdjustment?: (adjustedPlan: WorkoutPlan) => void;
+  showFeedback?: (type: 'success' | 'error', message: string) => void;
 }
 
 function ScrollHint({ visible }: { visible: boolean }) {
@@ -35,7 +38,7 @@ function ScrollHint({ visible }: { visible: boolean }) {
   );
 }
 
-export default function SessionSummary({ session, plan, onClose, onSuggestAdjustment }: Props) {
+export default function SessionSummary({ session, plan, onClose, onSuggestAdjustment, showFeedback }: Props) {
   const [viewMode, setViewMode] = useState<'km' | 'lap'>('km');
 
   // Basic stats
@@ -64,8 +67,26 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
       timestamp: p.timestampSeconds * 1000 + Date.now() // Dummy timestamp for map component
   }));
 
-  const downloadFile = (content: string, filename: string, type: string) => {
-      const blob = new Blob([content], { type });
+  const saveFile = async (content: string, filename: string, mime: string) => {
+    if (isNative()) {
+      try {
+        await Filesystem.mkdir({
+          path: 'Download/CorreLogo',
+          directory: Directory.ExternalStorage,
+          recursive: true,
+        }).catch(() => {});
+        await Filesystem.writeFile({
+          path: `Download/CorreLogo/${filename}`,
+          data: content,
+          directory: Directory.ExternalStorage,
+          encoding: Encoding.UTF8,
+        });
+        showFeedback('success', 'Arquivo salvo');
+      } catch (err) {
+        showFeedback('error', 'Erro ao salvar arquivo');
+      }
+    } else {
+      const blob = new Blob([content], { type: mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -74,10 +95,11 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    }
   };
 
-  const exportTCX = () => downloadFile(generateTCX(session), `session_${session.id}.tcx`, 'application/xml');
-  const exportGPX = () => downloadFile(generateGPX(session), `session_${session.id}.gpx`, 'application/gpx+xml');
+  const exportTCX = () => saveFile(generateTCX(session), `session_${session.id}.tcx`, 'application/xml');
+  const exportGPX = () => saveFile(generateGPX(session), `session_${session.id}.gpx`, 'application/gpx+xml');
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col p-6 overflow-y-auto bg-bg-deep text-text-primary" role="dialog" aria-modal="true" aria-label="Resumo da sessão">
@@ -101,8 +123,8 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
         </div>
 
         {path.length > 0 && (
-            <div className="w-full mb-6 h-64">
-                <Suspense fallback={<div className="w-full h-64 bg-bg-elevated rounded animate-pulse flex items-center justify-center text-text-muted">Carregando mapa…</div>}>
+            <div className="w-full mb-6" style={{ minHeight: '300px', height: '300px' }}>
+                <Suspense fallback={<div className="w-full bg-bg-elevated rounded animate-pulse flex items-center justify-center text-text-muted" style={{ height: '300px' }}>Carregando mapa…</div>}>
                     <MapComponent coords={null} path={path} />
                 </Suspense>
             </div>

@@ -7,31 +7,116 @@
 
 ## Pendentes
 
-### Alta
-- [ ] Função de Repetição na criação manual de treino
-- [ ] Os geradores Standard/ImprovePace também devem escalar duração mínima (clampedWeeks do iniciante)
+### Alta (imediato)
+- [ ] **SDD Samsung Health** — Tasks 1-6 do plano `docs/superpowers/plans/2026-07-29-samsung-health-sync.md`
+- [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
+- [ ] ~~Testar Reschedule cascade em conjunto (criar plano em outro usuário)~~ ✅ Funcionando (fix: generatedFromProgramId não era setado)
+- [ ] Foto do perfil — exibição com problemas (dívida técnica)
 
 ### Média
-- [ ] Onboarding para novos usuários (vazio do calendário sem planos) — perdido na refatoração
-- [ ] S5. Dados PII (gênero, data nascimento) — coletados mas nunca usados
-- [ ] S8. dotenv não importado no server.ts
-- [ ] P5. Sem useCallback / React.memo
-- [ ] P9. vite em dependencies E devDependencies
-- [ ] D1. firestore.indexes.json não versionado
-- [ ] D2. Documento único data/plans — migrar para subcoleção
-- [ ] D7. setDoc sem merge sobrescreve documento
-- [ ] D8. Sem onSnapshot — abas dessincronizadas
-- [ ] U2. Gerador com 15+ campos — simplificar
-- [ ] U3. Visão de progresso (streak, evolução, PRs)
-- [ ] U10. Link morto nos Termos de Serviço
-- [ ] U14. Re-exportação de treino após fechar summary
+- [ ] Dados PII (gênero, data nascimento) — coletados mas nunca utilizados
+- [ ] Performance (P5) — useCallback / React.memo — reavaliar no estado atual
+- [ ] firestore.indexes.json — reavaliar necessidade de versionamento
+- [ ] Estrutura de dados (D2) — migrar para subcoleção — reavaliar se ainda necessário
+- [ ] setDoc sem merge (D7) — reavaliar se ainda causa sobrescrita
+- [ ] Sem onSnapshot (D8) — abas dessincronizadas — reavaliar necessidade de tempo real
+- [ ] Gerador complexo (U2) — 15+ campos — reavaliar se ainda precisa simplificar
+- [ ] Visão de progresso (U3) — streak, evolução, PRs — reavaliar
+- [ ] Termos de Serviço (U10) — criar conteúdo (link quebrado)
+- [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
-### Baixa
-- [ ] Áudio Ducking Android: é possível?
+---
+
+## ✅ Concluídos (Sessão 2026-07-29 — 4 Bug Fixes + Samsung Health Plan)
+
+| Item | Resultado |
+|------|-----------|
+| **Bug #1: Timer durante countdown** | JS timer retorna early em modo esteira+nativo. Native timer é única fonte da verdade |
+| **Bug #2: Distância pulando na troca de passo** | Acúmulo incremental via `prevElapsedRef` — `distRef.current += delta * dPerSec` |
+| **Bug #3: TTS metade não disparava** | `lapElapsed` local + refs em vez de `lapSeconds` estale do closure |
+| **Bug #4: Volume música não restaurava** | `setWillPauseWhenDucked(true)` removido do `AudioFocusPlugin.kt` |
+| **Samsung Health spec** | Aprovada: `docs/superpowers/specs/2026-07-29-samsung-health-integration-design.md` |
+| **Samsung Health plan** | Escrito: `docs/superpowers/plans/2026-07-29-samsung-health-sync.md` — 4 gaps corrigidos no pre-flight |
+| **APK v1.1** | `Corre Logo v1.1.apk` gerado com sucesso |
+
+## ✅ Concluídos (Sessão 2026-07-25 — TTS Metade + Audio Ducking + WakeLock)
+
+| Item | Resultado |
+|------|-----------|
+| **TTS "Chegamos na metade dessa volta!"** | Dispara em etapas de Corrida >180s (tempo) ou 50% da distância. Ignora aquecimento/caminhada/desaquecimento |
+| **TTS "Chegamos na metade do treino!"** | Dispara uma vez aos 50% do tempo total (ignorado no Treino Livre) |
+| **Audio ducking fix** | `await speak()` já espera TTS terminar no Android — `abandonFocus()` imediatamente após |
+| **WakeLock (foreground service)** | `PARTIAL_WAKE_LOCK` mantém CPU ativa durante treino — impede morte do serviço ao apagar tela |
+
+## ✅ Concluídos (Sessão 2026-07-21b — Migração Firebase)
+
+| Item | Resultado |
+|------|-----------|
+| **AWS → Firebase Hosting + Cloud Functions** | Deployado em `correlogo.web.app` |
+| **Cloud Function authCallback** | Funcionando (web + APK OAuth) |
+| **Cloud Function healthCheck** | Funcionando |
+| **Limpeza deps server** | express, helmet, cors, dotenv, esbuild removidos |
+| **server.ts removido** | Substituído por Firebase Hosting |
+| **CSP via firebase.json** | Headers de segurança no hosting |
+| **APK v1.0 (versionCode 8)** | OAuth + export funcionando |
+| **Firestore rules** | Publicadas via Console |
+
+## 🐛 Em Correção / Teste (Sessão 2026-07-21)
+
+| Item | Status | Ação Necessária |
+|------|--------|-----------------|
+| **Export TCX/GPX Android** | ✅ Implementado + Testado | OK |
+| **Mapa resumo (web 10px)** | ✅ Corrigido | OK |
+| **Mapa APK inexistente** | ✅ Corrigido | OK |
+| **CSP tiles mapa** | ✅ Corrigido | OK |
+| **Firestore rules dev** | ✅ Publicadas | OK |
+| **Foto do perfil** | ⚠️ Problema conhecido | Investigar exibição (dívida técnica) |
+| **Reschedule cascade** | ⚠️ Código implementado | Testar em conjunto: criar plano em usuário diferente |
+| **Botão Nav Back** | ❌ Bug confirmado | Corrigir: quando modal aberto, back deve fechar modal (não app) |
+| **CSP meta tag** | ✅ Em teste | Continuar testando durante a semana |
+| **Áudio ducking** | ✅ Corrigido (2026-07-25) | `await speak()` espera TTS terminar — `abandonFocus()` imediatamente após |
 
 ---
 
 ## Concluídos
+
+### 2026-07-10d — Reavaliação Geral do Projeto
+- ✅ Função de Repetição na criação manual de treino
+- ✅ Escalonamento de duração mínima para Standard/ImprovePace (6-52 semanas)
+- ✅ Onboarding para novos usuários (tela de boas-vindas com CTAs)
+
+### 2026-07-10c — UX Fixes (Toast, Back Button, Input Focus)
+- ✅ Toast centralizado na parte inferior (bottom-24, altura reduzida, texto centralizado)
+- ✅ Botão Nav Back — fecha modais/telas secundárias (exceto workout) — **bug: fecha app em vez de fechar modal**
+- ✅ Input "Repetir bloco" — seleciona texto no foco
+
+### 2026-07-10b — Fix TTS repetitivo + APK gerado
+- ✅ Fix TTS repetitivo: spokenCompletionRef impede loop de "Exercício concluído, parabéns!" no treino livre
+- ✅ APK gerado: Corre Logo v1.0.apk (versionCode 5)
+
+### 2026-07-10 — 5 Melhorias (Loading, CSP, APK Export, Cascata, Áudio Ducking)
+- ✅ Loading screen: skeletons → logo seta-rastro SVG + spinner + "Corre Logo"
+- ✅ CSP meta tag em index.html para fotos Google Profile no Capacitor WebView — **em teste**
+- ✅ APK export automation (scripts/export-apk.ps1 + npm run build:apk)
+- ✅ Reschedule cascade (single + cascade mode com delta offset) — **precisa testar em conjunto**
+- ✅ Áudio ducking: setWillPauseWhenDucked(true) + timer reduzido — **em teste**
+
+### 2026-07-10c — UX Fixes (Toast, Back Button, Input Focus)
+- ✅ Toast centralizado na parte inferior (bottom-24)
+- ✅ Botão Nav Back — fecha modais/telas secundárias (exceto workout)
+- ✅ Input "Repetir bloco" — seleciona texto no foco
+- ⚠️ CSP Android — adicionado config, **precisa testar foto no device**
+
+### 2026-07-10b — Fix TTS repetitivo + APK gerado
+- ✅ Fix TTS repetitivo: spokenCompletionRef impede loop de "Exercício concluído, parabéns!" no treino livre
+- ✅ APK gerado: Corre Logo v1.0.apk (versionCode 3)
+
+### 2026-07-10 — 5 Melhorias (Loading, CSP, APK Export, Cascata, Áudio Ducking)
+- ✅ Loading screen: skeletons → logo seta-rastro SVG + spinner + "Corre Logo"
+- ✅ CSP meta tag em index.html para fotos Google Profile no Capacitor WebView
+- ✅ APK export automation (scripts/export-apk.ps1 + npm run build:apk)
+- ✅ Reschedule cascade (single + cascade mode com delta offset)
+- ✅ Áudio ducking: setWillPauseWhenDucked(true) + timer reduzido
 
 ### 2026-07-04 — Kotlin TrackingPlugin (foreground GPS + step counter)
 - ✅ Android `TrackingService.kt` — foreground service com GPS (FusedLocationProviderClient, 3s interval) + step counter (TYPE_STEP_COUNTER)

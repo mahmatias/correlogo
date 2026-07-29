@@ -83,7 +83,25 @@
 - Marcador de prova
 - Light mode corrigido
 
+## Concluído — 2026-07-10c (UX Fixes + CSP)
+- **Toast centralizado:** `bottom-24 left-1/2` — 100px do fundo da tela
+- **Botão Nav Back:** Android back button fecha modais/telas (perfil, histórico, gerador, workoutToStart, exclusão, reagendamento, calendar, signup). Desabilitado durante workout
+- **Input auto-select:** campo "Repetir bloco" seleciona texto no foco
+- **CSP Android:** `captureInput: true` + `androidScheme: 'https'` adicionados — **TESTAR NO DEVICE se foto carrega**
+
+## Concluído — 2026-07-10b (Fix TTS + APK)
+- **Fix TTS repetitivo:** `spokenCompletionRef` no WorkoutTracker — TTS de conclusão dispara apenas 1 vez na transição para treino livre
+- **APK gerado:** `Corre Logo v1.0.apk` (versionCode 2→3), pipeline `build:apk` validado
+
+## Concluído — 2026-07-10 (5 Melhorias)
+
+- **Loading screen:** skeletons → tela centralizada com logo seta-rastro SVG + spinner circular + "Corre Logo"
+- **CSP meta tag:** adicionado `Content-Security-Policy` no `index.html` com `img-src https://lh3.googleusercontent.com` — fotos Google Profile carregam no WebView
+- **APK export automation:** `scripts/export-apk.ps1` extrai versionName, copia APK, incrementa versionCode. Script `build:apk` no package.json
+- **Reschedule cascade:** modal com dois modos (single/cascade) — cascade aplica delta a planos do mesmo `generatedFromProgramId`
+- **Áudio ducking fix:** `setWillPauseWhenDucked(true)` no Kotlin + timer `max(500, text.length * 60)` no voice.ts
+
 ## Pendente
 
-- **Skeleton loading visível até 5s** — considerar reduzir timeout
+- **Skeleton loading visível até 5s** — considerar reduzir timeout (agora menos crítico com loading screen)
 - **favicon.ico 404** — cosmético
