@@ -1,4 +1,4 @@
-import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X } from 'lucide-react';
+import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X, Instagram } from 'lucide-react';
 import { formatDistance, formatDuration, TrainingSession, WorkoutPlan, getStepTypeLabel } from '../types';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
@@ -9,7 +9,7 @@ import { evaluateSessionPerformance, suggestAdjustment } from '../lib/evaluatePe
 import { isNative } from '../lib/capacitor/platform';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import ShareCard, { extractCardData, CardVariant } from './ShareCard';
-import { captureCard, shareImage } from '../lib/shareCard';
+import { captureCard, shareImage, SHARE_TARGETS } from '../lib/shareCard';
 
 interface Props {
   session: TrainingSession;
@@ -54,6 +54,7 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
     name: true,
     logo: true,
   });
+  const [shareTarget, setShareTarget] = useState<'native' | 'instagram-stories'>('native');
   const cardCaptureRef = useRef<HTMLDivElement>(null);
   const [sharing, setSharing] = useState(false);
 
@@ -340,13 +341,29 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
               </div>
 
               <div className="flex gap-2 mb-4">
-                {(['a', 'b', 'c'] as const).map(v => (
+                {(['a', 'b', 'c', 'd'] as const).map(v => (
                   <button
                     key={v}
                     onClick={() => setCardVariant(v)}
                     className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-colors ${cardVariant === v ? 'bg-accent text-white border-accent' : 'bg-bg-elevated text-text-secondary border-border'}`}
                   >
-                    {v === 'a' ? 'Gradiente' : v === 'b' ? 'Vidro' : 'Mapa'}
+                    {v === 'a' ? 'Gradiente' : v === 'b' ? 'Vidro' : v === 'c' ? 'Mapa' : 'Foto'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Share target selector */}
+              <div className="flex gap-2 mb-4">
+                {SHARE_TARGETS.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setShareTarget(t.id)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-colors flex items-center justify-center gap-1 ${
+                      shareTarget === t.id ? 'bg-accent text-white border-accent' : 'bg-bg-elevated text-text-secondary border-border'
+                    }`}
+                  >
+                    {t.id === 'native' ? <Share2 className="w-4 h-4" /> : <Instagram className="w-4 h-4" />}
+                    {t.label}
                   </button>
                 ))}
               </div>
@@ -394,7 +411,7 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
                   try {
                     await new Promise(r => setTimeout(r, 400));
                     const blob = await captureCard(cardCaptureRef.current);
-                    await shareImage(blob);
+                    await shareImage(blob, 'corre-logo-card.png', shareTarget);
                     setShowShareModal(false);
                   } catch {
                     showFeedback?.('error', 'Erro ao compartilhar');
