@@ -6,7 +6,7 @@ import Modal from './Modal';
 import Button from './Button';
 import { ProfileData, SettingsData, BRAZILIAN_STATES, GENDER_OPTIONS } from '../types';
 import { getAuth, getDb } from '../lib/firebase';
-import { isHealthConnectAvailable, requestHealthPermission } from '../lib/capacitor/health-connect';
+import { isHealthConnectAvailable, checkHealthPermissions, requestHealthPermission } from '../lib/capacitor/health-connect';
 import { isNative } from '../lib/capacitor/platform';
 import { isGmailConnected, disconnectGmail, startGmailOAuth } from '../lib/gmailApi';
 
@@ -83,6 +83,7 @@ export default function UserProfile({
     setPaceUnit(initialSettings?.paceUnit ?? 'per_km');
 
     isHealthConnectAvailable().then(setHcAvailable);
+    checkHealthPermissions().then(setHcGranted);
   }, [open]);
 
   const handleWeightUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

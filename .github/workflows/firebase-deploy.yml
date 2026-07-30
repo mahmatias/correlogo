@@ -87,6 +87,7 @@ jobs:
             --groups="testers"
 
       - name: Upload APK to GitHub Release (in-app update)
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

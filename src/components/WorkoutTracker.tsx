@@ -836,16 +836,19 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                     <div className="text-xl font-bold mt-2">{formatTime(lapSeconds)}</div>
                     <div className="text-text-secondary uppercase tracking-widest text-[10px]">Tempo da Volta</div>
                 </>
-            ) : (
+            ) : !isFreeTraining ? (
                 <>
                     <div className="text-[42px] font-bold leading-tight">{formatTime(Math.max(0, step.durationSeconds - lapSeconds))}</div>
                     <div className="text-text-secondary uppercase tracking-widest text-[10px]">Tempo Restante</div>
-                    {!isFreeTraining && (
-                      <>
-                        <div className="text-xl font-bold mt-2">{formatDistance(lapDistance)}</div>
-                        <div className="text-text-secondary uppercase tracking-widest text-[10px]">Distância Percorrida</div>
-                      </>
-                    )}
+                    <div className="text-xl font-bold mt-2">{formatDistance(lapDistance)}</div>
+                    <div className="text-text-secondary uppercase tracking-widest text-[10px]">Distância Percorrida</div>
+                </>
+            ) : (
+                <>
+                    <div className="text-[42px] font-bold leading-tight">{formatTime(elapsedSeconds)}</div>
+                    <div className="text-text-secondary uppercase tracking-widest text-[10px]">Tempo Decorrido</div>
+                    <div className="text-xl font-bold mt-2">{formatDistance(lapDistance)}</div>
+                    <div className="text-text-secondary uppercase tracking-widest text-[10px]">Distância Percorrida</div>
                 </>
             )}
           </div>

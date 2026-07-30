@@ -63,6 +63,27 @@ class HealthConnectPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun checkPermissions(call: PluginCall) {
+        if (!ensureClient()) {
+            call.resolve(JSObject().apply { put("granted", false) })
+            return
+        }
+        val c = client!!
+        scope.launch {
+            try {
+                val grantedPerms = c.permissionController.getGrantedPermissions()
+                val writePerm = HealthPermission.getWritePermission(ExerciseSessionRecord::class)
+                val granted = writePerm in grantedPerms
+                Log.d(TAG, "checkPermissions: WRITE_EXERCISE granted=$granted")
+                call.resolve(JSObject().apply { put("granted", granted) })
+            } catch (e: Exception) {
+                Log.e(TAG, "checkPermissions error", e)
+                call.resolve(JSObject().apply { put("granted", false) })
+            }
+        }
+    }
+
+    @PluginMethod
     fun requestHcPermissions(call: PluginCall) {
         val a = activity
         if (a == null) {
