@@ -1,5 +1,48 @@
 # Changelog
 
+## [2026-07-30g] — ShareCard v2: Instagram Stories, Variant Foto, 2× DPI Capture
+
+### Added
+- **Instagram Stories sharing**: new share target selector in modal (Native Android vs Instagram Stories) — `shareImage(target: 'native' | 'instagram-stories')`
+- **Variant D ("Foto")**: stats-only transparent card (1080×1920), semi-transparent black overlay, huge text (`text-7xl`/`text-8xl`), drop-shadow — designed to overlay on user photos
+- **2× high-DPI capture**: `dom-to-image-more` renders at 2160×3840 internally, downscales to 1080×1920 — much sharper PNGs
+- **ShareCard variant selector** now includes 4 options: Gradiente / Vidro / Mapa / Foto
+
+### Fixed
+- **Map variant (C) z-index**: route SVG now sits behind gradient overlay + stats (was rendering on top)
+- **Stat text sizes increased** across all variants:
+  - A: `text-5xl`→`text-6xl` values, `text-sm`→`text-base` labels
+  - B: `text-4xl`→`text-5xl`, `text-sm`→`text-base`
+  - C: `text-3xl`→`text-4xl`, `text-xs`→`text-sm`
+  - D: new — `text-8xl` values, `text-xl` labels
+- **Preview scaling**: preview now scales correctly at 200px width
+
+### Changed
+- `captureCard()` now uses fixed 1080×1920 with `scale=2` (was reading element rect)
+- `shareImage()` accepts `target` param for Instagram Stories intent
+
+---
+
+## [2026-07-30f] — Health Connect checkPermissions + Treino Livre Timer + CI if:always + google-services.json via Secret
+
+### Added
+- **Health Connect `checkPermissions()`** — native Kotlin `@PluginMethod fun checkHcPermissions()` reads `getGrantedPermissions()` for `WRITE_EXERCISE`; JS `checkHealthPermissions()` wrapper; called on `UserProfile` mount so status shows "Conectado" immediately if already granted
+- **Treino livre timer fix** — "Tempo Restante" block now guarded by `!isFreeTraining`; free training shows "Tempo Decorrido" + distance instead of `86400 - lapSeconds`
+- **CI `if: always()`** on "Upload APK to GitHub Release" step — runs even when Firebase Distribution fails (independent distribution channels)
+
+### Changed
+- **`google-services.json` removed from git** — added to `.gitignore`, restored in CI via `GOOGLE_SERVICES_B64` secret (base64 decoded to `android/app/google-services.json` before build). Stops GitGuardian false positives on OAuth client IDs / API keys in repo history.
+
+### Files modified
+- `android/app/src/main/java/com/correlogo/app/HealthConnectPlugin.kt` — new `checkHcPermissions()` method
+- `src/lib/capacitor/health-connect.ts` — `checkHealthPermissions()` export
+- `src/components/UserProfile.tsx` — imports + calls `checkHealthPermissions()` on mount
+- `src/components/WorkoutTracker.tsx` — free training timer guard
+- `.github/workflows/firebase-deploy.yml` — `if: always()` on release upload step + `Restore google-services.json` step
+- `.gitignore` — added `android/app/google-services.json`
+
+---
+
 ## [2026-07-30e] — Fix CI autoupdate: `latest` release nunca deve ser deletado
 
 ### Fixed
@@ -8,6 +51,8 @@
 
 ### Build
 - Commit `b245d50` com fix do CI — CI vai rodar com o workflow corrigido.
+
+---
 
 ## [2026-07-30d] — ShareCard: Compartilhar Estatísticas em Redes Sociais
 
@@ -28,10 +73,12 @@
 ### Build
 - Web build limpo ✅
 
+---
+
 ## [2026-07-30c] — Release Keystore SHA-1 + Auto Version Code CI
 
 ### Fixed
-- **Google Sign-In "No Credentials available"**: CI/CD APK era assinado com release keystore cujo SHA-1 (`B4:56:92:B8:F1:3B:9B:FC:23:DA:38:87:AC:6B:79:8D:CC:35:B4:BA`) não estava registrado no Firebase Console. Adicionado manualmente pelo usuário. `google-services.json` re-baixado agora inclui ambos os hashes (debug + release).
+- **Google Sign-In "No Credentials available"**: CI/CD APK era assinado com release keystore cujo SHA-1 (`B4:56:92:B8:F1:3B:9B:FC:23:DA:38:87:AC:6B:79:8D:CC:35:B4:BA`) não estava registrado no Firebase Console. Adicionado manualmente. `google-services.json` re-baixado agora inclui ambos os hashes (debug + release).
 - **`android/app/keystore.jks`** — novo release keystore criado, secrets GitHub atualizados via `gh secret set`.
 
 ### Added

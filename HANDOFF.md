@@ -1,5 +1,67 @@
 # Handoff
 
+## Session Context (2026-07-30f — ShareCard Improvements: Instagram Stories, Variant Foto, 2x Capture, z-index Fix)
+
+### What changed
+Complete overhaul of the share-to-social flow based on user feedback:
+
+**ShareCard variants (now 4):**
+- **A (Gradiente)**: gradient background, large centered stats — `text-7xl` values, `text-base` labels
+- **B (Vidro)**: glassmorphism panel, centered stats — `text-6xl` values, `text-base` labels
+- **C (Mapa)**: route SVG behind gradient overlay, stats at bottom — `text-5xl` values, `text-sm` labels. **Fixed**: route SVG now behind gradient + stats (z-index layering: grid → route → gradient overlay → stats container `z-10`)
+- **D (Foto)**: **NEW** — transparent background with `bg-black/30` vignette, stats only (`text-8xl` values, `text-xl` labels, drop-shadow). Designed for overlaying on user photos in Instagram Stories.
+
+**Capture quality**: 2× high-DPI rendering (`scale=2` in `dom-to-image-more`) → 2160×3840 internal → downsampled to 1080×1920 for sharp PNG output.
+
+**Share targets**: Modal now has toggle between **Sistema (Android)** and **Instagram Stories**. Native Android uses `@capacitor/share` with custom dialog title "Compartilhar no Instagram Stories". Web falls back to Web Share API or download.
+
+**Variant selector**: Buttons now include "Foto" (variant D) alongside Gradiente/Vidro/Mapa.
+
+**Text sizes increased across all variants** for readability at 1080×1920.
+
+### Files created
+- None new (existing files extended)
+
+### Files modified
+- `src/components/ShareCard.tsx` — variant D added; variants A/B/C text sizes increased; variant C z-index fixed (route behind gradient, stats on top)
+- `src/lib/shareCard.ts` — `captureCard()` now 2x scale; `shareImage(blob, filename, target)` with `target: 'native' | 'instagram-stories'`; `SHARE_TARGETS` array for modal selector
+- `src/components/SessionSummary.tsx` — share target selector (Share2 / Instagram icons), `shareTarget` state passed to `shareImage()`, variant buttons include 'd' (Foto)
+
+### CI Fix — Autoupdate (already in `b245d50`)
+- `gh release upload --clobber` instead of delete+create
+- `git tag -f latest HEAD` + force push tag
+- `if: always()` on release upload step so it runs even if Firebase Distribution fails
+
+### Pending
+1. **Test on real device**: open SessionSummary → Compartilhar → pick "Foto" variant → share to Instagram Stories → verify PNG quality, no background artifacts
+2. **Test variant C (Mapa)**: verify route SVG renders behind gradient, stats readable
+3. **Verify Instagram Stories intent** on Android — `@capacitor/share` shows system sheet; user must pick Instagram manually (no direct deep-link to Stories composer)
+
+---
+
+## Session Context (2026-07-30e — Health Connect checkPermissions + Free Training Timer + CI if:always)
+
+### What changed
+Three bug fixes committed in `94a682b` → fixed in `d057220` (Kotlin name conflict):
+
+1. **Health Connect `checkPermissions()`** — Native plugin didn't have a method to check if `WRITE_EXERCISE` was already granted. Added `@PluginMethod fun checkHcPermissions()` in `HealthConnectPlugin.kt` (renamed from `checkPermissions` to avoid Capacitor `Plugin` superclass conflict). JS bridge: `checkHealthPermissions()` in `health-connect.ts`. Called on `UserProfile` mount so status shows "Conectado" immediately if permission already granted.
+
+2. **Free training timer** — `WorkoutTracker.tsx` was showing "Tempo Restante" with `86400 - lapSeconds` (nonsensical countdown from 24h). Wrapped the entire "Tempo Restante" block in `{!isFreeTraining ? ... : ...}` — free training now shows "Tempo Decorrido" + distance.
+
+3. **CI `if: always()` on release upload** — Release step now runs even when Firebase App Distribution fails (independent distribution channel).
+
+### Files modified
+- `android/app/src/main/java/com/correlogo/app/HealthConnectPlugin.kt` — `checkHcPermissions()` method
+- `src/lib/capacitor/health-connect.ts` — `checkHealthPermissions()` export
+- `src/components/UserProfile.tsx` — import + call `checkHealthPermissions()` on mount
+- `src/components/WorkoutTracker.tsx` — free training timer guard
+- `.github/workflows/firebase-deploy.yml` — `if: always()` on "Upload APK to GitHub Release"
+
+### CI Note
+- Commit `19fa53d` removed `google-services.json` from git, added CI restore step from `GOOGLE_SERVICES_B64` secret (prevents GitGuardian alerts). Secret must be set in GitHub Actions settings.
+
+---
+
 ## Session Context (2026-07-30d — ShareCard: Compartilhar Estatísticas em Redes Sociais)
 
 ### What changed

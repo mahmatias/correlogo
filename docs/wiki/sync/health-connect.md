@@ -36,6 +36,27 @@ class HealthConnectPlugin : Plugin() {
     }
     
     @PluginMethod
+    fun checkHcPermissions(call: PluginCall) {
+        if (!ensureClient()) {
+            call.resolve(JSObject().put("granted", false))
+            return
+        }
+        val c = client!!
+        scope.launch {
+            try {
+                val grantedPerms = c.permissionController.getGrantedPermissions()
+                val writePerm = HealthPermission.getWritePermission(ExerciseSessionRecord::class)
+                val granted = writePerm in grantedPerms
+                Log.d(TAG, "checkHcPermissions: WRITE_EXERCISE granted=$granted")
+                call.resolve(JSObject().put("granted", granted))
+            } catch (e: Exception) {
+                Log.e(TAG, "checkHcPermissions error", e)
+                call.resolve(JSObject().put("granted", false))
+            }
+        }
+    }
+    
+    @PluginMethod
     fun requestHcPermissions(call: PluginCall) {
         val permissions = setOf(WRITE_EXERCISE, WRITE_DISTANCE)
         val granted = context.checkSelfPermission(WRITE_EXERCISE) == PERMISSION_GRANTED &&
@@ -111,6 +132,12 @@ ExerciseRoute(
 
 ```typescript
 // src/lib/capacitor/health-connect.ts
+export async function checkHealthPermissions(): Promise<boolean | null> {
+  if (!isNative()) return null;
+  try { return (await HealthConnect.checkHcPermissions()).granted; }
+  catch { return null; }
+}
+
 export async function exportWorkoutToHealthConnect(data: WorkoutExport): Promise<SyncResult> {
   if (!isNative()) return { success: false, status: 'failed', error: 'Apenas dispositivo nativo' };
   
