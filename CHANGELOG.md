@@ -1,5 +1,14 @@
 # Changelog
 
+## [2026-07-30e] — Fix CI autoupdate: `latest` release nunca deve ser deletado
+
+### Fixed
+- **Autoupdate quebrado**: CI rodava `gh release delete latest -y` antes de `gh release create`, mas se o create falhasse, o release `latest` desaparecia completamente → `update-manifest.json` retornava 404 → app nunca via update.
+- **Novo padrão**: `git tag -f latest HEAD` + `git push --force` garante tag no commit atual. `gh release upload --clobber` atualiza assets sem deletar o release. `gh release create` só como fallback na primeira execução.
+
+### Build
+- Commit `b245d50` com fix do CI — CI vai rodar com o workflow corrigido.
+
 ## [2026-07-30d] — ShareCard: Compartilhar Estatísticas em Redes Sociais
 
 ### Added
