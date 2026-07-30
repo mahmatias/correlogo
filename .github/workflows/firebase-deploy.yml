@@ -71,13 +71,14 @@ jobs:
         run: npm install -g firebase-tools
 
       - name: Deploy to Firebase App Distribution
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-key.json
         run: |
           firebase appdistribution:distribute \
             android/app/build/outputs/apk/release/app-release.apk \
             --app="${{ secrets.FIREBASE_APP_ID }}" \
             --release-notes-file=RELEASE_NOTES.txt \
-            --groups="testers" \
-            --service-account-file=firebase-key.json
+            --groups="testers"
 
       - name: Cleanup sensitive files
         if: always()
