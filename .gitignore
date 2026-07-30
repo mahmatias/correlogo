@@ -12,3 +12,5 @@ firebase-applet-config.json
 opencode.json
 keystore.jks
 firebase-key.json
+# Base64 temp (secrets)
+gh_*.txt
