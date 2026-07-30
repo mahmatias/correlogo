@@ -43,6 +43,9 @@ jobs:
       - name: Sync Capacitor Android
         run: npx cap sync android
 
+      - name: Restore google-services.json
+        run: base64 -d <<< "${{ secrets.GOOGLE_SERVICES_B64 }}" > android/app/google-services.json
+
       - name: Restore keystore
         run: |
           mkdir -p android/app
@@ -110,7 +113,7 @@ jobs:
       - name: Cleanup sensitive files
         if: always()
         run: |
-          rm -f android/app/keystore.jks firebase-key.json
+          rm -f android/app/keystore.jks android/app/google-services.json firebase-key.json
 
       - name: Notify success
         if: success()
