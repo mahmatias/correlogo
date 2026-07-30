@@ -2,21 +2,20 @@
 
 ## Completed This Session (2026-07-30)
 
-- [x] **FTMS UUID fix** — Changed `FTMS_MEASUREMENT_CHAR` from `00002a63` (Cycling Power Control Point) to `00002acd` (Treadmill Data). `getCharacteristic()` now finds it. Reference: `CHANGELOG.md [2026-07-30a]`, commit `hash-tbd`.
-- [x] **Strava feedback** — `showFeedback` prop added to `WorkoutTracker.tsx`, passed from `App.tsx`. Auto-save now shows toast. Reference: `CHANGELOG.md [2026-07-30a]`.
-- [x] **Refresh Token OAuth** — Cloud function `authCallback` returns `refresh_token`; new `refreshAuthToken` endpoint; `gmailApi.ts` stores/refreshes tokens; `App.tsx` deep links capture `refresh_token`. Solves"re-authorize every hour" problem. Reference: `CHANGELOG.md [2026-07-30a]`.
-- [x] **CI/CD GitHub Actions** — `firebase-deploy.yml` workflow: `workflow_dispatch` trigger, Capacitor-adapted (npm build → cap sync → assembleRelease → Firebase App Distribution). `.gitignore` updated. Reference: `CHANGELOG.md [2026-07-30b]`.
-- [x] **Diagnostic** — Confirmed WiLinktech treadmill uses correct FTMS (0x1826) with all standard characteristics. UUID was the real bug, not timing. Reference: archive.
+- [x] **FTMS UUID fix** — `FTMS_MEASUREMENT_CHAR` corrigido `00002a63` → `00002acd`
+- [x] **Strava feedback** — `showFeedback` prop no WorkoutTracker para toast de auto-save
+- [x] **Refresh Token OAuth** — `authCallback` retorna `refresh_token`; nova CF `refreshAuthToken`; `gmailApi.ts` com refresh automático; `App.tsx` captura `refresh_token`
+- [x] **Cloud functions deployed** — `authCallback`, `refreshAuthToken`, `healthCheck` no ar
+- [x] **CI/CD GitHub Actions** — Workflow `firebase-deploy.yml` completo: build web → cap sync → assembleRelease → Firebase App Distribution. **Pipeline passou limpo** 🟢
+- [x] **Secrets configurados** — 7 repository secrets no GitHub
+- [x] **Keystore criado** — `android/app/keystore.jks` (alias `mykey`), backup keep em local seguro
 
-## Deploy Prerequisites (Blocking)
+## Pendente (1 blocker)
 
-- [ ] **Set GitHub secrets**: `ENV_FILE` (base64 of `.env.apk`), `SERVICE_ACCOUNT_JSON` (Firebase App Dist), `KEYSTORE_JKS` (base64 of `keystore.jks`), `KEY_ALIAS`, `KEY_PASSWORD`, `KEY_STORE_PASSWORD`, `FIREBASE_APP_ID`
-- [ ] **Push to `main`** OR trigger `workflow_dispatch` to run CI
-- [ ] **Deploy cloud functions**: `firebase deploy --only functions`
-- [ ] **Re-authorize Gmail once** to capture `refresh_token` for permanent access
+- [ ] **Re-authorizar Gmail 1x** — Token atual não tem `refresh_token`; expira em ~1h. Precisa autorizar Gmail de novo pelo app para capturar o `refresh_token` agora que a CF devolve ele.
 
 ## Next Phase
 
-- [ ] Test auto-save Strava with treadmill workout end-to-end
-- [ ] Test APK build via CI
-- [ ] Test installed APK connects to treadmill and controls workout
+- [ ] Testar Strava auto-save com treino esteira (end-to-end)
+- [ ] Testar APK da CI conecta na esteira e controla treino
+- [ ] Validar refresh token não expira mais (esperar >1h)
