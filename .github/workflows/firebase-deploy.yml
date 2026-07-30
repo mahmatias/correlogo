@@ -30,7 +30,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Create .env file from secret (base64 decoded)
-        run: echo "${{ secrets.ENV_FILE }}" | base64 -d > .env
+        run: base64 -d <<< "${{ secrets.ENV_FILE }}" > .env
 
       - name: Install npm dependencies
         run: npm ci --legacy-peer-deps
@@ -44,7 +44,7 @@ jobs:
       - name: Restore keystore
         working-directory: ./android
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+          base64 -d <<< "${{ secrets.KEYSTORE_BASE64 }}" > keystore.jks
           ls -lah keystore.jks
 
       - name: Build release APK
@@ -65,7 +65,7 @@ jobs:
         run: ls -lah android/app/build/outputs/apk/release/app-release.apk
 
       - name: Restore Firebase service account (base64 decoded)
-        run: echo "${{ secrets.FIREBASE_CREDENTIALS }}" | base64 -d > firebase-key.json
+        run: base64 -d <<< "${{ secrets.FIREBASE_CREDENTIALS }}" > firebase-key.json
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
@@ -82,7 +82,7 @@ jobs:
       - name: Cleanup sensitive files
         if: always()
         run: |
-          rm -f keystore.jks firebase-key.json
+          rm -f android/keystore.jks firebase-key.json
 
       - name: Notify success
         if: success()
