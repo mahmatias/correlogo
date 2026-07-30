@@ -1,5 +1,5 @@
-import { ArrowLeft, Calendar, BarChart2, ClipboardList, Trash2, CheckCircle2, Upload, AlertTriangle } from 'lucide-react';
-import { TrainingSession, formatDistance, formatDuration } from '../types';
+import { ArrowLeft, Calendar, ClipboardList, Trash2, CheckCircle2, Mail, Play, AlertTriangle } from 'lucide-react';
+import { TrainingSession, SyncStatus, formatDistance, formatDuration } from '../types';
 import { useState } from 'react';
 import Modal from './Modal';
 import Button from './Button';
@@ -9,11 +9,41 @@ interface Props {
   onClose: () => void;
   onSelectSession: (session: TrainingSession) => void;
   onDeleteSession: (sessionId: string) => void;
-  onExportSession?: (session: TrainingSession) => void;
+  onExportSession?: (session: TrainingSession, target?: 'gmail' | 'hc') => void;
+}
+
+function SyncBadge({ status, label, icon }: { status: SyncStatus | undefined; label: string; icon: React.ReactNode }) {
+  if (status === 'synced') {
+    return <span className="text-green-500 text-xs flex items-center gap-0.5"><CheckCircle2 size={11} />{label}</span>;
+  }
+  return null;
+}
+
+function PendingBadge({ status, label, icon, onClick, retrying }: { status: SyncStatus | undefined; label: string; icon: React.ReactNode; onClick: () => void; retrying?: boolean }) {
+  if (status === 'synced') return null;
+  if (retrying) return <span className="text-text-muted text-xs flex items-center gap-0.5 animate-pulse">{icon}{label}…</span>;
+  return (
+    <button onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className={"text-xs flex items-center gap-0.5 underline " + (status === 'failed' ? 'text-red-500' : 'text-amber-500')}>
+      {icon}{label}
+    </button>
+  );
 }
 
 export default function SessionHistory({ sessions, onClose, onSelectSession, onDeleteSession, onExportSession }: Props) {
   const [sessionToDelete, setSessionToDelete] = useState<TrainingSession | null>(null);
+  const [syncingTarget, setSyncingTarget] = useState<{ id: string; target: 'gmail' | 'hc' } | null>(null);
+
+  const handleSync = async (session: TrainingSession, target: 'gmail' | 'hc') => {
+    if (!onExportSession) return;
+    setSyncingTarget({ id: session.id, target });
+    try {
+      await onExportSession(session, target);
+    } finally {
+      setSyncingTarget(null);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col p-6 overflow-y-auto bg-bg-deep text-text-primary" role="dialog" aria-modal="true" aria-label="Histórico de treinos">
         <button onClick={onClose} className="mb-6 flex items-center gap-2">
@@ -29,56 +59,49 @@ export default function SessionHistory({ sessions, onClose, onSelectSession, onD
             </div>
         ) : (
             <div className="space-y-4">
-                {sessions.map(session => (
+                {sessions.map(session => {
+                  const hcOk = session.hcSyncStatus === 'synced';
+                  const gmailOk = session.gmailSyncStatus === 'synced';
+                  const anyPending = !hcOk || !gmailOk;
+                  return (
                     <div key={session.id} className="p-4 rounded-xl bg-bg-surface">
-                        <div className="flex justify-between items-center mb-2">
-                            <span 
-                                className="font-bold cursor-pointer hover:text-accent-secondary flex-1"
-                                onClick={() => onSelectSession(session)}
-                            >{session.planName}</span>
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm flex items-center gap-1 text-text-muted">
-                                    <Calendar size={14} /> {new Date(session.date).toLocaleDateString()}
-                                </span>
-                                {session.syncStatus === 'synced' && (
-                                    <span className="text-green-500 text-xs flex items-center gap-1 ml-2">
-                                        <CheckCircle2 size={12} /> Sincronizado
-                                    </span>
-                                )}
-                                {session.syncStatus === 'pending' && (
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onExportSession?.(session); }}
-                                        className="text-amber-500 text-xs flex items-center gap-1 ml-2 underline"
-                                    >
-                                        <Upload size={12} /> Pendente
-                                    </button>
-                                )}
-                                {session.syncStatus === 'failed' && (
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onExportSession?.(session); }}
-                                        className="text-red-500 text-xs flex items-center gap-1 ml-2 underline"
-                                    >
-                                        <AlertTriangle size={12} /> Falhou
-                                    </button>
-                                )}
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setSessionToDelete(session); }}
-                                    className="p-2 text-text-muted hover:text-danger hover:bg-bg-elevated rounded-full"
-                                    aria-label="Apagar sessão"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold cursor-pointer hover:text-accent-secondary"
+                          onClick={() => onSelectSession(session)}>{session.planName}</span>
+                        <span className="text-sm text-text-muted">{new Date(session.date).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center mb-2 cursor-pointer"
+                        onClick={() => onSelectSession(session)}>
+                        <span className="text-sm text-text-secondary">{formatDistance(session.totalDistanceKm)}</span>
+                        <span className="text-sm text-text-secondary">{formatDuration(session.totalDurationSeconds)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          {gmailOk && hcOk ? (
+                            <span className="text-green-500 text-xs flex items-center gap-1">
+                              <CheckCircle2 size={13} /> Sincronizado ✅✅
+                            </span>
+                          ) : (
+                            <>
+                              <SyncBadge status={session.gmailSyncStatus} label="Gmail" icon={<Mail size={11} />} />
+                              <PendingBadge status={session.gmailSyncStatus} label="Gmail" icon={<Mail size={11} />}
+                                onClick={() => handleSync(session, 'gmail')}
+                                retrying={syncingTarget?.id === session.id && syncingTarget?.target === 'gmail'} />
+                              <SyncBadge status={session.hcSyncStatus} label="HC" icon={<Play size={11} />} />
+                              <PendingBadge status={session.hcSyncStatus} label="HC" icon={<Play size={11} />}
+                                onClick={() => handleSync(session, 'hc')}
+                                retrying={syncingTarget?.id === session.id && syncingTarget?.target === 'hc'} />
+                            </>
+                          )}
                         </div>
-                        <div 
-                            className="flex gap-4 text-sm text-text-secondary cursor-pointer"
-                            onClick={() => onSelectSession(session)}
-                        >
-                            <span>{formatDistance(session.totalDistanceKm)}</span>
-                            <span>{formatDuration(session.totalDurationSeconds)}</span>
-                        </div>
+                        <button onClick={(e) => { e.stopPropagation(); setSessionToDelete(session); }}
+                          className="p-2 text-text-muted hover:text-danger hover:bg-bg-elevated rounded-full" aria-label="Apagar sessão">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-                ))}
+                  );
+                })}
             </div>
         )}
         {sessionToDelete && (
