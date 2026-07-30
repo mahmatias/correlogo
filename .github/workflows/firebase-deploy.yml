@@ -90,12 +90,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete latest -y 2>/dev/null || true
           VERSION_NAME=$(grep -oP 'versionName "\K[^"]+' android/app/build.gradle)
           echo "{\"versionCode\":$CI_VERSION_CODE,\"versionName\":\"$VERSION_NAME\",\"downloadUrl\":\"https://github.com/mahmatias/correlogo/releases/download/latest/app-release.apk\"}" > /tmp/update-manifest.json
-          gh release create latest --notes "Build #$CI_VERSION_CODE" --title "Latest" \
-            android/app/build/outputs/apk/release/app-release.apk \
-            /tmp/update-manifest.json
+          # Move the 'latest' tag to HEAD so the release points to this commit
+          git tag -f latest HEAD
+          git push origin latest --force 2>/dev/null || true
+          if gh release view latest --json tagName > /dev/null 2>&1; then
+            gh release upload latest --clobber \
+              android/app/build/outputs/apk/release/app-release.apk \
+              /tmp/update-manifest.json
+          else
+            gh release create latest --notes "Build #$CI_VERSION_CODE" --title "Latest" \
+              android/app/build/outputs/apk/release/app-release.apk \
+              /tmp/update-manifest.json
+          fi
           echo "Release URL: https://github.com/mahmatias/correlogo/releases/tag/latest"
 
       - name: Cleanup sensitive files
