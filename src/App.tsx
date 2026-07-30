@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
-import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar } from 'lucide-react';
+import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar, Bluetooth } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData } from './types';
@@ -29,8 +29,9 @@ import { keepAwake, allowSleep } from './lib/capacitor/wakeLock';
 import { requestAllPermissions } from './lib/capacitor/permissions';
 import { Tracking } from './lib/capacitor/tracking';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
-import { exportWorkoutToSamsungHealth } from './lib/capacitor/samsung-health';
-import type { WorkoutExport } from './lib/capacitor/samsung-health';
+import { exportWorkoutToHealthConnect } from './lib/capacitor/health-connect';
+import type { WorkoutExport, SyncStatus } from './lib/capacitor/health-connect';
+import { sendWorkoutToStravaViaEmail, handleGmailWebCallback } from './lib/gmailApi';
 import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
 
@@ -62,6 +63,7 @@ export default function App() {
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const latestSessionIdRef = useRef<string | null>(null);
+  const pendingSyncStatusRef = useRef<SyncStatus | null>(null);
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
   const [activePlan, setActivePlan] = useState<{plan: WorkoutPlan, mode: 'treadmill' | 'outdoor', sessionId: string, simulateGps?: boolean} | null>(null);
   const [isFreeTraining, setIsFreeTraining] = useState(false);
@@ -88,7 +90,8 @@ export default function App() {
   const [pendingOAuthToken, setPendingOAuthToken] = useState<string | null>(null);
   const [showBackgroundPrompt, setShowBackgroundPrompt] = useState(false);
   const [appCameFromSettings, setAppCameFromSettings] = useState(false);
-  const [backAction, setBackAction] = useState<(() => void) | null>(null);
+const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
+  const [planToUncomplete, setPlanToUncomplete] = useState<WorkoutPlan | null>(null);
   const getWeekStart = (d: Date) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -107,22 +110,27 @@ export default function App() {
   // Define a ação do botão back baseada no estado atual
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || activePlan) {
-      setBackAction(null);
+      setBackActionStack([]);
       return;
     }
 
-    if (showSignup) setBackAction(() => () => setShowSignup(false));
-    else if (showUserProfile) setBackAction(() => () => setShowUserProfile(false));
-    else if (showHistory) setBackAction(() => () => setShowHistory(false));
-    else if (showGenerator) setBackAction(() => () => setShowGenerator(false));
-    else if (programToReview) setBackAction(() => () => setProgramToReview(null));
-    else if (workoutToStart) setBackAction(() => () => setWorkoutToStart(null));
-    else if (planToDelete) setBackAction(() => () => setPlanToDelete(null));
-    else if (reschedulePlanId) setBackAction(() => () => setReschedulePlanId(null));
-    else if (showGoogleCalendarModal) setBackAction(() => () => setShowGoogleCalendarModal(false));
-    else if (showBackgroundPrompt) setBackAction(() => () => setShowBackgroundPrompt(false));
-    else setBackAction(null);
-  }, [showSignup, showUserProfile, showHistory, showGenerator, programToReview, workoutToStart, planToDelete, reschedulePlanId, showGoogleCalendarModal, showBackgroundPrompt, activePlan]);
+    const actions: Array<() => void> = [];
+
+    // Ordem de prioridade (último = topo da pilha = executa primeiro)
+    if (showGoogleCalendarModal) actions.push(() => setShowGoogleCalendarModal(false));
+    if (reschedulePlanId) actions.push(() => setReschedulePlanId(null));
+    if (planToDelete) actions.push(() => setPlanToDelete(null));
+    if (planToUncomplete) actions.push(() => setPlanToUncomplete(null));
+    if (workoutToStart) actions.push(() => setWorkoutToStart(null));
+    if (programToReview) actions.push(() => setProgramToReview(null));
+    if (showGenerator) actions.push(() => setShowGenerator(false));
+    if (showHistory) actions.push(() => setShowHistory(false));
+    if (showUserProfile) actions.push(() => setShowUserProfile(false));
+    if (showSignup) actions.push(() => setShowSignup(false));
+    if (showBackgroundPrompt) actions.push(() => setShowBackgroundPrompt(false));
+
+    setBackActionStack(actions);
+  }, [showSignup, showUserProfile, showHistory, showGenerator, programToReview, workoutToStart, planToDelete, reschedulePlanId, planToUncomplete, showGoogleCalendarModal, showBackgroundPrompt, activePlan]);
 
   const applyThemeClass = (light?: boolean) => {
     const isLight = light ?? !window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -337,17 +345,41 @@ export default function App() {
           const token = url.searchParams.get('token');
           const error = url.searchParams.get('error');
           const state = url.searchParams.get('state');
-          const expectedState = sessionStorage.getItem('gcal_oauth_state');
-          if (state && expectedState && state === expectedState) {
-            sessionStorage.removeItem('gcal_oauth_state');
-          }
-          if (token) {
-            localStorage.setItem('google_calendar_token', token);
-            setPendingOAuthToken(token);
-            setShowGoogleCalendarModal(true);
-          } else if (error) {
-            setPendingOAuthToken(null);
-            setShowGoogleCalendarModal(true);
+          if (state && state.startsWith('gm_web_')) {
+            const expectedState = sessionStorage.getItem('gmail_oauth_state');
+            if (expectedState && state === expectedState) {
+              sessionStorage.removeItem('gmail_oauth_state');
+            }
+            if (token) {
+              localStorage.setItem('gmail_strava_token', token);
+              showFeedback('success', 'Gmail conectado!');
+            } else if (error) {
+              showFeedback('error', 'Falha ao conectar Gmail.');
+            }
+          } else if (state && state.startsWith('gm_')) {
+            const expectedState = sessionStorage.getItem('gmail_oauth_state');
+            if (expectedState && state === expectedState) {
+              sessionStorage.removeItem('gmail_oauth_state');
+            }
+            if (token) {
+              localStorage.setItem('gmail_strava_token', token);
+              showFeedback('success', 'Gmail conectado!');
+            } else if (error) {
+              showFeedback('error', 'Falha ao conectar Gmail.');
+            }
+          } else {
+            const expectedState = sessionStorage.getItem('gcal_oauth_state');
+            if (state && expectedState && state === expectedState) {
+              sessionStorage.removeItem('gcal_oauth_state');
+            }
+            if (token) {
+              localStorage.setItem('google_calendar_token', token);
+              setPendingOAuthToken(token);
+              setShowGoogleCalendarModal(true);
+            } else if (error) {
+              setPendingOAuthToken(null);
+              setShowGoogleCalendarModal(true);
+            }
           }
         }
       } catch (e) {
@@ -358,6 +390,32 @@ export default function App() {
     return () => { sub?.remove(); };
   }, []);
 
+  // Web OAuth callback handler for Gmail (gm_ state prefix)
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('gcal_token');
+    const errorParam = params.get('gcal_error');
+    const state = params.get('state');
+
+    if (errorParam) {
+      console.warn('[Gmail web callback] error:', errorParam);
+      window.history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+
+    if (token && state && state.startsWith('gm_web_')) {
+      const savedState = sessionStorage.getItem('gmail_oauth_state');
+      if (savedState === state) {
+        sessionStorage.removeItem('gmail_oauth_state');
+        localStorage.setItem('gmail_strava_token', token);
+        showFeedback('success', 'Gmail conectado!');
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+  }, []);
+
   // Back button: double-press to exit (only on main screen, not during workout)
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || activePlan) return;
@@ -366,9 +424,10 @@ export default function App() {
     let handler: { remove: () => void };
 
 CapApp.addListener('backButton', () => {
-      if (backAction) {
-        // Se há uma ação definida (modal/tela aberta), executa ela
-        backAction();
+      if (backActionStack.length > 0) {
+        const action = backActionStack[backActionStack.length - 1];
+        action();
+        setBackActionStack(prev => prev.slice(0, -1));
         return;
       }
       const now = Date.now();
@@ -381,7 +440,7 @@ CapApp.addListener('backButton', () => {
     }).then((h) => { handler = h; });
 
     return () => { handler?.remove(); };
-  }, [activePlan, backAction, showFeedback]);
+  }, [activePlan, backActionStack, showFeedback]);
 
   const doGpsWarmup = async () => {
     try {
@@ -576,8 +635,6 @@ CapApp.addListener('backButton', () => {
     }
   };
 
-  const [planToUncomplete, setPlanToUncomplete] = useState<WorkoutPlan | null>(null);
-
   const toggleComplete = async (plan: WorkoutPlan) => {
     if (plan.isCompleted) {
         setPlanToUncomplete(plan);
@@ -667,6 +724,20 @@ CapApp.addListener('backButton', () => {
             });
             setSelectedSession(newSession);
             latestSessionIdRef.current = newSession.id;
+        }
+
+        const pendingStatus = pendingSyncStatusRef.current;
+        if (pendingStatus && latestSessionIdRef.current) {
+            const sid = latestSessionIdRef.current;
+            setSessions(prev => {
+                const updated = prev.map(s => s.id === sid ? { ...s, syncStatus: pendingStatus } : s);
+                localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                return updated;
+            });
+            if (!sid.startsWith('local-')) {
+                setDoc(doc(getDb(), 'users', user.uid, 'sessions', sid), { syncStatus: pendingStatus }, { merge: true }).catch(() => {});
+            }
+            pendingSyncStatusRef.current = null;
         }
     }
   }
@@ -915,7 +986,7 @@ CapApp.addListener('backButton', () => {
                             }))
                             : undefined,
                     };
-                    const result = await exportWorkoutToSamsungHealth(exportData);
+                    const result = await exportWorkoutToHealthConnect(exportData);
                     setSessions(prev => {
                         const updated = prev.map(s => s.id === session.id ? { ...s, syncStatus: result.status } : s);
                         if (user) localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
@@ -924,7 +995,13 @@ CapApp.addListener('backButton', () => {
                     if (user && !session.id.startsWith('local-')) {
                         setDoc(doc(getDb(), 'users', user.uid, 'sessions', session.id), { syncStatus: result.status }, { merge: true }).catch(() => {});
                     }
-                    showFeedback(result.success ? 'success' : 'error', result.success ? 'Treino sincronizado com Samsung Health!' : 'Falha ao sincronizar. Tente novamente.');
+                    showFeedback(result.success ? 'success' : 'error', result.success ? 'Treino sincronizado com Health Connect!' : `Falha ao sincronizar: ${result.error || 'erro desconhecido'}`);
+                    const stravaResult = await sendWorkoutToStravaViaEmail(session);
+                    if (stravaResult.success) {
+                      showFeedback('success', 'Atividade enviada ao Strava!');
+                    } else if (stravaResult.error && stravaResult.error !== 'Apenas dispositivo nativo') {
+                      showFeedback('error', `Strava: ${stravaResult.error}`);
+                    }
                 }}
               />
             )}
@@ -962,6 +1039,17 @@ CapApp.addListener('backButton', () => {
                           Simular GPS (dados fictícios para teste)
                         </label>
                       )}
+                      {workoutToStart.mode === 'treadmill' && (
+                        <div className="p-3 bg-bg-elevated rounded-lg">
+                          <p className="text-sm text-text-secondary flex items-center gap-2">
+                            <Bluetooth size={16} />
+                            Conectar esteira Bluetooth (opcional)
+                          </p>
+                          <p className="text-[10px] text-text-muted mt-1">
+                            Se conectado, a velocidade do treino será ajustada automaticamente
+                          </p>
+                        </div>
+                      )}
 
                       <div className="flex gap-4">
                           <Button variant="secondary" className="flex-1" onClick={() => setWorkoutToStart(null)}>Voltar</Button>
@@ -989,7 +1077,10 @@ CapApp.addListener('backButton', () => {
                   onSyncResult={(status) => {
                       if (!user) return;
                       const sessionId = latestSessionIdRef.current;
-                      if (!sessionId) return;
+                      if (!sessionId) {
+                          pendingSyncStatusRef.current = status;
+                          return;
+                      }
                       setSessions(prev => {
                           const updated = prev.map(s => s.id === sessionId ? { ...s, syncStatus: status } : s);
                           localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));

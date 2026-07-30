@@ -5,8 +5,12 @@ import MapComponent from './MapComponent';
 import { startTracking, TrackCallback, Tracking, startKeepAlive, stopKeepAlive, startNativeTimer, pauseNativeTimer, resumeNativeTimer, stopNativeTimer, onTimerTick } from '../lib/capacitor/tracking';
 import { isNative } from '../lib/capacitor/platform';
 import { speak as voiceSpeak } from '../lib/capacitor/voice';
-import { exportWorkoutToSamsungHealth } from '../lib/capacitor/samsung-health';
-import type { WorkoutExport, SyncStatus } from '../lib/capacitor/samsung-health';
+import { exportWorkoutToHealthConnect } from '../lib/capacitor/health-connect';
+import type { WorkoutExport, SyncStatus } from '../lib/capacitor/health-connect';
+import { sendWorkoutToStravaViaEmail } from '../lib/gmailApi';
+import TreadmillPanel from './TreadmillPanel';
+import { useTreadmill } from '../lib/use-treadmill';
+import type { TrainingSession } from '../types';
 
 interface Props {
   plan: WorkoutPlan;
@@ -48,7 +52,9 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const [paceHistory, setPaceHistory] = useState<{timeSeconds: number, pace: number}[]>([]);
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'failed'>('idle');
 
+  const treadmill = useTreadmill();
   const distRef = useRef(0);
   const speedRef = useRef(10);
   const lapDistRef = useRef(0);
@@ -96,6 +102,18 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Auto-sync speed to treadmill on step transition
+  const prevStepRef = useRef(currentStepIndex);
+  useEffect(() => {
+    if (prevStepRef.current !== currentStepIndex && treadmill.connected) {
+      const step = plan.steps[currentStepIndex];
+      if (step?.targetPace && step.targetPace > 0) {
+        treadmill.setSpeed(60 / step.targetPace);
+      }
+    }
+    prevStepRef.current = currentStepIndex;
+  }, [currentStepIndex, treadmill.connected]);
 
   // GPS tracking + keep-alive + native timer
   useEffect(() => {
@@ -570,27 +588,6 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
         speak("Agora é só olhar seu relatório", true);
         workoutCompletedAnnouncedRef.current = true;
         stopNativeTimer();
-
-        const exportData: WorkoutExport = {
-            startTime: sessionStartTimeRef.current,
-            endTime: Date.now(),
-            durationSeconds: elapsedRef.current,
-            distanceKm: distRef.current,
-            exerciseType: mode === 'treadmill' ? 'treadmill' : 'running',
-            avgSpeedKmh: speedRef.current,
-            route: mode === 'outdoor' ? pointsRef.current
-                .filter(p => p.lat && p.lon)
-                .map(p => ({
-                    lat: p.lat!,
-                    lng: p.lon!,
-                    altitude: p.altitude,
-                    timestamp: sessionStartTimeRef.current + p.timestampSeconds * 1000,
-                }))
-                : undefined,
-        };
-        exportWorkoutToSamsungHealth(exportData).then(result => {
-            if (onSyncResult) onSyncResult(result.status);
-        });
     }
   }, [isWorkoutCompleted]);
 
@@ -641,6 +638,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     const newSpeed = Math.max(1, currentSpeed + (change > 0 ? 0.1 : -0.1));
     setCurrentSpeed(newSpeed);
     speedRef.current = newSpeed;
+    if (treadmill.connected) treadmill.setSpeed(newSpeed);
 
     // Hold logic
     speedTimeoutRef.current = setTimeout(() => {
@@ -696,6 +694,46 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleSaveAndSync = async () => {
+    const exportData: WorkoutExport = {
+      startTime: sessionStartTimeRef.current,
+      endTime: Date.now(),
+      durationSeconds: elapsedRef.current,
+      distanceKm: distRef.current,
+      exerciseType: mode === 'treadmill' ? 'treadmill' : 'running',
+      avgSpeedKmh: speedRef.current,
+      route: mode === 'outdoor' ? pointsRef.current
+        .filter(p => p.lat && p.lon)
+        .map(p => ({
+          lat: p.lat!,
+          lng: p.lon!,
+          altitude: p.altitude,
+          timestamp: sessionStartTimeRef.current + p.timestampSeconds * 1000,
+        }))
+        : undefined,
+    };
+    markAsCompleted(plan.id, { points: pointsRef.current, distanceKm: dist, timeSeconds: elapsedSeconds, mode });
+    setSyncStatus('syncing');
+    const result = await exportWorkoutToHealthConnect(exportData);
+    setSyncStatus(result.success ? 'synced' : 'failed');
+    if (!result.success && result.error) console.warn('[sync] exportWorkout failed:', result.error);
+    if (onSyncResult) onSyncResult(result.status);
+
+    const stravaSession: TrainingSession = {
+      id: plan.id, planId: plan.id, planName: plan.name,
+      planSteps: plan.steps,
+      date: new Date(sessionStartTimeRef.current).toISOString(),
+      mode, totalDurationSeconds: elapsedRef.current,
+      totalDistanceKm: distRef.current, avgSpeedKmh: speedRef.current,
+      completed: true, points: pointsRef.current,
+    };
+    sendWorkoutToStravaViaEmail(stravaSession).then(sr => {
+      if (!sr.success && sr.error) console.warn('[strava] send failed:', sr.error);
+    });
+
+    onStop();
   };
 
   return (
@@ -795,6 +833,20 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
         </div>
 
         {mode === 'treadmill' && (
+            <div className="flex-shrink-0 mt-2">
+              <TreadmillPanel
+                treadmill={treadmill}
+                targetSpeedKmh={(() => {
+                  const step = plan.steps[currentStepIndex];
+                  return step?.targetPace ? 60 / step.targetPace : undefined;
+                })()}
+                onSpeedChange={(s) => { setCurrentSpeed(s); speedRef.current = s; }}
+                onInclineChange={(i) => { if (treadmill.connected) treadmill.setIncline(i); }}
+              />
+            </div>
+        )}
+
+        {mode === 'treadmill' && (
             <div className="flex-shrink-0 flex items-center justify-between bg-bg-elevated rounded-xl p-2 mt-2">
                 <button 
                     onMouseDown={() => { if (speedTouchRef.current) return; if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
@@ -863,13 +915,26 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       {isWorkoutCompleted && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/70" role="dialog" aria-modal="true" aria-label="Treino finalizado">
             <div className="p-8 rounded-3xl shadow-2xl w-full max-w-sm bg-bg-surface border border-border">
-                <h2 className="text-2xl font-bold mb-8 text-center text-text-primary">Treino Finalizado</h2>
+                <h2 className="text-2xl font-bold mb-4 text-center text-text-primary">Treino Finalizado</h2>
+                {syncStatus !== 'idle' && (
+                    <div className="flex items-center justify-center gap-2 mb-6 text-sm">
+                        {syncStatus === 'syncing' && (
+                            <span className="text-accent-secondary animate-pulse">Sincronizando com Health Connect…</span>
+                        )}
+                        {syncStatus === 'synced' && (
+                            <><span className="text-green-500">✓</span><span>Sincronizado com Health Connect</span></>
+                        )}
+                        {syncStatus === 'failed' && (
+                            <><span className="text-danger">✗</span><span>Falha ao sincronizar com Health Connect</span></>
+                        )}
+                    </div>
+                )}
                 <div className="flex flex-col gap-4">
                     <button 
-                        onClick={() => { markAsCompleted(plan.id, { points: pointsRef.current, distanceKm: dist, timeSeconds: elapsedSeconds, mode }); onStop(); }} 
+                        onClick={handleSaveAndSync}
                         className="w-full bg-accent-secondary hover:opacity-90 text-white p-4 rounded-xl font-bold transition-colors"
                     >
-                        SALVAR RELATÓRIO
+                        {syncStatus === 'syncing' ? 'SINCRONIZANDO…' : 'SALVAR RELATÓRIO'}
                     </button>
                     <button 
                         onClick={onStop} 
