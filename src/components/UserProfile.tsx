@@ -263,89 +263,90 @@ export default function UserProfile({
 
       <hr className="my-4 border-border" />
       <div className="mb-3">
-        <label className="block text-sm text-text-muted mb-2">Health Connect</label>
-        {hcAvailable ? (
-          <div className="flex items-center gap-2 text-sm text-green-500 mb-2">
-            <ShieldCheck size={16} />
-            <span>Disponível no dispositivo</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 text-sm text-text-muted mb-2">
-            <ShieldOff size={16} />
-            <span>Não disponível</span>
-          </div>
-        )}
-        {hcGranted === true && (
-          <div className="text-sm text-green-500 mb-2">✓ Autorizado</div>
-        )}
-        {hcGranted === false && (
-          <div className="text-sm text-danger mb-2">Permissão negada</div>
-        )}
-        {hcGranted === false && (
-          <div className="text-xs text-text-muted mb-3 p-2 bg-bg-elevated rounded-lg leading-relaxed">
-            Se a tela de permissão não aparecer, autorize manualmente:
-            <br />1. Abra o app <strong>Health Connect</strong>
-            <br />2. Toque no ⋮ ou ⚙️ (engrenagem)
-            <br />3. <strong>Permissões de apps</strong>
-            <br />4. Encontre <strong>Corre Logo</strong>
-            <br />5. Ative as permissões de exercício
-</div>
-          )}
-        {hcAvailable && (
-          <button
-            disabled={hcLoading}
-            onClick={async () => {
-              setHcLoading(true);
-              const granted = await requestHealthPermission();
-              setHcGranted(granted);
-              setHcLoading(false);
-              showFeedback(granted ? 'success' : 'error',
-                granted ? 'Health Connect autorizado!' : 'Permissão negada. Siga as instruções acima para autorizar manualmente.');
-            }}
-            className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-accent text-white text-sm font-medium disabled:opacity-50"
-          >
-            {hcLoading ? <RefreshCw size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-            {hcLoading ? 'Aguardando…' : 'Autorizar Health Connect'}
-          </button>
-        )}
+        <label className="block text-sm text-text-muted mb-2">Conexões</label>
 
-        <hr className="my-4 border-border" />
-        <div className="mb-3">
-          <label className="block text-sm text-text-muted mb-2">Conexões</label>
-          <div className="p-3 rounded-lg border border-border">
-            <div className="flex items-center gap-2 mb-2">
-              <Mail size={16} className={gmailConnected ? 'text-green-500' : 'text-text-muted'} />
-              <span className="text-sm text-text-primary">Gmail</span>
-              <span className={"text-xs ml-auto " + (gmailConnected ? 'text-green-500' : 'text-text-muted')}>
-                {gmailConnected ? 'Conectado' : 'Desconectado'}
-              </span>
+        <div className="p-3 rounded-lg border border-border mb-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Mail size={16} className={gmailConnected ? 'text-green-500' : 'text-text-muted'} />
+            <span className="text-sm text-text-primary">Gmail</span>
+            <span className={"text-xs ml-auto " + (gmailConnected ? 'text-green-500' : 'text-text-muted')}>
+              {gmailConnected ? 'Conectado' : 'Desconectado'}
+            </span>
+          </div>
+          <button
+            disabled={gmailLoading}
+            onClick={async () => {
+              if (gmailConnected) {
+                disconnectGmail();
+                setGmailConnected(false);
+                showFeedback('success', 'Gmail desconectado');
+              } else {
+                setGmailLoading(true);
+                try {
+                  await startGmailOAuth();
+                } catch (e) {
+                  showFeedback('error', `Erro: ${e instanceof Error ? e.message : String(e)}`);
+                }
+                setGmailLoading(false);
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+            style={{ backgroundColor: gmailConnected ? '#dc2626' : 'var(--color-accent, #C70048)' }}
+          >
+            {gmailLoading ? <RefreshCw size={16} className="animate-spin" /> : <Mail size={16} />}
+            {gmailLoading ? 'Abrindo Google…' : gmailConnected ? 'Desconectar Gmail' : 'Conectar Gmail'}
+          </button>
+        </div>
+
+        <div className="p-3 rounded-lg border border-border">
+          <div className="flex items-center gap-2 mb-2">
+            {hcAvailable ? (
+              <ShieldCheck size={16} className={hcGranted ? 'text-green-500' : 'text-text-muted'} />
+            ) : (
+              <ShieldOff size={16} className="text-text-muted" />
+            )}
+            <span className="text-sm text-text-primary">Health Connect</span>
+            <span className={"text-xs ml-auto " + (hcGranted ? 'text-green-500' : 'text-text-muted')}>
+              {hcGranted ? 'Conectado' : 'Desconectado'}
+            </span>
+          </div>
+          {hcGranted === false && (
+            <div className="text-xs text-text-muted mb-3 p-2 bg-bg-elevated rounded-lg leading-relaxed">
+              Se a tela de permissão não aparecer, autorize manualmente:
+              <br />1. Abra o app <strong>Health Connect</strong>
+              <br />2. Toque no ⋮ ou ⚙️
+              <br />3. <strong>Permissões de apps</strong>
+              <br />4. Encontre <strong>Corre Logo</strong>
+              <br />5. Ative as permissões de exercício
             </div>
+          )}
+          {hcAvailable && (
             <button
-              disabled={gmailLoading}
+              disabled={hcLoading}
               onClick={async () => {
-                if (gmailConnected) {
-                  disconnectGmail();
-                  setGmailConnected(false);
-                  showFeedback('success', 'Gmail desconectado');
+                if (hcGranted) {
+                  setHcGranted(null);
+                  showFeedback('success', 'Health Connect desconectado');
                 } else {
-                  setGmailLoading(true);
-                  try {
-                    await startGmailOAuth();
-                  } catch (e) {
-                    showFeedback('error', `Erro: ${e instanceof Error ? e.message : String(e)}`);
-                  }
-                  setGmailLoading(false);
+                  setHcLoading(true);
+                  const granted = await requestHealthPermission();
+                  setHcGranted(granted);
+                  setHcLoading(false);
+                  showFeedback(granted ? 'success' : 'error',
+                    granted ? 'Health Connect conectado!' : 'Permissão negada.');
                 }
               }}
               className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: gmailConnected ? '#dc2626' : 'var(--color-accent, #C70048)' }}
+              style={{ backgroundColor: hcGranted ? '#dc2626' : 'var(--color-accent, #C70048)' }}
             >
-              {gmailLoading ? <RefreshCw size={16} className="animate-spin" /> : <Mail size={16} />}
-              {gmailLoading ? 'Abrindo Google…' : gmailConnected ? 'Desconectar Gmail' : 'Conectar Gmail'}
+              {hcLoading ? <RefreshCw size={16} className="animate-spin" /> : hcGranted ? <ShieldOff size={16} /> : <ShieldCheck size={16} />}
+              {hcLoading ? 'Aguardando…' : hcGranted ? 'Desconectar Health Connect' : 'Conectar Health Connect'}
             </button>
-          </div>
+          )}
+          {!hcAvailable && (
+            <div className="text-xs text-text-muted">Health Connect não disponível neste dispositivo</div>
+          )}
         </div>
-
       </div>
 
       <Button variant="primary" className="w-full mt-4" onClick={handleSave}>Salvar</Button>

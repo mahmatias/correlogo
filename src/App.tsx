@@ -67,7 +67,8 @@ export default function App() {
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const latestSessionIdRef = useRef<string | null>(null);
-  const pendingSyncStatusRef = useRef<SyncStatus | null>(null);
+  const pendingHcSyncRef = useRef<SyncStatus | null>(null);
+  const pendingGmailSyncRef = useRef<SyncStatus | null>(null);
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
   const [activePlan, setActivePlan] = useState<{plan: WorkoutPlan, mode: 'treadmill' | 'outdoor', sessionId: string, simulateGps?: boolean} | null>(null);
   const [isFreeTraining, setIsFreeTraining] = useState(false);
@@ -709,7 +710,8 @@ CapApp.addListener('backButton', () => {
             avgSpeedKmh: avgSpeed,
             completed: true,
             points: sessionStats.points,
-            syncStatus: undefined,
+            hcSyncStatus: undefined,
+            gmailSyncStatus: undefined,
         };
         
         try {
@@ -738,18 +740,25 @@ CapApp.addListener('backButton', () => {
             latestSessionIdRef.current = newSession.id;
         }
 
-        const pendingStatus = pendingSyncStatusRef.current;
-        if (pendingStatus && latestSessionIdRef.current) {
-            const sid = latestSessionIdRef.current;
+        const sid = latestSessionIdRef.current;
+        const hcPending = pendingHcSyncRef.current;
+        const gmailPending = pendingGmailSyncRef.current;
+        if (sid && (hcPending || gmailPending)) {
             setSessions(prev => {
-                const updated = prev.map(s => s.id === sid ? { ...s, syncStatus: pendingStatus } : s);
+                let updated = [...prev];
+                if (hcPending) updated = updated.map(s => s.id === sid ? { ...s, hcSyncStatus: hcPending } : s);
+                if (gmailPending) updated = updated.map(s => s.id === sid ? { ...s, gmailSyncStatus: gmailPending } : s);
                 localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
                 return updated;
             });
             if (!sid.startsWith('local-')) {
-                setDoc(doc(getDb(), 'users', user.uid, 'sessions', sid), { syncStatus: pendingStatus }, { merge: true }).catch(() => {});
+                const payload: Record<string, unknown> = {};
+                if (hcPending) payload.hcSyncStatus = hcPending;
+                if (gmailPending) payload.gmailSyncStatus = gmailPending;
+                setDoc(doc(getDb(), 'users', user.uid, 'sessions', sid), payload, { merge: true }).catch(() => {});
             }
-            pendingSyncStatusRef.current = null;
+            pendingHcSyncRef.current = null;
+            pendingGmailSyncRef.current = null;
         }
     }
   }
@@ -980,39 +989,58 @@ CapApp.addListener('backButton', () => {
                   }
                   showFeedback('success', 'Sessão removida do histórico.');
                 }}
-                onExportSession={async (session) => {
-                    const exportData: WorkoutExport = {
-                        startTime: new Date(session.date).getTime(),
-                        endTime: new Date(session.date).getTime() + session.totalDurationSeconds * 1000,
-                        durationSeconds: session.totalDurationSeconds,
-                        distanceKm: session.totalDistanceKm,
-                        exerciseType: session.mode === 'treadmill' ? 'treadmill' : 'running',
-                        avgSpeedKmh: session.avgSpeedKmh,
-                        route: session.mode === 'outdoor' ? session.points
-                            .filter(p => p.lat && p.lon)
-                            .map(p => ({
-                                lat: p.lat!,
-                                lng: p.lon!,
-                                altitude: p.altitude,
-                                timestamp: new Date(session.date).getTime() + (p.timestampSeconds || 0) * 1000,
-                            }))
-                            : undefined,
-                    };
-                    const result = await exportWorkoutToHealthConnect(exportData);
-                    setSessions(prev => {
-                        const updated = prev.map(s => s.id === session.id ? { ...s, syncStatus: result.status } : s);
-                        if (user) localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
-                        return updated;
-                    });
-                    if (user && !session.id.startsWith('local-')) {
-                        setDoc(doc(getDb(), 'users', user.uid, 'sessions', session.id), { syncStatus: result.status }, { merge: true }).catch(() => {});
+                onExportSession={async (session, target) => {
+                    const retryHc = !target || target === 'hc';
+                    const retryGmail = !target || target === 'gmail';
+                    const hcNeeded = retryHc && (!session.hcSyncStatus || session.hcSyncStatus !== 'synced');
+                    const gmailNeeded = retryGmail && (!session.gmailSyncStatus || session.gmailSyncStatus !== 'synced');
+                    let hcResult: { success: boolean; status: SyncStatus; error?: string } | null = null;
+                    let gmailResult: { success: boolean; error?: string } | null = null;
+                    if (hcNeeded) {
+                        const exportData: WorkoutExport = {
+                            startTime: new Date(session.date).getTime(),
+                            endTime: new Date(session.date).getTime() + session.totalDurationSeconds * 1000,
+                            durationSeconds: session.totalDurationSeconds,
+                            distanceKm: session.totalDistanceKm,
+                            exerciseType: session.mode === 'treadmill' ? 'treadmill' : 'running',
+                            avgSpeedKmh: session.avgSpeedKmh,
+                            route: session.mode === 'outdoor' ? session.points
+                                .filter(p => p.lat && p.lon)
+                                .map(p => ({
+                                    lat: p.lat!,
+                                    lng: p.lon!,
+                                    altitude: p.altitude,
+                                    timestamp: new Date(session.date).getTime() + (p.timestampSeconds || 0) * 1000,
+                                }))
+                                : undefined,
+                        };
+                        hcResult = await exportWorkoutToHealthConnect(exportData);
                     }
-                    showFeedback(result.success ? 'success' : 'error', result.success ? 'Treino sincronizado com Health Connect!' : `Falha ao sincronizar: ${result.error || 'erro desconhecido'}`);
-                    const stravaResult = await sendWorkoutToStravaViaEmail(session);
-                    if (stravaResult.success) {
-                      showFeedback('success', 'Atividade enviada ao Strava!');
-                    } else if (stravaResult.error && stravaResult.error !== 'Apenas dispositivo nativo') {
-                      showFeedback('error', `Strava: ${stravaResult.error}`);
+                    if (gmailNeeded) {
+                        gmailResult = await sendWorkoutToStravaViaEmail(session);
+                    }
+                    if (user) {
+                        setSessions(prev => {
+                            let updated = [...prev];
+                            if (hcResult) updated = updated.map(s => s.id === session.id ? { ...s, hcSyncStatus: hcResult!.status } : s);
+                            if (gmailResult) updated = updated.map(s => s.id === session.id ? { ...s, gmailSyncStatus: gmailResult!.success ? 'synced' as const : 'failed' as const } : s);
+                            localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                            return updated;
+                        });
+                        if (!session.id.startsWith('local-')) {
+                            const payload: Record<string, unknown> = {};
+                            if (hcResult) payload.hcSyncStatus = hcResult.status;
+                            if (gmailResult) payload.gmailSyncStatus = gmailResult.success ? 'synced' : 'failed';
+                            setDoc(doc(getDb(), 'users', user.uid, 'sessions', session.id), payload, { merge: true }).catch(() => {});
+                        }
+                    }
+                    if (hcResult) {
+                        showFeedback(hcResult.success ? 'success' : 'error', hcResult.success ? 'Health Connect sincronizado!' : `HC: ${hcResult.error || 'erro'}`);
+                    }
+                    if (gmailResult && gmailResult.success) {
+                        showFeedback('success', 'Atividade enviada ao Strava!');
+                    } else if (gmailResult && gmailResult.error && gmailResult.error !== 'Apenas dispositivo nativo') {
+                        showFeedback('error', `Strava: ${gmailResult.error}`);
                     }
                 }}
               />
@@ -1144,16 +1172,32 @@ CapApp.addListener('backButton', () => {
                       if (!user) return;
                       const sessionId = latestSessionIdRef.current;
                       if (!sessionId) {
-                          pendingSyncStatusRef.current = status;
+                          pendingHcSyncRef.current = status;
                           return;
                       }
                       setSessions(prev => {
-                          const updated = prev.map(s => s.id === sessionId ? { ...s, syncStatus: status } : s);
+                          const updated = prev.map(s => s.id === sessionId ? { ...s, hcSyncStatus: status } : s);
                           localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
                           return updated;
                       });
                       if (!sessionId.startsWith('local-')) {
-                          setDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionId), { syncStatus: status }, { merge: true }).catch(() => {});
+                          setDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionId), { hcSyncStatus: status }, { merge: true }).catch(() => {});
+                      }
+                  }}
+                  onGmailSyncResult={(status) => {
+                      if (!user) return;
+                      const sessionId = latestSessionIdRef.current;
+                      if (!sessionId) {
+                          pendingGmailSyncRef.current = status;
+                          return;
+                      }
+                      setSessions(prev => {
+                          const updated = prev.map(s => s.id === sessionId ? { ...s, gmailSyncStatus: status } : s);
+                          localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                          return updated;
+                      });
+                      if (!sessionId.startsWith('local-')) {
+                          setDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionId), { gmailSyncStatus: status }, { merge: true }).catch(() => {});
                       }
                   }}
                 />

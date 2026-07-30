@@ -84,6 +84,8 @@ export interface ActivityPoint {
   cadence?: number;
 }
 
+export type SyncStatus = 'synced' | 'pending' | 'failed';
+
 export interface TrainingSession {
   id: string;
   planId: string;
@@ -97,7 +99,8 @@ export interface TrainingSession {
   avgSpeedKmh: number;
   completed: boolean;
   points: ActivityPoint[];
-  syncStatus?: 'synced' | 'pending' | 'failed';
+  hcSyncStatus?: SyncStatus;
+  gmailSyncStatus?: SyncStatus;
 }
 
 export type TrainingPhase = 'base' | 'build' | 'peak' | 'taper';

@@ -27,6 +27,7 @@ interface Props {
   simulateGps?: boolean;
   key?: string;
   onSyncResult?: (status: SyncStatus) => void;
+  onGmailSyncResult?: (status: SyncStatus) => void;
   showFeedback?: (type: 'success' | 'error', message: string) => void;
   treadmill: TreadmillConnection;
 }
@@ -741,6 +742,8 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       completed: true, points: pointsRef.current,
     };
     sendWorkoutToStravaViaEmail(stravaSession).then(sr => {
+      const gmailStatus: SyncStatus = sr.success ? 'synced' : (sr.error ? 'failed' : 'pending');
+      if (onGmailSyncResult) onGmailSyncResult(gmailStatus);
       if (sr.success) {
         showFeedback?.('success', 'Atividade enviada ao Strava!');
       } else if (sr.error && sr.error !== 'Apenas dispositivo nativo') {
