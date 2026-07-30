@@ -1,13 +1,15 @@
-import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle } from 'lucide-react';
+import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X } from 'lucide-react';
 import { formatDistance, formatDuration, TrainingSession, WorkoutPlan, getStepTypeLabel } from '../types';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 
 const MapComponent = lazy(() => import('./MapComponent'));
 import { generateTCX, generateGPX } from '../lib/exportUtils';
 import { evaluateSessionPerformance, suggestAdjustment } from '../lib/evaluatePerformance';
 import { isNative } from '../lib/capacitor/platform';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import ShareCard, { extractCardData, CardVariant } from './ShareCard';
+import { captureCard, shareImage } from '../lib/shareCard';
 
 interface Props {
   session: TrainingSession;
@@ -40,6 +42,20 @@ function ScrollHint({ visible }: { visible: boolean }) {
 
 export default function SessionSummary({ session, plan, onClose, onSuggestAdjustment, showFeedback }: Props) {
   const [viewMode, setViewMode] = useState<'km' | 'lap'>('km');
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [cardVariant, setCardVariant] = useState<CardVariant>('a');
+  const [showStats, setShowStats] = useState<Record<string, boolean>>({
+    distance: true,
+    duration: true,
+    pace: true,
+    speed: false,
+    date: true,
+    mode: true,
+    name: true,
+    logo: true,
+  });
+  const cardCaptureRef = useRef<HTMLDivElement>(null);
+  const [sharing, setSharing] = useState(false);
 
   // Basic stats
   const avgPace = session.totalDurationSeconds / (session.totalDistanceKm || 1); // seconds per km
@@ -115,11 +131,14 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
           </p>
         )}
 
-        <div className="flex gap-2 mb-6 justify-center">
+        <div className="flex gap-2 mb-6 justify-center flex-wrap">
             <button onClick={exportTCX} className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-bold">Exportar .TCX</button>
             {session.mode === 'outdoor' && (
                 <button onClick={exportGPX} className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-bold">Exportar .GPX</button>
             )}
+            <button onClick={() => setShowShareModal(true)} className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-bold flex items-center gap-2">
+                <Share2 className="w-4 h-4" /> Compartilhar
+            </button>
         </div>
 
         {path.length > 0 && (
@@ -297,7 +316,100 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
                 </div>
             </div>
         )}
-        
+
+        {showShareModal && (
+          <>
+            {/* Hidden full-size card for capture */}
+            <div ref={cardCaptureRef} style={{ position: 'fixed', left: '-9999px', top: 0, zIndex: -1 }}>
+              <ShareCard
+                data={extractCardData(session)}
+                variant={cardVariant}
+                showStats={showStats}
+                session={session}
+              />
+            </div>
+
+            {/* Share modal overlay */}
+            <div className="fixed inset-0 z-[60] flex flex-col bg-bg-deep overflow-y-auto p-4">
+              <div className="flex items-center justify-between mb-4">
+                <button onClick={() => setShowShareModal(false)} className="text-text-muted p-1">
+                  <X className="w-6 h-6" />
+                </button>
+                <h2 className="text-lg font-bold">Compartilhar atividade</h2>
+                <div className="w-7" />
+              </div>
+
+              <div className="flex gap-2 mb-4">
+                {(['a', 'b', 'c'] as const).map(v => (
+                  <button
+                    key={v}
+                    onClick={() => setCardVariant(v)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-colors ${cardVariant === v ? 'bg-accent text-white border-accent' : 'bg-bg-elevated text-text-secondary border-border'}`}
+                  >
+                    {v === 'a' ? 'Gradiente' : v === 'b' ? 'Vidro' : 'Mapa'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
+                {[
+                  ['distance', 'Distância'],
+                  ['duration', 'Duração'],
+                  ['pace', 'Pace'],
+                  ['speed', 'Velocidade'],
+                  ['date', 'Data'],
+                  ['mode', 'Tipo'],
+                  ['name', 'Treino'],
+                  ['logo', 'Logo'],
+                ].map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-2 text-text-primary">
+                    <input
+                      type="checkbox"
+                      checked={showStats[key]}
+                      onChange={e => setShowStats(p => ({ ...p, [key]: e.target.checked }))}
+                      className="accent-accent w-4 h-4"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              <div className="flex-1 flex items-center justify-center mb-4 min-h-0">
+                <div className="w-[200px] overflow-hidden rounded-xl" style={{ aspectRatio: '9/16' }}>
+                  <div style={{ transform: `scale(${200 / 1080})`, transformOrigin: 'top left' }}>
+                    <ShareCard
+                      data={extractCardData(session)}
+                      variant={cardVariant}
+                      showStats={showStats}
+                      session={session}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  if (!cardCaptureRef.current) return;
+                  setSharing(true);
+                  try {
+                    await new Promise(r => setTimeout(r, 400));
+                    const blob = await captureCard(cardCaptureRef.current);
+                    await shareImage(blob);
+                    setShowShareModal(false);
+                  } catch {
+                    showFeedback?.('error', 'Erro ao compartilhar');
+                  } finally {
+                    setSharing(false);
+                  }
+                }}
+                disabled={sharing}
+                className="w-full py-4 bg-accent text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Share2 className="w-5 h-5" /> {sharing ? 'Compartilhando...' : 'Compartilhar'}
+              </button>
+            </div>
+          </>
+        )}
     </div>
   );
 }

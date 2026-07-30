@@ -1,5 +1,28 @@
 # Handoff
 
+## Session Context (2026-07-30d — ShareCard: Compartilhar Estatísticas em Redes Sociais)
+
+### What changed
+Full share-to-social flow added to SessionSummary:
+- **3 card variants**: Gradient (A), Glass (B), SVG Map (C) at 1080×1920 (Insta Stories)
+- **Stat selection**: user picks which stats to show via checkboxes before generating
+- **Capture pipeline**: hidden full-size element captured by `dom-to-image-more` → saved to Cache → shared via `@capacitor/share` (native share sheet with APK images)
+- **Route polyline** (variant C): draws session GPS points as an SVG path with green/red start/end markers — no Leaflet dependency
+- **Web fallback**: download via `<a>` tag or Web Share API
+
+### Files created
+- `src/components/ShareCard.tsx` — 3-variant card component (1080×1920 fixed size)
+- `src/lib/shareCard.ts` — captureBlob() + shareImage() logic
+
+### Files modified
+- `src/components/SessionSummary.tsx` — share button, share modal (style selector, stat checkboxes, preview, share button), hidden capture element
+- `CHANGELOG.md` — new entry
+
+### Pending
+1. **Test in-app update** — next CI build should trigger auto-update prompt on APK (previous versionCode 114 = installed, push `cc97584` bumped CI versionCode)
+2. **Test share flow** on real device: tap Compartilhar → select stats/style → preview → share sheet
+3. **Map variant C**: SVG polyline needs validation with real GPS data (start/end markers, path fidelity)
+
 ## Session Context (2026-07-30 — FTMS UUID Fix + Refresh Token + CI/CD + Release Keystore)
 
 ### What changed

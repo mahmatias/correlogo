@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-07-30d] — ShareCard: Compartilhar Estatísticas em Redes Sociais
+
+### Added
+- **ShareCard system**: 3 variantes de card (1080×1920) para Instagram Stories:
+  - **Estilo A (Gradiente)**: fundo gradiente purple→pink→orange, stats centrados grandes
+  - **Estilo B (Vidro)**: fundo escuro com painel glass-morphism, stats minimalistas
+  - **Estilo C (Mapa)**: fundo mapa (grid + SVG polyline da rota), stats em bottom sheet
+- **Stats selecionáveis**: checkboxes para distância, duração, pace, velocidade, data, tipo, treino, logo
+- **Botão "Compartilhar"** no `SessionSummary` → modal com seletor de estilo + preview + share sheet nativa
+- **`shareCard.ts`**: geração PNG via `dom-to-image-more`, save no cache, share via `@capacitor/share`
+- **`ShareCard.tsx`**: componente de card vector SVG para rota (variante C), sem dependência de Leaflet
+
+### Deps
+- `dom-to-image-more` ^3.10.2
+- `@capacitor/share` ^7.0.4
+
+### Build
+- Web build limpo ✅
+
 ## [2026-07-30c] — Release Keystore SHA-1 + Auto Version Code CI
 
 ### Fixed
