@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User, updateProfile, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { ShieldCheck, ShieldOff, RefreshCw, Mail } from 'lucide-react';
+import { ShieldCheck, ShieldOff, RefreshCw, Mail, Download } from 'lucide-react';
 import Modal from './Modal';
 import Button from './Button';
 import { ProfileData, SettingsData, BRAZILIAN_STATES, GENDER_OPTIONS } from '../types';
@@ -9,6 +9,8 @@ import { getAuth, getDb } from '../lib/firebase';
 import { isHealthConnectAvailable, checkHealthPermissions, requestHealthPermission } from '../lib/capacitor/health-connect';
 import { isNative } from '../lib/capacitor/platform';
 import { isGmailConnected, disconnectGmail, startGmailOAuth } from '../lib/gmailApi';
+import { App as CapApp } from '@capacitor/app';
+import { checkForUpdate, downloadApkAndInstall, type UpdateInfo } from '../lib/update-checker';
 
 interface UserProfileProps {
   open: boolean;
@@ -45,6 +47,7 @@ export default function UserProfile({
   const [hcLoading, setHcLoading] = useState(false);
   const [gmailConnected, setGmailConnected] = useState(false);
   const [gmailLoading, setGmailLoading] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -346,8 +349,40 @@ export default function UserProfile({
           )}
           {!hcAvailable && (
             <div className="text-xs text-text-muted">Health Connect não disponível neste dispositivo</div>
-          )}
+)}
         </div>
+      </div>
+
+      <div className="p-3 rounded-lg border border-border">
+        <div className="flex items-center gap-2 mb-2">
+          <Download size={16} className="text-text-muted" />
+          <span className="text-sm text-text-primary">Atualização do app</span>
+        </div>
+        <button
+          disabled={updating}
+          onClick={async () => {
+            try {
+              setUpdating(true);
+              const info = await CapApp.getInfo();
+              const versionCode = parseInt(info.build, 10);
+              const update = await checkForUpdate(versionCode);
+              if (update) {
+                await downloadApkAndInstall(update);
+              } else {
+                showFeedback('success', 'App já está na versão mais recente');
+              }
+            } catch (e) {
+              showFeedback('error', `Erro: ${e instanceof Error ? e.message : String(e)}`);
+            } finally {
+              setUpdating(false);
+            }
+          }}
+          className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+          style={{ backgroundColor: 'var(--color-accent, #C70048)' }}
+        >
+          {updating ? <RefreshCw size={16} className="animate-spin" /> : <Download size={16} />}
+          {updating ? 'Verificando…' : 'Verificar atualizações'}
+        </button>
       </div>
 
       <Button variant="primary" className="w-full mt-4" onClick={handleSave}>Salvar</Button>
