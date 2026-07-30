@@ -33,7 +33,7 @@ jobs:
         run: echo "${{ secrets.ENV_FILE }}" | base64 -d > .env
 
       - name: Install npm dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Build web app (Vite)
         run: npm run build
