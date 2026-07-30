@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react';
-import { TrainingSession, formatDistance, formatDuration } from '../types';
+import { formatDistance, formatDuration } from '../types';
+import type { TrainingSession } from '../types';
 
-export type CardVariant = 'a' | 'b' | 'c';
+export type CardVariant = 'a' | 'b' | 'c' | 'd';
 
 export interface ShareCardData {
   distance: string;
@@ -80,6 +81,7 @@ export default function ShareCard({ data, variant, showStats, className, style, 
   const showMode = showStats.mode;
   const showName = showStats.name;
 
+  // Variant A: Gradient background, large centered stats
   if (variant === 'a') {
     return (
       <div
@@ -100,16 +102,16 @@ export default function ShareCard({ data, variant, showStats, className, style, 
           </div>
         )}
 
-        <div className="flex flex-col items-center gap-4 px-12 text-center" style={{ fontFamily: 'Geologica, sans-serif' }}>
+        <div className="flex flex-col items-center gap-6 px-12 text-center" style={{ fontFamily: 'Geologica, sans-serif' }}>
           {statLines.map(s => (
             <div key={s.key}>
-              <div className="text-5xl font-black tracking-tight leading-tight">{s.value}</div>
-              <div className="text-sm font-light opacity-60 mt-1">{s.key}</div>
+              <div className="text-6xl font-black tracking-tight leading-tight">{s.value}</div>
+              <div className="text-base font-light opacity-60 mt-2">{s.key}</div>
             </div>
           ))}
 
           {(showDate || showMode || showName) && (
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 mt-6 text-xs opacity-50">
+            <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 mt-8 text-sm opacity-50">
               {showDate && <span>{data.date}</span>}
               {showMode && <span>{data.mode}</span>}
               {showName && <span>{data.name}</span>}
@@ -120,6 +122,7 @@ export default function ShareCard({ data, variant, showStats, className, style, 
     );
   }
 
+  // Variant B: Glassmorphism card, centered
   if (variant === 'b') {
     return (
       <div
@@ -131,7 +134,7 @@ export default function ShareCard({ data, variant, showStats, className, style, 
           ...style,
         }}
       >
-        <div className="w-[720px] rounded-3xl px-12 py-16 text-white text-center" style={{
+        <div className="w-[840px] rounded-3xl px-16 py-20 text-white text-center" style={{
           background: 'rgba(255,255,255,0.06)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
@@ -139,16 +142,16 @@ export default function ShareCard({ data, variant, showStats, className, style, 
           fontFamily: 'Geologica, sans-serif',
         }}>
           {showLogo && (
-            <div className="text-[10px] tracking-[0.4em] opacity-30 mb-6">CORRE LOGO</div>
+            <div className="text-[11px] tracking-[0.4em] opacity-30 mb-8">CORRE LOGO</div>
           )}
           {statLines.map(s => (
-            <div key={s.key} className="mb-6 last:mb-0">
-              <div className="text-sm opacity-50 mb-1">{s.key}</div>
-              <div className="text-4xl font-bold tracking-tight">{s.value}</div>
+            <div key={s.key} className="mb-8 last:mb-0">
+              <div className="text-base opacity-50 mb-2">{s.key}</div>
+              <div className="text-5xl font-bold tracking-tight">{s.value}</div>
             </div>
           ))}
           {(showDate || showMode || showName) && (
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 mt-8 text-[11px] opacity-40">
+            <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 mt-10 text-[12px] opacity-40">
               {showDate && <span>{data.date}</span>}
               {showMode && <span>{data.mode}</span>}
               {showName && <span>{data.name}</span>}
@@ -159,6 +162,7 @@ export default function ShareCard({ data, variant, showStats, className, style, 
     );
   }
 
+  // Variant C: Map background with gradient overlay, stats at bottom
   if (variant === 'c') {
     return (
       <div
@@ -180,28 +184,74 @@ export default function ShareCard({ data, variant, showStats, className, style, 
           ))}
         </svg>
 
-        <RouteSVG session={session} />
+        {/* Route map - behind gradient overlay and stats */}
+        <RouteSVG session={session} style={{ zIndex: 0 }} />
 
-        <div className="absolute bottom-0 left-0 right-0 px-14 py-16" style={{
-          background: 'linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 70%, transparent 100%)',
+        {/* Gradient overlay */}
+        <div className="absolute inset-0" style={{
+          background: 'linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)',
+        }} />
+
+        {/* Stats container - above gradient overlay */}
+        <div className="absolute bottom-0 left-0 right-0 px-14 py-16 z-10" style={{
+          fontFamily: 'Geologica, sans-serif'
         }}>
-          <div className="flex flex-col gap-5" style={{ fontFamily: 'Geologica, sans-serif' }}>
+          <div className="flex flex-col gap-6">
             {statLines.map(s => (
               <div key={s.key} className="flex items-baseline justify-between">
-                <span className="text-xs opacity-50">{s.key}</span>
-                <span className="text-3xl font-bold">{s.value}</span>
+                <span className="text-sm opacity-50">{s.key}</span>
+                <span className="text-4xl font-bold">{s.value}</span>
               </div>
             ))}
           </div>
           {(showDate || showMode || showName) && (
-            <div className="flex gap-4 mt-6 text-[10px] opacity-40">
+            <div className="flex gap-4 mt-8 text-[11px] opacity-40">
               {showDate && <span>{data.date}</span>}
               {showMode && <span>{data.mode}</span>}
               {showName && <span>{data.name}</span>}
             </div>
           )}
           {showLogo && (
-            <div className="absolute top-6 left-14 text-[10px] tracking-[0.4em] opacity-30">CORRE LOGO</div>
+            <div className="absolute top-8 left-14 text-[11px] tracking-[0.4em] opacity-30">CORRE LOGO</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Variant D: Stats only, transparent background - for overlay on photos
+  if (variant === 'd') {
+    return (
+      <div
+        className={`relative flex flex-col items-center justify-center text-white overflow-hidden ${className || ''}`}
+        style={{
+          width: '1080px',
+          height: '1920px',
+          background: 'transparent',
+          ...style,
+        }}
+      >
+        {/* Semi-transparent backdrop for readability on photos */}
+        <div className="absolute inset-0 bg-black/30" />
+
+        <div className="flex flex-col items-center gap-8 px-16 text-center z-10" style={{ fontFamily: 'Geologica, sans-serif' }}>
+          {showLogo && (
+            <div className="text-lg tracking-[0.3em] opacity-80 mb-4">CORRE LOGO</div>
+          )}
+
+          {statLines.map(s => (
+            <div key={s.key} className="drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
+              <div className="text-7xl font-black tracking-tight leading-tight">{s.value}</div>
+              <div className="text-xl font-light opacity-80 mt-3">{s.key}</div>
+            </div>
+          ))}
+
+          {(showDate || showMode || showName) && (
+            <div className="flex flex-wrap justify-center gap-x-10 gap-y-3 mt-10 text-base opacity-70">
+              {showDate && <span>{data.date}</span>}
+              {showMode && <span>{data.mode}</span>}
+              {showName && <span>{data.name}</span>}
+            </div>
           )}
         </div>
       </div>
