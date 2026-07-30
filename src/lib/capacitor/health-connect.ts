@@ -20,7 +20,7 @@ export type SyncStatus = 'synced' | 'pending' | 'failed';
 
 interface HealthConnectPlugin {
   isAvailable(): Promise<{ available: boolean }>;
-  checkPermissions(): Promise<{ granted: boolean }>;
+  checkHcPermissions(): Promise<{ granted: boolean }>;
   requestHcPermissions(): Promise<{ granted: boolean }>;
   exportWorkout(options: { workout: WorkoutExport }): Promise<{ success: boolean }>;
 }
@@ -35,7 +35,7 @@ export async function isHealthConnectAvailable(): Promise<boolean> {
 
 export async function checkHealthPermissions(): Promise<boolean | null> {
   if (!isNative()) return null;
-  try { return (await HealthConnect.checkPermissions()).granted; }
+  try { return (await HealthConnect.checkHcPermissions()).granted; }
   catch { return null; }
 }
 

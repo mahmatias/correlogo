@@ -63,7 +63,7 @@ class HealthConnectPlugin : Plugin() {
     }
 
     @PluginMethod
-    fun checkPermissions(call: PluginCall) {
+    fun checkHcPermissions(call: PluginCall) {
         if (!ensureClient()) {
             call.resolve(JSObject().apply { put("granted", false) })
             return
@@ -74,10 +74,10 @@ class HealthConnectPlugin : Plugin() {
                 val grantedPerms = c.permissionController.getGrantedPermissions()
                 val writePerm = HealthPermission.getWritePermission(ExerciseSessionRecord::class)
                 val granted = writePerm in grantedPerms
-                Log.d(TAG, "checkPermissions: WRITE_EXERCISE granted=$granted")
+                Log.d(TAG, "checkHcPermissions: WRITE_EXERCISE granted=$granted")
                 call.resolve(JSObject().apply { put("granted", granted) })
             } catch (e: Exception) {
-                Log.e(TAG, "checkPermissions error", e)
+                Log.e(TAG, "checkHcPermissions error", e)
                 call.resolve(JSObject().apply { put("granted", false) })
             }
         }
