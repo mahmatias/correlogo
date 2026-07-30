@@ -46,13 +46,37 @@
             android:foregroundServiceType="location"
             android:exported="false" />
 
-        <meta-data
-            android:name="com.samsung.android.health.permission.read"
-            android:value="com.samsung.health.step_count;com.samsung.health.exercise"/>
-        <meta-data
-            android:name="com.samsung.android.health.permission.write"
-            android:value="com.samsung.health.exercise;com.samsung.health.exercise_tracking"/>
+        <!-- Health Connect: required for the app to be granted health permissions -->
+        <activity
+            android:name=".PermissionsRationaleActivity"
+            android:exported="true"
+            android:theme="@style/AppTheme.NoActionBarLaunch">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".PermissionsRationaleActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
     </application>
+
+    <!-- Health Connect package query (required on Android 11+ for intent resolution) -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="health-connect" />
+        </intent>
+    </queries>
 
     <!-- Permissions -->
 
@@ -62,8 +86,16 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
-    <uses-permission android:name="com.samsung.android.providers.context.permission.WRITE_USE_APP_SURVEY"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
+    <uses-permission android:name="android.permission.health.WRITE_DISTANCE" />
+
+    <!-- BLE permissions for FTMS treadmill control -->
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 </manifest>
