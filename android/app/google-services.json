@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "985879764466-i7s38o29v8ut21nl1frg4pd2mo4v2d4o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.correlogo.app",
+            "certificate_hash": "b45692b8f13b9bfc23da3887ac6b798dcc35b4ba"
+          }
+        },
+        {
           "client_id": "985879764466-4nt4bctv9h3oiv7o4r15r2cnn115lh61.apps.googleusercontent.com",
           "client_type": 3
         }

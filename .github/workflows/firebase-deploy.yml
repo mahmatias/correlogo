@@ -47,6 +47,9 @@ jobs:
           base64 -d <<< "${{ secrets.KEYSTORE_BASE64 }}" > android/app/keystore.jks
           ls -lah android/app/keystore.jks
 
+      - name: Compute version code
+        run: echo "CI_VERSION_CODE=$((GITHUB_RUN_NUMBER + 100))" >> $GITHUB_ENV
+
       - name: Build release APK
         working-directory: ./android
         run: |
@@ -55,7 +58,8 @@ jobs:
             -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/android/app/keystore.jks \
             -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
-            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
+            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}" \
+            -PciVersionCode=$CI_VERSION_CODE
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}

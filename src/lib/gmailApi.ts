@@ -46,6 +46,14 @@ function clearGmailToken() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+export function isGmailConnected(): boolean {
+  return getStoredToken() !== null;
+}
+
+export function disconnectGmail(): void {
+  clearGmailToken();
+}
+
 export async function startGmailOAuth(): Promise<void> {
   const isNativePlatform = isNative();
   const statePrefix = isNativePlatform ? STATE_PREFIX_NATIVE : STATE_PREFIX_WEB;
