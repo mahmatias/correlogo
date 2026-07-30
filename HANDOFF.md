@@ -1,51 +1,53 @@
 # Handoff
 
-## Session Context (2026-07-30 — FTMS UUID Fix + Refresh Token OAuth + CI/CD)
+## Session Context (2026-07-30 — FTMS UUID Fix + Refresh Token + CI/CD + Release Keystore)
 
 ### What changed
-**BLE FTMS fix**: `FTMS_MEASUREMENT_CHAR` UUID changed from `00002a63` (Cycling Power Control Point) to `00002acd` (Treadmill Data). Was causing `getCharacteristic()` to return null.
+**Google Sign-In "No Credentials available"**: CI/CD APK was signed with a new release keystore whose SHA-1 (`B4:56:92:B8:F1:3B:9B:FC:23:DA:38:87:AC:6B:79:8D:CC:35:B4:BA`) was not registered in Firebase Console. Previously only the debug keystore SHA-1 was registered. User added the new SHA-1 manually. `google-services.json` re-downloaded now includes both OAuth client entries.
 
-**Strava auto-save feedback**: `showFeedback` prop added to `WorkoutTracker.tsx`, passed from `App.tsx`. Auto-save now shows toast on Strava success/error instead of fire-and-forget.
+**Auto-increment versionCode**: Each CI workflow run now uses `$GITHUB_RUN_NUMBER + 100` as `versionCode` via `-PciVersionCode` Gradle property. This ensures each build creates a *new* Firebase App Distribution release instead of overwriting the same one. `android/app/build.gradle` falls back to `19` for local builds.
 
-**Refresh Token OAuth** (permanent Gmail authorization):
-- Cloud function `authCallback` now returns `refresh_token` in redirect URL alongside `access_token`
-- New cloud function endpoint `POST refreshAuthToken` — takes `refresh_token`, returns fresh `access_token`
-- `gmailApi.ts` refactored: stores token as JSON `{access_token, refresh_token}` (backward compat with old plain-string tokens)
-- `sendMessage()` retries on 401: refreshes token then re-sends
-- `getValidAccessToken()` returns from storage if not expired, refreshes via cloud function if `refresh_token` available
-- Deep link handlers (`App.tsx`) capture `refresh_token` parameter from OAuth callback
-- Fixes "expires in ~1h" problem — one-time re-auth captures `refresh_token` for permanent access
-
-**CI/CD GitHub Actions**:
-- `.github/workflows/firebase-deploy.yml` — Capacitor-adapted workflow:
-  - Triggers: push to `main` + `workflow_dispatch`
-  - Node.js 20 + JDK 17 + Android SDK
-  - Reads `ENV_FILE` secret → creates `.env`
-  - `npm run build` → `npx cap sync android` → `assembleRelease` with injected signing
-  - Deploys to Firebase App Distribution (group "testers")
-- `RELEASE_NOTES.txt` — release notes template
-- `.gitignore` — added `keystore.jks` and `firebase-key.json`
-
-### Files created
-- `.github/workflows/firebase-deploy.yml`
-- `RELEASE_NOTES.txt`
+**Gmail API exports**: `src/lib/gmailApi.ts` now exports `isGmailConnected()` and `disconnectGmail()` for use in Profile page UI.
 
 ### Files modified
-- `android/app/src/main/java/com/correlogo/app/TreadmillBleService.kt` — `FTMS_MEASUREMENT_CHAR` UUID fix
-- `src/components/WorkoutTracker.tsx` — `showFeedback` prop for Strava
-- `src/App.tsx` — deep link handler captures `refresh_token`, passes `showFeedback`
-- `functions/src/index.ts` — `authCallback` returns `refresh_token`; new `refreshAuthToken` endpoint
-- `src/lib/gmailApi.ts` — JSON token storage, refresh on 401, backward compat
-- `.gitignore` — added `keystore.jks`, `firebase-key.json`
+- `.github/workflows/firebase-deploy.yml` — `Compute version code` step, `-PciVersionCode` flag
+- `android/app/build.gradle` — dynamic `versionCode` from project property
+- `android/app/google-services.json` — second OAuth client entry for release keystore SHA-1
+- `src/lib/gmailApi.ts` — exported `isGmailConnected()`, `disconnectGmail()`
 
-### Build validation
-- `npm run build` ✅ → `npx cap sync android` ✅ → `gradlew assembleDebug` ✅
+### This session — Release Keystore + Profile fixes + In-App Update
 
-### Deploy prerequisites (blocking)
-1. **Set GitHub secrets**: `ENV_FILE` (base64 of `.env.apk`), `SERVICE_ACCOUNT_JSON`, `KEYSTORE_JKS` (base64), `KEY_ALIAS`, `KEY_PASSWORD`, `KEY_STORE_PASSWORD`, `FIREBASE_APP_ID`
-2. **Git push to `main`** or `workflow_dispatch` to trigger CI build
-3. **`firebase deploy --only functions`** for refresh endpoint
-4. **Re-authorize Gmail once** to capture `refresh_token` for permanent access
+**Gmail connect/disconnect button**: `UserProfile.tsx` now has a proper Gmail section below Health Connect that shows connection status (`Conectado`/`Desconectado`) and a button to connect/disconnect. Uses `isGmailConnected()`/`disconnectGmail()`/`startGmailOAuth()` from `gmailApi.ts`.
+
+**Profile scroll fix**: `Modal.tsx` inner container got `max-h-[calc(100vh-2rem)] overflow-y-auto` so tall content scrolls instead of overflowing.
+
+**Custom in-app update system** (replaces Firebase App Tester):
+- `ApkInstallerPlugin.kt` — new Capacitor plugin installs APK via FileProvider + install intent
+- `src/lib/capacitor/apk-installer.ts` — TS wrapper
+- `src/lib/update-checker.ts` — fetches `update-manifest.json` from GitHub Releases, compares versionCode, downloads + installs
+- `src/components/UpdatePrompt.tsx` — modal showing new version prompt with "Baixar" / "Agora não"
+- `App.tsx` — on auth, calls `CapApp.getInfo()` → `checkForUpdate()` → shows prompt if newer version found
+- `.github/workflows/firebase-deploy.yml` — after build, creates/updates GitHub Release `latest` with `app-release.apk` + `update-manifest.json`
+
+### Files created
+- `android/app/src/main/java/com/correlogo/app/ApkInstallerPlugin.kt`
+- `src/lib/capacitor/apk-installer.ts`
+- `src/lib/update-checker.ts`
+- `src/components/UpdatePrompt.tsx`
+
+### Files modified
+- `.github/workflows/firebase-deploy.yml` — versionCode bump + GitHub Release upload
+- `android/app/build.gradle` — dynamic versionCode via `ciVersionCode` property
+- `android/app/google-services.json` — second OAuth client entry for release keystore
+- `android/app/src/main/java/com/correlogo/app/MainActivity.java` — register ApkInstallerPlugin
+- `src/components/Modal.tsx` — scrollable modal content
+- `src/components/UserProfile.tsx` — Gmail connect/disconnect, scroll fix
+- `src/lib/gmailApi.ts` — exported `isGmailConnected()`, `disconnectGmail()`
+- `src/App.tsx` — update check on auth, UpdatePrompt component
+
+### Pending
+1. **Test Gmail re-authorize** — user needs to tap "Conectar Gmail" in Profile to capture `refresh_token` for permanent access
+2. **Test in-app update** — next CI build will create GitHub Release; app should prompt on next launch
 
 ---
 

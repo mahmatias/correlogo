@@ -8,8 +8,7 @@ import { ProfileData, SettingsData, BRAZILIAN_STATES, GENDER_OPTIONS } from '../
 import { getAuth, getDb } from '../lib/firebase';
 import { isHealthConnectAvailable, requestHealthPermission } from '../lib/capacitor/health-connect';
 import { isNative } from '../lib/capacitor/platform';
-import { sendWorkoutToStravaViaEmail } from '../lib/gmailApi';
-import type { TrainingSession } from '../types';
+import { isGmailConnected, disconnectGmail, startGmailOAuth } from '../lib/gmailApi';
 
 interface UserProfileProps {
   open: boolean;
@@ -44,10 +43,13 @@ export default function UserProfile({
   const [hcAvailable, setHcAvailable] = useState(false);
   const [hcGranted, setHcGranted] = useState<boolean | null>(null);
   const [hcLoading, setHcLoading] = useState(false);
+  const [gmailConnected, setGmailConnected] = useState(false);
   const [gmailLoading, setGmailLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+
+    setGmailConnected(isGmailConnected());
 
     setDisplayName(initialProfile?.displayName ?? '');
     setCity(initialProfile?.city ?? '');
@@ -307,40 +309,42 @@ export default function UserProfile({
           </button>
         )}
 
-        {!isNative() && (
-          <div className="mt-4 p-3 bg-bg-elevated rounded-lg border border-border">
-            <div className="text-sm text-text-muted mb-2">Teste Gmail OAuth (apenas web)</div>
+        <hr className="my-4 border-border" />
+        <div className="mb-3">
+          <label className="block text-sm text-text-muted mb-2">Conexões</label>
+          <div className="p-3 rounded-lg border border-border">
+            <div className="flex items-center gap-2 mb-2">
+              <Mail size={16} className={gmailConnected ? 'text-green-500' : 'text-text-muted'} />
+              <span className="text-sm text-text-primary">Gmail</span>
+              <span className={"text-xs ml-auto " + (gmailConnected ? 'text-green-500' : 'text-text-muted')}>
+                {gmailConnected ? 'Conectado' : 'Desconectado'}
+              </span>
+            </div>
             <button
               disabled={gmailLoading}
               onClick={async () => {
-                setGmailLoading(true);
-                try {
-                  const mockSession: TrainingSession = {
-                    id: 'test',
-                    planId: 'test',
-                    planName: 'Teste',
-                    date: new Date().toISOString(),
-                    mode: 'treadmill',
-                    totalDurationSeconds: 1800,
-                    totalDistanceKm: 5,
-                    avgSpeedKmh: 10,
-                    completed: true,
-                    points: [],
-                  };
-                  const result = await sendWorkoutToStravaViaEmail(mockSession);
-                  showFeedback(result.success ? 'success' : 'error', result.success ? 'E-mail enviado!' : `Erro: ${result.error}`);
-                } catch (e) {
-                  showFeedback('error', `Erro: ${e instanceof Error ? e.message : String(e)}`);
+                if (gmailConnected) {
+                  disconnectGmail();
+                  setGmailConnected(false);
+                  showFeedback('success', 'Gmail desconectado');
+                } else {
+                  setGmailLoading(true);
+                  try {
+                    await startGmailOAuth();
+                  } catch (e) {
+                    showFeedback('error', `Erro: ${e instanceof Error ? e.message : String(e)}`);
+                  }
+                  setGmailLoading(false);
                 }
-                setGmailLoading(false);
               }}
-              className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-accent text-white text-sm font-medium disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+              style={{ backgroundColor: gmailConnected ? '#dc2626' : 'var(--color-accent, #C70048)' }}
             >
               {gmailLoading ? <RefreshCw size={16} className="animate-spin" /> : <Mail size={16} />}
-              {gmailLoading ? 'Enviando…' : 'Testar envio para Strava'}
+              {gmailLoading ? 'Abrindo Google…' : gmailConnected ? 'Desconectar Gmail' : 'Conectar Gmail'}
             </button>
           </div>
-        )}
+        </div>
 
       </div>
 
