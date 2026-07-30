@@ -18,10 +18,19 @@ Full share-to-social flow added to SessionSummary:
 - `src/components/SessionSummary.tsx` — share button, share modal (style selector, stat checkboxes, preview, share button), hidden capture element
 - `CHANGELOG.md` — new entry
 
+### CI Fix — Autoupdate Breaking Bug
+**Root cause**: `gh release delete latest -y` removed the existing release, then `gh release create` failed (likely upload timeout), leaving **no** `latest` release → `update-manifest.json` returned 404 → app's `checkForUpdate()` got `!resp.ok` and returned null silently.
+
+**Fix in `b245d50`**:
+- Replaced delete+create with `gh release upload --clobber` (never delete the release)
+- Added `git tag -f latest HEAD` + `git push origin latest --force` to ensure tag points to current commit
+- `gh release create` only as fallback for first run (no prior release)
+
 ### Pending
-1. **Test in-app update** — next CI build should trigger auto-update prompt on APK (previous versionCode 114 = installed, push `cc97584` bumped CI versionCode)
-2. **Test share flow** on real device: tap Compartilhar → select stats/style → preview → share sheet
-3. **Map variant C**: SVG polyline needs validation with real GPS data (start/end markers, path fidelity)
+1. **Verify CI fix** — `b245d50` CI run should recreate `latest` release with new `update-manifest.json`
+2. **Test in-app update** — once CI completes, open app → should prompt update
+3. **Test share flow** on real device: tap Compartilhar → select stats/style → preview → share sheet
+4. **Map variant C**: SVG polyline needs validation with real GPS data (start/end markers, path fidelity)
 
 ## Session Context (2026-07-30 — FTMS UUID Fix + Refresh Token + CI/CD + Release Keystore)
 
