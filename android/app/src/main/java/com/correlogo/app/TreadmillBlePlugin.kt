@@ -23,6 +23,7 @@ import org.json.JSONArray
             strings = [
                 Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_FINE_LOCATION,
             ],
             alias = "bluetooth",
         ),
@@ -32,9 +33,11 @@ class TreadmillBlePlugin : Plugin() {
 
     companion object {
         private const val TAG = "CorreLogo-BLE-Plugin"
+        private const val BLE_PERMISSION_REQUEST_CODE = 9201
     }
 
     private var bleService: TreadmillBleService? = null
+    private var pendingBlePermCall: PluginCall? = null
 
     override fun load() {
         super.load()
@@ -98,10 +101,54 @@ class TreadmillBlePlugin : Plugin() {
 
     @PluginMethod
     fun startBleScan(call: PluginCall) {
+        Log.d(TAG, "startBleScan called, permissions check: ${checkBlePermissions()}, SDK: ${Build.VERSION.SDK_INT}")
         if (!checkBlePermissions()) {
-            call.reject("BLE permissions not granted")
+            call.reject("Permissão Bluetooth não concedida")
             return
         }
+        startScanInternal(call)
+    }
+
+    @PluginMethod
+    fun requestBlePermissions(call: PluginCall) {
+        Log.d(TAG, "requestBlePermissions called")
+        val ctx = context ?: run { call.reject("No context"); return }
+
+        val toRequest = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val scan = ContextCompat.checkSelfPermission(ctx, Manifest.permission.BLUETOOTH_SCAN)
+            val connect = ContextCompat.checkSelfPermission(ctx, Manifest.permission.BLUETOOTH_CONNECT)
+            if (scan != PackageManager.PERMISSION_GRANTED) toRequest.add(Manifest.permission.BLUETOOTH_SCAN)
+            if (connect != PackageManager.PERMISSION_GRANTED) toRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
+        } else {
+            val location = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION)
+            if (location != PackageManager.PERMISSION_GRANTED) toRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+
+        if (toRequest.isEmpty()) {
+            val ret = JSObject().apply { put("bluetooth", "granted") }
+            call.resolve(ret)
+            return
+        }
+
+        pendingBlePermCall = call
+        pluginRequestPermissions(toRequest.toTypedArray(), BLE_PERMISSION_REQUEST_CODE)
+    }
+
+    @Suppress("DEPRECATION")
+    override fun handleRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.handleRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != BLE_PERMISSION_REQUEST_CODE) return
+        val call = pendingBlePermCall ?: return
+        pendingBlePermCall = null
+
+        val ret = JSObject().apply {
+            put("bluetooth", if (checkBlePermissions()) "granted" else "denied")
+        }
+        call.resolve(ret)
+    }
+
+    private fun startScanInternal(call: PluginCall) {
         val service = ensureService() ?: run {
             call.reject("Service not initialized")
             return
@@ -185,7 +232,9 @@ class TreadmillBlePlugin : Plugin() {
             val scan = ContextCompat.checkSelfPermission(ctx, Manifest.permission.BLUETOOTH_SCAN)
             val connect = ContextCompat.checkSelfPermission(ctx, Manifest.permission.BLUETOOTH_CONNECT)
             return scan == PackageManager.PERMISSION_GRANTED && connect == PackageManager.PERMISSION_GRANTED
+        } else {
+            val location = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION)
+            return location == PackageManager.PERMISSION_GRANTED
         }
-        return true
     }
 }

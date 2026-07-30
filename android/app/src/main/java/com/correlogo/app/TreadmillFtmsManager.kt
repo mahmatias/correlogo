@@ -27,7 +27,7 @@ class TreadmillFtmsManager {
 
         var instantSpeedKmh = 0.0
         if (flags and 0x0001 != 0) {
-            instantSpeedKmh = buf.getShort().toInt() and 0xFFFF / 100.0
+            instantSpeedKmh = (buf.getShort().toInt() and 0xFFFF).toDouble() / 100.0
         }
         val totalDistanceMeters: Long? = if (flags and 0x0002 != 0) {
             buf.getInt().toLong() and 0xFFFFFFFFL

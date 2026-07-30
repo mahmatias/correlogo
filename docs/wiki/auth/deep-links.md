@@ -26,6 +26,7 @@ com.correlogo.app://oauth/callback?token=ya29.xxx&state=c3_xxx
 | Param | Descrição |
 |-------|-----------|
 | `token` | Access token OAuth |
+| `refresh_token` | Refresh token (opcional, 1ª auth com `prompt=consent`) |
 | `state` | Prefixo identifica fluxo: `c3_` Calendar, `gm_` Gmail nativo |
 | `error` | Mensagem de erro se token exchange falhou |
 
@@ -134,6 +135,12 @@ useEffect(() => {
 | `gm_web_` | Web | Gmail/Strava | Web callback handler |
 | (none) | Web | Calendar | Web callback handler |
 
+### Deep Link Exemplo (com refresh_token)
+
+```
+com.correlogo.app://oauth/callback?token=ya29.xxx&refresh_token=1//0xxx&state=gm_abc123
+```
+
 ---
 
 ## Cloud Function Routing
@@ -183,4 +190,4 @@ Handler loga warning + limpa URL.
 
 ---
 
-*Última revisão: 2026-07-29*
+*Última revisão: 2026-07-30*

@@ -1,5 +1,48 @@
 # Roadmap - Changelog
 
+## v2.3 (versionCode 20) — 2026-07-30
+**CI/CD GitHub Actions**
+
+### Added
+- `.github/workflows/firebase-deploy.yml` — Capacitor-adapted CI/CD:
+  - `workflow_dispatch` + push to `main`
+  - Node.js 20 + JDK 17 + Android SDK
+  - Cria `.env` from secret `ENV_FILE` (base64-decoded)
+  - `npm ci` → `npm run build` → `npx cap sync android`
+  - `assembleRelease` com signing injetado via `-Pandroid.injected.signing.*`
+  - Deploy Firebase App Distribution (grupo "testers")
+  - Cleanup de `keystore.jks` e `firebase-key.json` (always)
+- `RELEASE_NOTES.txt` — template
+- `.gitignore` — `keystore.jks`, `firebase-key.json`
+
+### Build
+- `npm run build` ✅
+
+---
+
+## v2.2 (versionCode 19) — 2026-07-30
+**Refresh Token OAuth + FTMS UUID Fix + Strava Feedback**
+
+### Added: Refresh Token OAuth
+- Cloud Function `authCallback` retorna `refresh_token` no redirect
+- Nova CF `POST refreshAuthToken` — troca `refresh_token` por `access_token`
+- `gmailApi.ts`: token armazenado como `{access_token, refresh_token}` (compatível com token string antigo)
+- `sendMessage()` retry automático: 401 → refresh → retry
+- `getValidAccessToken()` faz refresh se `refresh_token` existir
+- Deep link handlers capturam `refresh_token`
+
+### Fixed: FTMS UUID
+- `TreadmillBleService.kt:23` — UUID `FTMS_MEASUREMENT_CHAR` corrigido de `00002a63` (Cycling Power) para `00002acd` (Treadmill Data)
+
+### Fixed: Strava feedback
+- `WorkoutTracker.tsx` — nova prop `showFeedback` para toast de sucesso/erro
+- `App.tsx` propaga `showFeedback` ao renderizar
+
+### Build
+- `npm run build` ✅ → `npx cap sync android` ✅ → `gradlew assembleDebug` ✅
+
+---
+
 ## v2.2 (versionCode 19) — 2026-07-29
 **Strava via Gmail API + Health Connect Fixes**
 
@@ -446,4 +489,4 @@ Samsung Health → **Android Health Connect** (`androidx.health.connect:connect-
 
 ---
 
-*Última atualização: 2026-07-29 (v2.2)*
+*Última atualização: 2026-07-30 (v2.3)*

@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { User, updateProfile, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
+import { ShieldCheck, ShieldOff, RefreshCw, Mail } from 'lucide-react';
 import Modal from './Modal';
 import Button from './Button';
 import { ProfileData, SettingsData, BRAZILIAN_STATES, GENDER_OPTIONS } from '../types';
 import { getAuth, getDb } from '../lib/firebase';
+import { isHealthConnectAvailable, requestHealthPermission } from '../lib/capacitor/health-connect';
+import { isNative } from '../lib/capacitor/platform';
+import { sendWorkoutToStravaViaEmail } from '../lib/gmailApi';
+import type { TrainingSession } from '../types';
 
 interface UserProfileProps {
   open: boolean;
@@ -36,6 +41,10 @@ export default function UserProfile({
   const [distanceUnit, setDistanceUnit] = useState<'km' | 'mi'>('km');
   const [paceUnit, setPaceUnit] = useState<'per_km' | 'per_mi'>('per_km');
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lb'>('kg');
+  const [hcAvailable, setHcAvailable] = useState(false);
+  const [hcGranted, setHcGranted] = useState<boolean | null>(null);
+  const [hcLoading, setHcLoading] = useState(false);
+  const [gmailLoading, setGmailLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -70,6 +79,8 @@ export default function UserProfile({
 
     setDistanceUnit(initialSettings?.distanceUnit ?? 'km');
     setPaceUnit(initialSettings?.paceUnit ?? 'per_km');
+
+    isHealthConnectAvailable().then(setHcAvailable);
   }, [open]);
 
   const handleWeightUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -246,6 +257,91 @@ export default function UserProfile({
             <option value="lb">lb</option>
           </select>
         </div>
+      </div>
+
+      <hr className="my-4 border-border" />
+      <div className="mb-3">
+        <label className="block text-sm text-text-muted mb-2">Health Connect</label>
+        {hcAvailable ? (
+          <div className="flex items-center gap-2 text-sm text-green-500 mb-2">
+            <ShieldCheck size={16} />
+            <span>Disponível no dispositivo</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-text-muted mb-2">
+            <ShieldOff size={16} />
+            <span>Não disponível</span>
+          </div>
+        )}
+        {hcGranted === true && (
+          <div className="text-sm text-green-500 mb-2">✓ Autorizado</div>
+        )}
+        {hcGranted === false && (
+          <div className="text-sm text-danger mb-2">Permissão negada</div>
+        )}
+        {hcGranted === false && (
+          <div className="text-xs text-text-muted mb-3 p-2 bg-bg-elevated rounded-lg leading-relaxed">
+            Se a tela de permissão não aparecer, autorize manualmente:
+            <br />1. Abra o app <strong>Health Connect</strong>
+            <br />2. Toque no ⋮ ou ⚙️ (engrenagem)
+            <br />3. <strong>Permissões de apps</strong>
+            <br />4. Encontre <strong>Corre Logo</strong>
+            <br />5. Ative as permissões de exercício
+</div>
+          )}
+        {hcAvailable && (
+          <button
+            disabled={hcLoading}
+            onClick={async () => {
+              setHcLoading(true);
+              const granted = await requestHealthPermission();
+              setHcGranted(granted);
+              setHcLoading(false);
+              showFeedback(granted ? 'success' : 'error',
+                granted ? 'Health Connect autorizado!' : 'Permissão negada. Siga as instruções acima para autorizar manualmente.');
+            }}
+            className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-accent text-white text-sm font-medium disabled:opacity-50"
+          >
+            {hcLoading ? <RefreshCw size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+            {hcLoading ? 'Aguardando…' : 'Autorizar Health Connect'}
+          </button>
+        )}
+
+        {!isNative() && (
+          <div className="mt-4 p-3 bg-bg-elevated rounded-lg border border-border">
+            <div className="text-sm text-text-muted mb-2">Teste Gmail OAuth (apenas web)</div>
+            <button
+              disabled={gmailLoading}
+              onClick={async () => {
+                setGmailLoading(true);
+                try {
+                  const mockSession: TrainingSession = {
+                    id: 'test',
+                    planId: 'test',
+                    planName: 'Teste',
+                    date: new Date().toISOString(),
+                    mode: 'treadmill',
+                    totalDurationSeconds: 1800,
+                    totalDistanceKm: 5,
+                    avgSpeedKmh: 10,
+                    completed: true,
+                    points: [],
+                  };
+                  const result = await sendWorkoutToStravaViaEmail(mockSession);
+                  showFeedback(result.success ? 'success' : 'error', result.success ? 'E-mail enviado!' : `Erro: ${result.error}`);
+                } catch (e) {
+                  showFeedback('error', `Erro: ${e instanceof Error ? e.message : String(e)}`);
+                }
+                setGmailLoading(false);
+              }}
+              className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-accent text-white text-sm font-medium disabled:opacity-50"
+            >
+              {gmailLoading ? <RefreshCw size={16} className="animate-spin" /> : <Mail size={16} />}
+              {gmailLoading ? 'Enviando…' : 'Testar envio para Strava'}
+            </button>
+          </div>
+        )}
+
       </div>
 
       <Button variant="primary" className="w-full mt-4" onClick={handleSave}>Salvar</Button>

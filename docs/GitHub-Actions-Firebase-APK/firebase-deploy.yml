@@ -1,0 +1,73 @@
+name: Build and Deploy to Firebase
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Permite rodar manualmente
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Restore keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+          ls -lah keystore.jks
+
+      - name: Build Release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease -Pandroid.injected.signing.store.file=keystore.jks \
+            -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Restore Firebase credentials
+        run: echo "${{ secrets.FIREBASE_CREDENTIALS }}" > firebase-key.json
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase App Distribution
+        run: |
+          firebase appdistribution:distribute \
+            app/build/outputs/apk/release/app-release.apk \
+            --app="${{ secrets.FIREBASE_APP_ID }}" \
+            --release-notes-file=RELEASE_NOTES.txt \
+            --groups="testers" \
+            --service-account-file=firebase-key.json
+
+      - name: Cleanup sensitive files
+        if: always()
+        run: |
+          rm -f keystore.jks firebase-key.json
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "✅ Deploy realizado com sucesso!"
+          echo "Verifique em: https://console.firebase.google.com/"
+
+      - name: Notify Failure
+        if: failure()
+        run: |
+          echo "❌ Deploy falhou"
+          echo "Verifique os logs acima para mais detalhes"

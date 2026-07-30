@@ -1,23 +1,331 @@
 # Handoff
 
-## Session Context (2026-07-29 — 4 Bug Fixes + Samsung Health Plan)
+## Session Context (2026-07-30 — FTMS UUID Fix + Refresh Token OAuth + CI/CD)
 
-### O que foi feito
+### What changed
+**BLE FTMS fix**: `FTMS_MEASUREMENT_CHAR` UUID changed from `00002a63` (Cycling Power Control Point) to `00002acd` (Treadmill Data). Was causing `getCharacteristic()` to return null.
 
-#### Bug Fixes (4)
-1. **Timer durante countdown:** JS `setInterval` conflitava com native timer `Handler`. JS timer retorna early em modo esteira+nativo — native timer é única fonte da verdade
-2. **Distância pulando na troca de passo:** `distRef.current = elapsed * dPerSec` recalculava do zero. Fix: acúmulo incremental via `prevElapsedRef`
-3. **TTS metade não disparava:** closure estale do `lapSeconds`. Fix: usar `lapElapsed` local + refs
-4. **Volume música não restaurava:** `setWillPauseWhenDucked(true)` contradizia `MAY_DUCK`. Fix: removido do `AudioFocusPlugin.kt`
+**Strava auto-save feedback**: `showFeedback` prop added to `WorkoutTracker.tsx`, passed from `App.tsx`. Auto-save now shows toast on Strava success/error instead of fire-and-forget.
 
-#### Samsung Health
-- Spec aprovada: `docs/superpowers/specs/2026-07-29-samsung-health-integration-design.md`
-- Plano de implementação: `docs/superpowers/plans/2026-07-29-samsung-health-sync.md`
-- Pre-flight scan: 4 gaps corrigidos (App.tsx wiring, syncStatus persistence, Kotlin API fire-and-forget, task ordering)
-- Build + APK: `Corre Logo v1.1.apk` gerado com sucesso
+**Refresh Token OAuth** (permanent Gmail authorization):
+- Cloud function `authCallback` now returns `refresh_token` in redirect URL alongside `access_token`
+- New cloud function endpoint `POST refreshAuthToken` — takes `refresh_token`, returns fresh `access_token`
+- `gmailApi.ts` refactored: stores token as JSON `{access_token, refresh_token}` (backward compat with old plain-string tokens)
+- `sendMessage()` retries on 401: refreshes token then re-sends
+- `getValidAccessToken()` returns from storage if not expired, refreshes via cloud function if `refresh_token` available
+- Deep link handlers (`App.tsx`) capture `refresh_token` parameter from OAuth callback
+- Fixes "expires in ~1h" problem — one-time re-auth captures `refresh_token` for permanent access
+
+**CI/CD GitHub Actions**:
+- `.github/workflows/firebase-deploy.yml` — Capacitor-adapted workflow:
+  - Triggers: push to `main` + `workflow_dispatch`
+  - Node.js 20 + JDK 17 + Android SDK
+  - Reads `ENV_FILE` secret → creates `.env`
+  - `npm run build` → `npx cap sync android` → `assembleRelease` with injected signing
+  - Deploys to Firebase App Distribution (group "testers")
+- `RELEASE_NOTES.txt` — release notes template
+- `.gitignore` — added `keystore.jks` and `firebase-key.json`
+
+### Files created
+- `.github/workflows/firebase-deploy.yml`
+- `RELEASE_NOTES.txt`
+
+### Files modified
+- `android/app/src/main/java/com/correlogo/app/TreadmillBleService.kt` — `FTMS_MEASUREMENT_CHAR` UUID fix
+- `src/components/WorkoutTracker.tsx` — `showFeedback` prop for Strava
+- `src/App.tsx` — deep link handler captures `refresh_token`, passes `showFeedback`
+- `functions/src/index.ts` — `authCallback` returns `refresh_token`; new `refreshAuthToken` endpoint
+- `src/lib/gmailApi.ts` — JSON token storage, refresh on 401, backward compat
+- `.gitignore` — added `keystore.jks`, `firebase-key.json`
+
+### Build validation
+- `npm run build` ✅ → `npx cap sync android` ✅ → `gradlew assembleDebug` ✅
+
+### Deploy prerequisites (blocking)
+1. **Set GitHub secrets**: `ENV_FILE` (base64 of `.env.apk`), `SERVICE_ACCOUNT_JSON`, `KEYSTORE_JKS` (base64), `KEY_ALIAS`, `KEY_PASSWORD`, `KEY_STORE_PASSWORD`, `FIREBASE_APP_ID`
+2. **Git push to `main`** or `workflow_dispatch` to trigger CI build
+3. **`firebase deploy --only functions`** for refresh endpoint
+4. **Re-authorize Gmail once** to capture `refresh_token` for permanent access
+
+---
+
+## Session Context (2026-07-29i — Bluetooth FTMS Treadmill Control)
+
+### What changed
+Complete Bluetooth LE FTMS (Fitness Machine Service) integration for Matrix T600x treadmill control. Full bidirectional: read telemetry + write speed/incline commands, with auto-adjust based on workout plan steps.
+
+### New files
+
+**Native Kotlin:**
+- `android/app/.../MatrixFtmsManager.kt` — Pure FTMS encode/decode (opcodes, bitmask parsing, UINT24/SINT16)
+- `android/app/.../TreadmillBleService.kt` — GATT state machine (9 sealed states), scan, connect, auto-transition via `onCharacteristicWrite`/`onDescriptorWrite` callbacks, keep-alive coroutine (3s)
+- `android/app/.../TreadmillBlePlugin.kt` — Capacitor plugin bridge (scan, connect, setSpeed, setIncline, requestControl, startWorkout, events for telemetry/state/errors)
+
+**TypeScript:**
+- `src/lib/capacitor/treadmill-ble.ts` — JS interface + wrapper functions
+- `src/lib/mock-treadmill-engine.ts` — MockTreadmillEngine for web dev (simulates BLE events, manual speed/incline controls)
+- `src/lib/treadmill-connection.ts` — `useTreadmill()` hook (abstracts native + mock)
+
+**UI:**
+- `src/components/TreadmillPanel.tsx` — Scan/connect UI, live telemetry display, speed/incline ± controls, target indicator
+
+### Modified files
+- `MainActivity.java` — registered `TreadmillBlePlugin`
+- `AndroidManifest.xml` — added BLE permissions + `<uses-feature android:hardware.bluetooth_le>`
+- `WorkoutTracker.tsx` — integrates `useTreadmill()`, syncs speed to BLE on step change (`setStepSpeed`) and on manual adjustment (`startAdjusting`), renders `TreadmillPanel` in treadmill mode
+
+### Architecture notes
+- BLE ops require WRITE_TYPE_DEFAULT (write with response); WRITE_TYPE_NO_RESPONSE fails silently on Matrix consoles
+- Keep-alive at 3s prevents Matrix 5-10s safety timeout
+- Telemetry parsed at 1Hz from Treadmill Data notification (0x2ACD) with bitmask flags
+- Mock engine for web: `createMockEngine()` simulates full connection sequence (CONNECTING → ACTIVE_SESSION_CONTROLLED) with manual speed/incline controls
+- Auto-adjust: `useEffect` watches `currentSpeed` + `treadmill.connected`, sends SetSpeed on change; `setStepSpeed` sends target speed on step transition
+
+### Testing
+- Web mock: start workout in treadmill mode → "Conectar esteira" button → mock connects in ~2s → manual speed/incline controls work
+- Real device: scan filters for FTMS service UUID (0x1826), connects to Matrix T600x, request control handshake, speed/incline commands, 3s keep-alive
+
+---
+
+## Session Context (2026-07-29h — Fix web TDZ + deploy)
+
+### What changed
+Web interface was broken by `ReferenceError: Cannot access 'ei' before initialization` — a Temporal Dead Zone bug introduced by uncommitted changes.
+
+### Root cause
+The new `useEffect` for `backActionStack` (LIFO back button stack) referenced `planToUncomplete` in its dependency array at line ~134, but `const [planToUncomplete, setPlanToUncomplete]` was declared at line ~639. In JavaScript, `const` is in TDZ until its declaration is reached. The minifier (esbuild) mangled `planToUncomplete` to `ei`, producing the error.
+
+### Fix
+- Moved `useState(planToUncomplete)` from line ~639 to line 94 (alongside other modal state vars)
+- Cleaned duplicate `showBackgroundPrompt` entries (was 3x in body + 2x in deps array)
+- Built + deployed to Firebase Hosting (`correlogo.web.app`)
+
+### Impact
+Web interface restored. APK unaffected.
+
+---
+
+## Session Context (2026-07-29g — Strava via Gmail API v2.2)
+
+### What changed
+Strava upload channel implemented: email with TCX (treadmill) or GPX (outdoor) sent to `stravaupload@gotoes.org` via Gmail API (`gmail.send` scope). Reuses existing `generateTCX`/`generateGPX` from `exportUtils.ts`.
+
+### Files created
+- **`src/lib/gmailApi.ts`** — Full Gmail OAuth + send service:
+  - `startGmailOAuth()` — opens Google consent via `Browser.open({ url })` with `gm_` state prefix (same pattern as Calendar)
+  - `listenForGmailCallback()` — registers `appUrlOpen` listener, differentiates `gm_` prefix from `c3_` (Calendar)
+  - `getStoredGmailToken()` / `clearGmailToken()` — localStorage key `gmail_strava_token`
+  - `sendWorkoutToStravaViaEmail(session)` — builds MIME `multipart/mixed` email with base64-encoded TCX (treadmill) or GPX (outdoor) attachment, POSTs to `gmail.googleapis.com/gmail/v1/users/me/messages/send`
+  - Token expiry: on 401, clears token and returns error "Token expirado. Reconecte o Gmail."
+
+### Files modified
+- **`src/App.tsx`** — Deep link handler bifurcated:
+  - State with `gm_` prefix → stores as `gmail_strava_token`, shows toast "Gmail conectado!", does NOT open Calendar modal
+  - State without `gm_` prefix → existing Calendar flow unchanged
+  - `onExportSession` handler: after HC export, also calls `sendWorkoutToStravaViaEmail(session)` and shows a second toast on success/error
+- **`src/components/WorkoutTracker.tsx`** — `handleSaveAndSync`: after HC sync, constructs a `TrainingSession` from refs and calls `sendWorkoutToStravaViaEmail()` fire-and-forget (logs error, doesn't block UI)
+- **`android/app/build.gradle`** — versionCode 18→19, versionName "2.1"→"2.2"
+
+### OAuth Architecture
+- Same backend flow as Calendar: `Browser.open()` → Google consent → server exchanges code → redirects to `com.correlogo.app://oauth?token=...&state=gm_xxx`
+- `state` prefix `gm_` vs `c3_` is the ONLY distinction — both use the same server callback
+- No new cloud function or server endpoint needed
+- Token stored separately from Calendar token (different localStorage key, different scope)
+
+### Build validation
+- `npm run build` ✅ → `npx cap sync android` ✅ → `gradlew assembleDebug` ✅
+- APK: `app-debug.apk` (versionCode 19, versionName "2.2")
+
+### Next steps for user
+1. **Install v2.2 APK** and test on device
+2. **First Strava send**: app will redirect to Google OAuth consent → authorize `gmail.send` → return to app → email sent
+3. **Verify** treadmill workout appears on Strava (TCX via email)
+4. **Verify** outdoor workout appears on Strava (GPX via email, when outdoor HC export works)
+5. **Fix outdoor route HC export** — still failing. Check `adb logcat` for the specific error (route fallback should insert without route and log error)
+
+### Relevant files
+- `src/lib/gmailApi.ts` — new, main Gmail/Strava integration
+- `src/App.tsx` — deep link handler lines 329-360, onExportSession lines 915-943
+- `src/components/WorkoutTracker.tsx` — handleSaveAndSync lines 681-706
+- `src/lib/exportUtils.ts` — TCX/GPX generators (unchanged)
+- `android/app/src/main/java/com/correlogo/app/HealthConnectPlugin.kt` — route fallback
+
+---
+
+## Session Context (2026-07-29f — Proper ActivityResultLauncher Permission Flow v2.0)
+
+### Diagnosis (cumulative)
+All previous attempts (v1.6 through v1.9) shared the same root flaw:
+- `requestHcPermissions()` called `startActivity(intent)` and immediately resolved `granted=true` without waiting for the user
+- The HC permission screen opened but the app had no way to know whether the user actually granted `WRITE_EXERCISE`
+- When `exportWorkout()` ran, it found permissions not granted and failed — user saw "Falha ao sincronizar"
+- v1.7 added `<queries>` (package visibility), v1.8 added `getGrantedPermissions()` check, v1.9 added `setPackage` — all on top of the broken `startActivity` foundation
+
+### Fix
+- **Registered `ActivityResultLauncher`** via `ComponentActivity.registerForActivityResult()` in `HealthConnectPlugin.load()` — this is the only correct way to get the permission result
+- `load()` is called during Capacitor bridge creation, which runs during `BridgeActivity.onCreate()`, so the activity's lifecycle is CREATED (not yet STARTED) — this satisfies `registerForActivityResult`'s requirement of being called before STARTED
+- The launcher's callback receives the actual set of granted permissions from the Health Connect permission screen
+- `pendingPermCall` stores the PluginCall reference; the callback resolves it with the real `granted` boolean
+- All 5 `startActivity()` fallback attempts removed — they were all pseudo-fixes that never waited for user input
+- `exportWorkout()` now has a clean rejection path: if `WRITE_EXERCISE` not granted, rejects with message guiding user to Profile > Health Connect
+
+### Files modified
+- `android/app/src/main/java/com/correlogo/app/HealthConnectPlugin.kt` — full rewrite:
+  - Added `override fun load()` with `registerForActivityResult`
+  - Added `permLauncher: ActivityResultLauncher<Set<String>>?`
+  - `requestHcPermissions()` uses `launcher.launch(permissions)`, resolves from callback
+  - Removed `permContract`, `tryOpenIntent()`, all 5 intent attempts, imports for `Intent`/`Uri`
+  - `exportWorkout()`: removed broken re-launch attempt on permission check failure
+- `android/app/build.gradle` — versionCode 10→11, versionName "1.1"→"2.0"
+
+### User-facing flow
+1. User taps "Autorizar Health Connect" in Profile
+2. `requestHealthPermission()` → `requestHcPermissions()` → `permLauncher.launch(permissions)`
+3. Health Connect permission screen opens (not main HC app) — user sees Corre Logo and toggles WRITE_EXERCISE
+4. When user returns, callback fires with `grantedPerms: Set<String>`
+5. JS receives `granted: true/false` — UI updates accordingly
+6. To export: user completes workout or taps retry in SessionHistory
+7. `exportWorkout()` calls `getGrantedPermissions()` — if granted, writes `ExerciseSessionRecord` + `DistanceRecord` + `ExerciseRoute`
+8. If not granted: toast tells user to check permissions → Profile → re-authorize → retry
+
+### Build validation
+- `npm run build` ✅ → `npx cap sync android` ✅ → `gradlew assembleDebug` ✅
+- APK: `Corre Logo v2.0.apk` (versionCode 11)
+
+### Next steps
+1. **Install v2.0 APK** on user's device and test the full flow:
+   - Tap "Autorizar Health Connect" → HC permission screen should open with WRITE_EXERCISE toggle
+   - Grant permission → UI shows "Autorizado"
+   - Complete a workout → export → verify in Health Connect app → check Strava/GymRats
+2. If permission screen still doesn't open: check `adb logcat -s CorreLogo-HC` for any errors
+3. If permission screen opens but WRITE_EXERCISE doesn't appear: check that `android:healthPermissions` attribute is in `AndroidManifest.xml` `<uses-permission>` — already present
+4. If in-app test works: also test export on a non-treadmill workout with GPS route to verify `ExerciseRoute` writing
+
+---
+
+## Session Context (2026-07-29e — Permission Check Before Export)
+
+### Diagnosis
+User reports:
+- "Autorizar Health Connect" now opens HC app ✅
+- ✅ shows in UserProfile ✅
+- Completion modal shows **nothing** about sync status
+- SessionHistory shows status "pendente", retry shows "Falha ao sincronizar"
+
+Root cause: `requestHcPermissions()` opens the HC app but we immediately resolve with `granted: true` without waiting for actual user action. The user may not have actually granted `WRITE_EXERCISE`. When `exportWorkout()` calls `insertRecords()`, it throws SecurityException silently.
+
+### Fix
+- Added `c.permissionController.getGrantedPermissions()` check before `insertRecords()` in `exportWorkout()`
+- If `WRITE_EXERCISE` not granted: re-open HC permission screen via `permContract.createIntent()` + reject with clear message
+- Updated toast message: "Falha ao sincronizar. Verifique as permissões do Health Connect e tente novamente."
+
+### Still broken
+- The `useEffect` in WorkoutTracker that triggers export on `isWorkoutCompleted` shows no sync status — user sees nothing in the completion modal. This is likely because `syncStatus` starts as `'idle'` and the export fails before the modal reads the updated status, OR the component re-renders without the status block becoming visible.
+
+### Build validation
+- `npm run build` ✅, `gradlew assembleDebug` ✅
+- APK: `Corre Logo v1.8.apk` (8.4 MB)
+
+---
+
+## Session Context (2026-07-29d — Multi-Attempt Permission Intent + Package Visibility)
+
+### What changed
+User reports v1.6 opens Play Store instead of Health Connect permission screen. Root cause: on Android 11+, package visibility restrictions prevent our app from resolving Health Connect intents. Fixes:
+- **AndroidManifest.xml**: added `<queries>` block declaring `com.google.android.apps.healthdata` package + `health-connect://` scheme
+- **5-attempt fallback chain** in `requestHcPermissions()`:
+  1. `PermissionController.createIntent()` — official Health Connect permission screen
+  2. Direct deep link `health-connect://permissions` via `Intent(ACTION_VIEW)`
+  3. `getLaunchIntentForPackage("com.google.android.apps.healthdata")` — open Health Connect app main screen
+  4. Play Store (`market://details?id=com.google.android.apps.healthdata`)
+  5. App settings (last resort)
+- New `tryOpenIntent()` helper — clean try/catch per attempt with logging
+
+### Files modified
+- `android/app/src/main/AndroidManifest.xml` — added `<queries>` block
+- `android/app/src/main/java/com/correlogo/app/HealthConnectPlugin.kt` — added `tryOpenIntent()`, 5-attempt flow, `Uri` import
+
+### Build validation
+- `npm run build` ✅
+- `gradlew assembleDebug` ✅
+- Merged manifest confirmed: `<queries>` with `com.google.android.apps.healthdata` + `health-connect` scheme present
+- APK: `Corre Logo v1.7.apk` (8.4 MB)
+
+### Pendentes (unchanged)
+- Testar botão "Autorizar Health Connect" no v1.7
+- Botão Nav Back (modal)
+- Foto do perfil
+- Dados PII
+
+---
+
+## Session Context (2026-07-29c — Permission Flow Refactoring)
+
+### What changed
+Removed `startActivityForResult` + `handleOnActivityResult` pattern from `HealthConnectPlugin.kt`. Capacitor 7 uses `ActivityResultLauncher` internally, making `handleOnActivityResult` unreliable. New approach:
+- `requestHcPermissions()` calls `activity.startActivity(intent)` directly — no result waiting
+- Resolves `call` immediately with `{ granted: true }` (assumes user will see the permission screen)
+- Fallback chain: Health Connect permission screen → Play Store → app settings
+- `handleOnActivityResult()` and `pendingPermCall` removed as dead code
+- `exportWorkout()` fails with `Permission denied` if user didn't grant — handled by existing catch block, user sees "sync failed" and can retry authorization
+
+### Files modified
+- `android/app/src/main/java/com/correlogo/app/HealthConnectPlugin.kt` — replaced `startActivityForResult` with `activity.startActivity`, removed `permContract` constants, removed `handleOnActivityResult`, removed `pendingPermCall`
+
+### Build validation
+- `npm run build` ✅
+- `gradlew assembleDebug` ✅
+- APK: `Corre Logo v1.6.apk` (8.4 MB)
+
+### Pendentes (unchanged)
+- Permission intent still untested on user's device — may need further debugging
+- Botão Nav Back (modal)
+- Foto do perfil
+- Dados PII
+
+---
+
+## Session Context (2026-07-29b — Health Connect Pivot)
+
+### What changed
+Health Connect (Android's native health platform, `androidx.health.connect:connect-client:1.1.0`) replaced the Samsung Health SDK. This was a strategic pivot after finding that both **Strava** and **GymRats** natively support Health Connect — writing once to Health Connect covers both targets. Health Connect is free, requires no partnership, is built into Android 14+ (installable on older devices via Google Play), and uses the official Jetpack API.
+
+### Files created
+- `android/app/src/main/java/com/correlogo/app/HealthConnectPlugin.kt` — Capacitor plugin wrapping `HealthConnectClient`, `PermissionController`, `ExerciseSessionRecord`, `DistanceRecord`, `ExerciseRoute`. Methods: `isAvailable()`, `requestHcPermissions()`, `exportWorkout()`
+- `src/lib/capacitor/health-connect.ts` — JS wrapper exporting `isHealthConnectAvailable()`, `requestHealthPermission()`, `exportWorkoutToHealthConnect()`
+
+### Files deleted
+- `android/app/src/main/java/com/correlogo/app/SamsungHealthPlugin.kt` — replaced by HealthConnectPlugin
+- `src/lib/capacitor/samsung-health.ts` — replaced by health-connect.ts
+
+### Files modified
+- `android/app/build.gradle` — added `androidx.health.connect:connect-client:1.1.0` + `kotlinx-coroutines-android:1.8.1`, removed Samsung AAR fileTree comment
+- `android/app/src/main/AndroidManifest.xml` — removed Samsung Health meta-data + `WRITE_USE_APP_SURVEY` permission; added `android.permission.health.READ_EXERCISE` + `WRITE_EXERCISE`
+- `src/components/WorkoutTracker.tsx` — import swapped to health-connect, same `onSyncResult` flow
+- `src/App.tsx` — import + function call + feedback message (`"Treino sincronizado com Health Connect!"`)
+- `android/variables.gradle` — `compileSdkVersion=36`, `targetSdkVersion=36`, `minSdkVersion=26` (required by Health Connect)
+- `android/build.gradle` — AGP `8.7.2` → `8.9.1` (required by connect-client 1.1.0)
+
+### What Health Connect writes
+- **ExerciseSessionRecord** with `EXERCISE_TYPE_RUNNING` (outdoor) or `EXERCISE_TYPE_RUNNING_TREADMILL`, `Metadata.unknownRecordingMethod()`, title "Corre Logo"
+- **DistanceRecord** with `Length.kilometers(distanceKm)` — written alongside the session
+- **ExerciseRoute** with `ExerciseRoute.Location` per GPS point (lat, lng, altitude as `Length.meters`, timestamp as `Instant`) — only for outdoor workouts with routes
+- **Permissions requested**: `WRITE_EXERCISE` on `ExerciseSessionRecord` + `DistanceRecord`
+
+### Key API corrections discovered during build
+- `ExerciseSessionRecord` uses `Int` exercise type constants (`EXERCISE_TYPE_RUNNING`, etc.), not a sealed class
+- `Distance` is `Length` (`Length.kilometers()`, `Length.meters()`)
+- `Altitude` is also `Length.meters()`
+- `Route` is `ExerciseRoute` (`ExerciseRoute.Location` for points)
+- `ExerciseSessionRecord` takes 6 mandatory params: `(startTime, startZoneOffset, endTime, endZoneOffset, metadata, exerciseType)`
+- Constructor overload accepting `ExerciseRoute` takes 11 params (adds title, notes, segments, laps, route)
+- Permission contract: `PermissionController.createRequestPermissionResultContract()` (not `HealthPermissionsRequestAppContract` — it's internal)
+
+### Build validation
+- `npm run build` ✅ (web)
+- `gradlew assembleDebug` ✅ (APK, with deprecation warnings on pre-existing patterns only)
 
 ### Pendentes
-- Executar SDD Samsung Health (Tasks 1-6 do plano)
 - Botão Nav Back (modal)
 - Foto do perfil
 - Dados PII

@@ -61,6 +61,7 @@ class PluginName : Plugin() {
 | `TrackingPlugin` | `startTracking`, `stopTracking`, `getStepCount`, `openAppSettings`, `startNativeTimer`, `pauseNativeTimer`, `resumeNativeTimer`, `stopNativeTimer`, `startKeepAlive`, `stopKeepAlive` | `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `ACCESS_BACKGROUND_LOCATION`, `ACTIVITY_RECOGNITION` | `locationUpdate`, `stepUpdate`, `timerTick` |
 | `PermissionsPlugin` | `requestAllPermissions` | `POST_NOTIFICATIONS`, `ACTIVITY_RECOGNITION` | — |
 | `AudioFocusPlugin` | `requestAudioFocus`, `abandonFocus`, `abandonAudioFocusOnPause` | — | — |
+| `TreadmillBlePlugin` | `startBleScan`, `stopBleScan`, `connectToDevice`, `disconnectDevice`, `requestControl`, `setSpeed`, `setIncline`, `startWorkout`, `requestBlePermissions` | `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT` (alias `bluetooth`) | `bleDeviceFound`, `bleStateChange`, `bleTelemetry`, `bleError` |
 | `FirebaseAuth` | `signInWithGoogle`, `signOut`, `getCurrentUser` | — | `authStateChange` |
 
 ---
@@ -230,4 +231,41 @@ dependencies {
 
 ---
 
-*Última revisão: 2026-07-29*
+### TreadmillBlePlugin (Kotlin)
+
+```kotlin
+// android/app/.../TreadmillBlePlugin.kt
+@CapacitorPlugin(name = "TreadmillBle", permissions = [
+    Permission(alias = "bluetooth", strings = ["BLUETOOTH_SCAN", "BLUETOOTH_CONNECT"])
+])
+class TreadmillBlePlugin : Plugin() { ... }
+```
+
+### TreadmillBleService (GATT State Machine)
+
+| State | Transition |
+|-------|-----------|
+| `DISCONNECTED` → scanning | `startBleScan` |
+| Scanning → resolving | Device found with FTMS UUID (0x1826) |
+| `RESOLVING` → `CONNECTING` | `connectGatt` |
+| `CONNECTING` → `SERVICE_DISCOVERY` | `onConnectionStateChange(CONNECTED)` |
+| `SERVICE_DISCOVERY` → `TREADMILL_DATA_FOUND` | `onServicesDiscovered` |
+| `TREADMILL_DATA_FOUND` → `TREADMILL_DATA_CHAR_FOUND` | Get Treadmill Data char (0x2ACD) |
+| `TREADMILL_DATA_CHAR_FOUND` → `CONTROL_POINT_FOUND` | Get Control Point char (0x2AD9) |
+| `CONTROL_POINT_FOUND` → `READY` | Enable CCCD notifications |
+| `READY` → `ACTIVE_SESSION` | `requestControl` handshake |
+| `ACTIVE_SESSION` → `ACTIVE_SESSION_CONTROLLED` | Control granted response |
+
+**Keep-alive**: Coroutine every 3s sends `SetSpeed` with current speed.
+
+**UUIDs**:
+- Service: `00001826-0000-1000-8000-00805f9b34fb` (FTMS)
+- Treadmill Data: `00002acd-0000-1000-8000-00805f9b34fb` (notification)
+- Control Point: `00002ad9-0000-1000-8000-00805f9b34fb` (write/response)
+- Treadmill Status: `00002acc-0000-1000-8000-00805f9b34fb`
+- Speed Setting: `00002ad4-0000-1000-8000-00805f9b34fb` (write)
+- Incline Setting: `00002ad5-0000-1000-8000-00805f9b34fb` (write)
+
+---
+
+*Última revisão: 2026-07-30*

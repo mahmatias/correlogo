@@ -1,0 +1,3 @@
+Corre Logo - Build automático
+
+Melhorias e correções incluídas neste release.

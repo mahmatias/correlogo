@@ -1,0 +1,96 @@
+========================================
+CONFIGURAÇÃO GRADLE - COPIAR E COLAR
+========================================
+
+1. NO ARQUIVO build.gradle DO PROJETO RAIZ (raiz/build.gradle):
+
+plugins {
+    id 'com.android.application' version '8.1.0' apply false
+    id 'com.android.library' version '8.1.0' apply false
+    id 'com.google.gms.google-services' version '4.3.15' apply false
+    id 'com.google.firebase.appdistribution' version '16.0.0' apply false
+}
+
+========================================
+
+2. NO ARQUIVO build.gradle DO APP (app/build.gradle):
+
+plugins {
+    id 'com.android.application'
+    id 'com.google.firebase.appdistribution'
+    id 'com.google.gms.google-services'
+}
+
+android {
+    namespace 'com.example.myapp'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.example.myapp'
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    // SEÇÃO DE ASSINATURA - IMPORTANTE!
+    signingConfigs {
+        release {
+            storeFile file('keystore.jks')
+            storePassword System.getenv('KEYSTORE_PASSWORD')
+            keyAlias System.getenv('KEY_ALIAS')
+            keyPassword System.getenv('KEY_PASSWORD')
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            debuggable true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+// CONFIGURAÇÃO FIREBASE DISTRIBUTION
+firebaseAppDistribution {
+    serviceCredentialsFile = 'firebase-key.json'
+    releaseNotesFile = 'RELEASE_NOTES.txt'
+    groups = 'testers'
+}
+
+dependencies {
+    // Firebase
+    implementation platform('com.google.firebase:firebase-bom:32.2.0')
+    implementation 'com.google.firebase:firebase-analytics'
+    
+    // Android
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'com.google.android.material:material:1.9.0'
+    
+    // Testing
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+========================================
+
+NOTAS IMPORTANTES:
+
+✓ Altere 'com.example.myapp' para seu applicationId real
+✓ O versionCode deve incrementar a cada release
+✓ A senha do keystore vem das variáveis de ambiente do GitHub Secrets
+✓ O arquivo firebase-key.json é criado pelo workflow durante o CI/CD
+✓ Em desenvolvimento local, pode comentar a seção de signingConfigs
+
+========================================
