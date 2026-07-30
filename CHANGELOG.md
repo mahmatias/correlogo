@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-07-30c] — Release Keystore SHA-1 + Auto Version Code CI
+
+### Fixed
+- **Google Sign-In "No Credentials available"**: CI/CD APK era assinado com release keystore cujo SHA-1 (`B4:56:92:B8:F1:3B:9B:FC:23:DA:38:87:AC:6B:79:8D:CC:35:B4:BA`) não estava registrado no Firebase Console. Adicionado manualmente pelo usuário. `google-services.json` re-baixado agora inclui ambos os hashes (debug + release).
+- **`android/app/keystore.jks`** — novo release keystore criado, secrets GitHub atualizados via `gh secret set`.
+
+### Added
+- **Auto-increment versionCode na CI**: cada workflow run usa `$GITHUB_RUN_NUMBER + 100` como `versionCode`, passado via `-PciVersionCode`. Releases duplicados não sobreescrevem o mesmo ID. `android/app/build.gradle` usa `project.findProperty('ciVersionCode')?.toInteger() ?: 19` como fallback.
+
+### Changed
+- `.github/workflows/firebase-deploy.yml` — novo step "Compute version code", `-PciVersionCode` no gradle
+- `android/app/build.gradle` — `versionCode` dinâmico via `ciVersionCode` property
+- `android/app/google-services.json` — segundo OAuth client com novo certificate_hash
+- `src/lib/gmailApi.ts` — exporta `isGmailConnected()` e `disconnectGmail()`
+
+### Build validation
+- Pipeline CI/CD passou limpo 🟢 (APK 2.2, release update)
+
 ## [2026-07-30b] — GitHub Actions CI/CD + Build Automation
 
 ### Added

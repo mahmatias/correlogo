@@ -18,7 +18,7 @@ export default function Modal({ open, onClose, title, children, role = 'dialog' 
       aria-label={title}
       onClick={onClose}
     >
-      <div className="p-6 rounded-2xl shadow-xl w-full max-w-sm bg-bg-surface border border-border" onClick={(e) => e.stopPropagation()}>
+      <div className="p-6 rounded-2xl shadow-xl w-full max-w-sm bg-bg-surface border border-border max-h-[calc(100vh-2rem)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-xl font-bold mb-4 text-center text-text-primary">{title}</h2>
         {children}
       </div>

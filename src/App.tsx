@@ -33,6 +33,9 @@ import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { exportWorkoutToHealthConnect } from './lib/capacitor/health-connect';
 import type { WorkoutExport, SyncStatus } from './lib/capacitor/health-connect';
 import { sendWorkoutToStravaViaEmail, handleGmailWebCallback } from './lib/gmailApi';
+import { checkForUpdate, downloadApkAndInstall } from './lib/update-checker';
+import type { UpdateInfo } from './lib/update-checker';
+import UpdatePrompt from './components/UpdatePrompt';
 import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
 
@@ -94,6 +97,8 @@ export default function App() {
   const [appCameFromSettings, setAppCameFromSettings] = useState(false);
 const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
   const [planToUncomplete, setPlanToUncomplete] = useState<WorkoutPlan | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updating, setUpdating] = useState(false);
   const getWeekStart = (d: Date) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -334,6 +339,20 @@ const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
     });
     return () => { capUnsub.remove(); };
   }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const info = await CapApp.getInfo();
+        const versionCode = parseInt(info.build, 10);
+        const update = await checkForUpdate(versionCode);
+        if (!cancelled && update) setUpdateInfo(update);
+      } catch { /* silent */ }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
@@ -1545,6 +1564,23 @@ CapApp.addListener('backButton', () => {
             </div>
           </Modal>
         )}
+        <UpdatePrompt
+          open={updateInfo !== null}
+          update={updateInfo}
+          downloading={updating}
+          onUpdate={async () => {
+            if (!updateInfo) return;
+            setUpdating(true);
+            try {
+              await downloadApkAndInstall(updateInfo);
+              setUpdateInfo(null);
+            } catch (e) {
+              showFeedback('error', `Erro ao atualizar: ${e instanceof Error ? e.message : String(e)}`);
+            }
+            setUpdating(false);
+          }}
+          onDismiss={() => setUpdateInfo(null)}
+        />
       </main>
     </div>
   );

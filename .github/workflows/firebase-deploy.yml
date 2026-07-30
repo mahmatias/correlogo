@@ -74,7 +74,7 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
-      - name: Deploy to Firebase App Distribution
+      - name: Upload APK to Firebase App Distribution
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-key.json
         run: |
@@ -83,6 +83,16 @@ jobs:
             --app="${{ secrets.FIREBASE_APP_ID }}" \
             --release-notes-file=RELEASE_NOTES.txt \
             --groups="testers"
+
+      - name: Upload APK to GitHub Release (in-app update)
+        run: |
+          gh release delete latest -y 2>/dev/null || true
+          VERSION_NAME=$(grep -oP 'versionName "\K[^"]+' android/app/build.gradle)
+          echo "{\"versionCode\":$CI_VERSION_CODE,\"versionName\":\"$VERSION_NAME\",\"downloadUrl\":\"https://github.com/mahmatias/correlogo/releases/download/latest/app-release.apk\"}" > /tmp/update-manifest.json
+          gh release create latest --notes "Build #$CI_VERSION_CODE" --title "Latest" \
+            android/app/build/outputs/apk/release/app-release.apk \
+            /tmp/update-manifest.json
+          echo "Release URL: https://github.com/mahmatias/correlogo/releases/tag/latest"
 
       - name: Cleanup sensitive files
         if: always()

@@ -16,6 +16,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(AudioFocusPlugin.class);
         registerPlugin(HealthConnectPlugin.class);
         registerPlugin(TreadmillBlePlugin.class);
+        registerPlugin(ApkInstallerPlugin.class);
         super.load();
     }
 
