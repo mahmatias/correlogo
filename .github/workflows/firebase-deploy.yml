@@ -9,6 +9,8 @@ on:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -85,6 +87,8 @@ jobs:
             --groups="testers"
 
       - name: Upload APK to GitHub Release (in-app update)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest -y 2>/dev/null || true
           VERSION_NAME=$(grep -oP 'versionName "\K[^"]+' android/app/build.gradle)
