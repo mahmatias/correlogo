@@ -34,7 +34,7 @@ class ApkInstallerPlugin : Plugin() {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            startActivity(intent)
+            activity.startActivity(intent)
             call.resolve()
         } catch (e: Exception) {
             call.reject("Failed to install APK: ${e.message}")
