@@ -20,7 +20,7 @@ class TreadmillBleService(private val context: Context) {
     companion object {
         private const val TAG = "CorreLogo-BLE"
         val FTMS_SERVICE_UUID: UUID = UUID.fromString("00001826-0000-1000-8000-00805f9b34fb")
-        val FTMS_MEASUREMENT_CHAR: UUID = UUID.fromString("00002a63-0000-1000-8000-00805f9b34fb")
+        val FTMS_MEASUREMENT_CHAR: UUID = UUID.fromString("00002acd-0000-1000-8000-00805f9b34fb")
         val FTMS_CONTROL_POINT_CHAR: UUID = UUID.fromString("00002ad9-0000-1000-8000-00805f9b34fb")
         val CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         private const val KEEP_ALIVE_INTERVAL_MS = 3000L

@@ -1,29 +1,239 @@
 # Changelog
 
-## [2026-07-29] — 4 Bug Fixes + Samsung Health Plan
+## [2026-07-30b] — GitHub Actions CI/CD + Build Automation
 
-### Bug Fixes
+### Added
+- **`.github/workflows/firebase-deploy.yml`** — GitHub Actions workflow adaptado para Capacitor:
+  - Trigger: push na `main` + `workflow_dispatch`
+  - Node.js 20 + JDK 17 + Android SDK
+  - Cria `.env` do secret `ENV_FILE` (conteúdo do `.env.apk`)
+  - `npm ci` → `npm run build` → `npx cap sync android`
+  - Build `assembleRelease` com injeção de signing via `-Pandroid.injected.signing.*`
+  - Deploy para Firebase App Distribution via CLI (grupo "testers")
+  - Cleanup de `keystore.jks` e `firebase-key.json` (always)
+- **`RELEASE_NOTES.txt`** — template de release notes
+- **`.gitignore`** — entradas `keystore.jks` e `firebase-key.json`
 
-#### Bug #1: Timer counting during countdown (warmup start at 04:55 instead of 05:00)
-- **Root cause:** Dual-timer conflict — JS `setInterval` and native timer `Handler` both writing to `elapsedSeconds`/`lapSeconds`. JS timer incremented while native timer was counting down, so by the time the countdown reached 0, elapsed was already at ~5s
-- **Fix:** JS timer returns early (`return`) for treadmill+native timer mode; native timer acts as sole source of truth
+### Files created
+- `.github/workflows/firebase-deploy.yml`
+- `RELEASE_NOTES.txt`
 
-#### Bug #2: Total distance jumping on step change (500m → 1.2km → 700m)
-- **Root cause:** `distRef.current = elapsed * dPerSec` recalculated total distance FROM SCRATCH each frame using current speed. When a step changed, `dPerSec` changed, causing the accumulated distance to jump
-- **Fix:** Incremental accumulation via `prevElapsedRef` — `distRef.current += delta * dPerSec`. Distance now only grows by the delta
+### Files modified
+- `.gitignore` — added `keystore.jks`, `firebase-key.json`
+
+### Build validation
+- `npm run build` ✅
+
+## [2026-07-30a] — Refresh Token OAuth + Fixes
+
+### Added: Refresh Token OAuth (autorização permanente)
+- **Cloud function** (`functions/src/index.ts`): `authCallback` agora devolve `refresh_token` no redirect (além do `access_token`)
+- **Cloud function** (`functions/src/index.ts`): novo endpoint `POST refreshAuthToken` — troca `refresh_token` por novo `access_token`
+- **`gmailApi.ts`**: token armazenado como JSON `{access_token, refresh_token}` (compatível com token string antigo)
+- **`gmailApi.ts`**: `sendMessage()` tenta refresh automático ao receber 401 (usa `refresh_token` → nova `access_token` → retry)
+- **`gmailApi.ts`**: `getValidAccessToken()` também faz refresh se `refresh_token` existir
+- **`App.tsx`**: deep link handler captura `refresh_token` nos callbacks nativo e web
+
+### Fixed: FTMS UUID
+- `TreadmillBleService.kt:23` — UUID `FTMS_MEASUREMENT_CHAR` corrigido de `00002a63` (0x2A63, Cycling Power Control Point) para `00002acd` (0x2ACD, Treadmill Data). Causava `getCharacteristic()` retornar null e erro "Required FTMS characteristics not found" mesmo com timing de conexão correto.
+- **Build**: `npm run build` ✅ → `npx cap sync android` ✅ → `gradlew assembleDebug` ✅
+
+### Fixed: Strava auto-save feedback
+- `WorkoutTracker.tsx` — `showFeedback` adicionado como prop, passado de `App.tsx`
+- Auto-save exibe toast de sucesso/erro do Strava (antes era fire-and-forget silencioso)
+- `App.tsx` — `showFeedback` passado na renderização do `WorkoutTracker`
+
+### Changed
+- `functions/src/index.ts` — `authCallback` inclui `refresh_token` no redirect; novo endpoint `refreshAuthToken`
+- `src/lib/gmailApi.ts` — `getStoredToken()` (JSON `{access_token, refresh_token}`), `refreshAccessToken()`, `getValidAccessToken()` com refresh, `sendMessage()` com retry 401+refresh
+- `src/components/WorkoutTracker.tsx` — nova prop `showFeedback`, Strava send exibe toast
+- `src/App.tsx` — deep link handler captura `refresh_token`, `showFeedback` passado ao WorkoutTracker
+
+### Files modified
+- `functions/src/index.ts`
+- `src/lib/gmailApi.ts`
+- `src/components/WorkoutTracker.tsx`
+- `src/App.tsx`
+- `android/app/.../TreadmillBleService.kt`
+
+### Build validation
+- `npm run build` ✅ → `npx cap sync android` ✅ → `gradlew assembleDebug` ✅
+
+## [2026-07-29j] — BLE Permission Fix + Diagnostic Analysis
+
+### Added
+- `TreadmillBlePlugin.kt:113-136` — `requestBlePermissions()`: método `@PluginMethod` que solicita `BLUETOOTH_SCAN` + `BLUETOOTH_CONNECT` (Android 12+) ou `ACCESS_FINE_LOCATION` (Android <12) via `pluginRequestPermissions()`
+- `handleRequestPermissionsResult()`: resolve a PluginCall pendente com status `granted`/`denied`
+- `permissions.ts` — `requestBlePermissions()` chamado em `requestAllPermissions()` no startup do app (ao lado de `POST_NOTIFICATIONS` + `ACTIVITY_RECOGNITION`)
+
+### Fixed
+- **BLE permission nunca solicitada**: O `@CapacitorPlugin` declarava `BLUETOOTH_SCAN`/`BLUETOOTH_CONNECT` no alias `bluetooth`, mas `requestPermissionForAlias("bluetooth")` não disparava o diálogo. Substituído por `pluginRequestPermissions()` explícito com `handleRequestPermissionsResult()`.
+- **UUID Treadmill Diagnostic**: Confirmado via nRF Connect logs que a esteira (WiLinktech VISION ID 2592, firmware V10.23.17) implementa FTMS completo com UUID 0x1826. Características 0x2ACD, 0x2ACC, 0x2AD9, 0x2ADA, 0x2AD4, 0x2AD5 todas presentes e funcionando.
+
+### Diagnostic (correção pendente)
+- UUID `FTMS_MEASUREMENT_CHAR` (`00002a63`) não corresponde ao Treadmill Data da esteira (`0x2ACD`). [Corrigido em 2026-07-30a]
+
+### Changed
+- `TreadmillBlePlugin.kt` — rewrite: `startBleScan` usa `checkBlePermissions()` (não mais `requestPermissionForAlias`), adicionado `requestBlePermissions` method + `handleRequestPermissionsResult` override
+- `src/lib/capacitor/permissions.ts` — `requestAllPermissions()` chama `TreadmillBle.requestBlePermissions()` no native
+
+### Files modified
+- `android/app/.../TreadmillBlePlugin.kt`
+- `src/lib/capacitor/permissions.ts`
+
+### Build validation
+- `npm run build` ✅ → `npx cap sync android` ✅
+
+## [2026-07-29g] — Strava via Gmail API (TCX/GPX + OAuth)
+
+### What changed
+Strava upload channel implemented: email with TCX (treadmill) or GPX (outdoor) attachment → `stravaupload@gotoes.org`, using Gmail API with `gmail.send` scope.
+
+### Added
+- `src/lib/gmailApi.ts` — complete Gmail OAuth + send service:
+  - `startGmailOAuth()` — opens Google consent via `Browser.open()` (same pattern as Calendar)
+  - `listenForGmailCallback()` — handles deep link with `gm_` state prefix
+  - `sendWorkoutToStravaViaEmail(session)` — builds MIME email with TCX/GPX attachment, base64url encodes, POSTs to Gmail API `users.messages.send`
+  - Token persisted in localStorage (`gmail_strava_token`), auto-refresh on 401
+- **Deep link handler** in `App.tsx`: differentiates Gmail (`gm_`) vs Calendar (`c3_`) via state prefix — Gmail tokens stored separately, no Calendar modal opens
+
+### Changed
+- `App.tsx` `onExportSession` — after HC export, also sends to Strava via `sendWorkoutToStravaViaEmail()`
+- `WorkoutTracker.tsx` `handleSaveAndSync` — after HC sync, constructs `TrainingSession` and calls `sendWorkoutToStravaViaEmail()` (fire-and-forget)
+
+### Generators reused
+- `generateTCX()` / `generateGPX()` from `src/lib/exportUtils.ts` (existing, unchanged) — generate file content, `gmailApi.ts` wraps in MIME multipart/mixed
+
+### Build validation
+- `npm run build` ✅ → `npx cap sync android` ✅ → `gradlew assembleDebug` ✅
+- APK: `app-debug.apk` (versionCode 19, versionName "2.2")
+
+## [2026-07-29f] — Proper ActivityResultLauncher Permission Flow (v2.0)
+
+### Root Cause Fix
+O problema de permissão nunca ser concedida era mais profundo do que `setPackage`:
+- **`requestHcPermissions()`** usava `startActivity(intent)` e resolvia `granted=true` **antes** do usuário interagir com a tela de permissão
+- Como nunca esperava o resultado, `exportWorkout()` sempre encontrava `WRITE_EXERCISE` não concedido
+- As 5 tentativas de fallback com `startActivity()` eram todas igualmente quebradas — nenhuma aguardava retorno
+
+### What changed
+- **`HealthConnectPlugin.kt`**: registra `ActivityResultLauncher` via `ComponentActivity.registerForActivityResult()` no `load()` (quando o lifecycle está em CREATED, antes de STARTED — requisito do AndroidX)
+- **`requestHcPermissions()`**: usa `permLauncher.launch(permissions)` e **aguarda o callback** com o conjunto real de permissões concedidas
+- **Callback resolve** com `granted=true` apenas se `WRITE_EXERCISE` estiver no resultado
+- **Removidas** todas as 5 tentativas `startActivity()` com resolução imediata — eram pseudo-fixes
+- **Removido** `permContract` (substituído pelo launcher), `tryOpenIntent()`, imports de `Intent`/`Uri`
+- **`exportWorkout()`**: rejeita com mensagem clara se permissão não concedida (sem tentar reabrir tela — abertura de tela é responsabilidade do `requestHcPermissions()`)
+- **Versão**: v2.0 (versionCode 11)
+
+### Files modified
+- `android/app/src/main/java/com/correlogo/app/HealthConnectPlugin.kt` — rewrite completo
+- `android/app/build.gradle` — versionCode 10→11, versionName "1.1"→"2.0"
+
+### Build validation
+- `npm run build` ✅ → `npx cap sync android` ✅ → `gradlew assembleDebug` ✅
+- APK: `Corre Logo v2.0.apk`
+
+## [2026-07-29e] — Permission Check Before Export + Real Feedback
+
+- **`exportWorkout()` agora verifica permissões de verdade** antes de chamar `insertRecords()`: usa `c.permissionController.getGrantedPermissions()` para checar se `WRITE_EXERCISE` está concedido
+- **Se não houver permissão**: reabre a tela de permissão do Health Connect e rejeita o call com `"WRITE_EXERCISE not granted"`
+- **Mensagem de erro mais clara**: "Falha ao sincronizar. Verifique as permissões do Health Connect e tente novamente."
+- **APK v1.8**: 8.4 MB, `Corre Logo v1.8.apk`
+
+## [2026-07-29d] — Multi-Attempt Permission Intent + Package Visibility
+
+- **Adicionado `<queries>` no AndroidManifest.xml**: declara pacote `com.google.android.apps.healthdata` e schema `health-connect://` — resolve restrição de visibilidade do Android 11+
+- **5 tentativas de abrir tela de permissão**: (1) PermissionController → (2) deep link `health-connect://permissions` → (3) lançamento por package name → (4) Play Store → (5) app settings
+- **Helper `tryOpenIntent()`**: captura `ActivityNotFoundException` de forma limpa e tenta próxima tentativa
+- **APK v1.7**: 8.4 MB, `Corre Logo v1.7.apk`
+
+## [2026-07-29c] — Permission Flow Refactoring
+
+- **Fix `requestHcPermissions`**: Capacitor 7 usa `ActivityResultLauncher` internamente, tornando `handleOnActivityResult` não confiável. Substituído por `activity.startActivity(intent)` direto, sem aguardar resultado.
+- **Removido dead code**: `handleOnActivityResult()`, `pendingPermCall`, `PERMISSION_REQUEST`
+- **Fallback chain**: Health Connect permission screen via `PermissionController` → Play Store → app settings
+- **APK v1.6**: 8.4 MB, `Corre Logo v1.6.apk`
+
+## [2026-07-29b] — Health Connect Pivot (substitui Samsung Health)
+
+**Strategic pivot:** Samsung Health was replaced by Android Jetpack Health Connect (`androidx.health.connect:connect-client:1.1.0`). Both Strava and GymRats natively support Health Connect — write once, cover both targets. No partnership needed, free, part of Android Jetpack.
+
+### Added
+- `HealthConnectPlugin.kt` — Capacitor plugin wrapping `HealthConnectClient`, `PermissionController`, `ExerciseSessionRecord`, `DistanceRecord`, `ExerciseRoute`
+- `health-connect.ts` — JS wrapper exporting `exportWorkoutToHealthConnect()` with same `WorkoutExport`/`SyncStatus` interface
+
+### Changed
+- `variables.gradle` — `compileSdk=36`, `targetSdk=36`, `minSdk=26` (HC requires 26+)
+- `build.gradle` — AGP `8.7.2→8.9.1`, added `connect-client:1.1.0` + `kotlinx-coroutines-android:1.8.1`
+- `AndroidManifest.xml` — removed Samsung Health meta-data + `WRITE_USE_APP_SURVEY`, added `android.permission.health.READ_EXERCISE` + `WRITE_EXERCISE`
+- `WorkoutTracker.tsx` + `App.tsx` — imports swapped to health-connect
+
+### Removed
+- `SamsungHealthPlugin.kt` — replaced by `HealthConnectPlugin.kt`
+- `samsung-health.ts` — replaced by `health-connect.ts`
+- Samsung AAR fileTree comment from build.gradle
+
+### Build
+- `npm run build` ✅ → `npx cap sync android` ✅ → `gradlew assembleDebug` ✅
+
+## [2026-07-29] — Samsung Health Full Integration (7 Tasks)
+
+### Bug Fixes (committed earlier in session)
+
+#### Bug #1: Timer counting during countdown
+- **Root cause:** Dual-timer conflict — JS `setInterval` and native timer `Handler` both writing to `elapsedSeconds`/`lapSeconds`
+- **Fix:** JS timer returns early for treadmill+native timer mode; native timer acts as sole source of truth
+
+#### Bug #2: Total distance jumping on step change
+- **Root cause:** `distRef.current = elapsed * dPerSec` recalculated total distance FROM SCRATCH each frame
+- **Fix:** Incremental accumulation via `prevElapsedRef` — `distRef.current += delta * dPerSec`
 
 #### Bug #3: Half-lap/half-workout TTS not firing
-- **Root cause:** `lapSeconds` variable captured in `onTimerTick` callback closure was stale — the closure was created once at listener registration with the initial value `0`
-- **Fix:** Use `lapElapsed` (local variable passed into the callback) or `elapsedRef.current - lapStartElapsedRef.current` (ref, no stale closure)
+- **Root cause:** `lapSeconds` captured in `onTimerTick` closure was stale (created once at listener registration)
+- **Fix:** Use `lapElapsed` local variable or ref-based calculation
 
 #### Bug #4: Music volume not restoring after TTS
-- **Root cause:** `setWillPauseWhenDucked(true)` told Android that Corre Logo would PAUSE when ducked, contradicting `MAY_DUCK` behavior. Android cached this and never restored other apps' volume after TTS
+- **Root cause:** `setWillPauseWhenDucked(true)` contradicted `MAY_DUCK`; Android cached this and never restored volume
 - **Fix:** Removed `setWillPauseWhenDucked(true)` from `AudioFocusPlugin.kt`
+- **Commit:** `ac25c51`
 
-### Samsung Health Integration Plan
-- Spec written and approved: `docs/superpowers/specs/2026-07-29-samsung-health-integration-design.md`
-- Implementation plan created: `docs/superpowers/plans/2026-07-29-samsung-health-sync.md`
-- Pre-flight scan identified 4 gaps (App.tsx wiring, syncStatus persistence, Kotlin API, task ordering), corrected
+### Samsung Health — 7 SDD Tasks
+
+#### Task 1 — Android SDK Setup
+- **build.gradle:** Added AAR fileTree (`*.aar` in `libs/`) merged both `fileTree` lines into one
+- **AndroidManifest.xml:** Added `WRITE_USE_APP_SURVEY` permission + Samsung Health read/write meta-data
+- **libs/ dir:** Created `android/app/libs/` with `.gitkeep` for AAR placement
+- **Gson removed** (out of scope), `fileTree` merged, AAR doc comment added
+- **Commits:** `046a4d4`, `5eb8315`
+
+#### Task 2 — SDK Setup Guide
+- **Created:** `docs/samsung-health-setup.md` — instructions to download AAR from Samsung Developer
+- **Commit:** `8c9f3ea`
+
+#### Task 3 — Native Capacitor Plugin (SamsungHealthPlugin.kt)
+- **Created:** `android/app/src/main/java/com/correlogo/app/SamsungHealthPlugin.kt` — wrapping Old SDK v1.5.1
+- **Methods:** `isAvailable()`, `getPermissionStatus()`, `requestPermission()`, `exportWorkout()`
+- **API adaptation:** Uses `HealthData.put*()` (ContentValues-based), `addHealthData()` pattern, `setSourceDevice()`. Fire-and-forget `resolver.insert()`.
+- **Fix:** Added missing `import com.getcapacitor.JSObject`
+- **Build:** Fails on missing AAR (all errors `Unresolved reference 'samsung'` — zero Kotlin syntax errors)
+- **Commit:** `1c33473`
+
+#### Task 4 — JS Interface + Types
+- **Created:** `src/lib/capacitor/samsung-health.ts` — `WorkoutExport`, `SyncStatus`, `exportWorkoutToSamsungHealth()`, `isSamsungHealthAvailable()`, `getHealthPermissionStatus()`, `requestHealthPermission()`
+- **Modified:** `src/types.ts` — added `syncStatus?: 'synced' | 'pending' | 'failed'` to `TrainingSession`
+- **Build:** Clean (no TS errors)
+- **Commit:** `b93d04f`
+
+#### Task 5 — Export Trigger in WorkoutTracker
+- **Modified:** `src/components/WorkoutTracker.tsx` — added `onSyncResult` prop, `sessionStartTimeRef`, Samsung Health export when `isWorkoutCompleted` becomes true
+- **Build:** Clean
+- **Commit:** `d10a6e1`
+
+#### Task 6 — Sync Flow in App + Session History
+- **Modified:** `src/App.tsx` — `onSyncResult` handler updates session by `latestSessionIdRef`, `onExportSession` handler for manual re-export, `syncStatus: undefined` in session creation
+- **Modified:** `src/components/SessionHistory.tsx` — sync status indicators (synced/pending/failed) with icons + manual re-export buttons
+- **Build:** Clean
+- **Commit:** `449ae69`
 
 ---
 
@@ -249,6 +459,32 @@
 - Added: Explicit Nginx block denying access to `.env`/`.git` files, as defense-in-depth on top of Express's existing behavior.
 - Security: Removed public inbound access to port 3000 from the EC2 Security Group; the app is now only reachable via 80/443 through Nginx.
 - Changed: `vite.config.ts` now sets `server.allowedHosts: ['correlogo.sytes.net']` to allow the dev server to respond to that host (prevents the "Blocked request... not allowed" error).
+
+## [2026-07-29i] — Bluetooth FTMS Treadmill Control (Matrix T600x)
+
+### Added
+- **Native Android BLE plugin** — `TreadmillBlePlugin.kt` + `TreadmillBleService.kt` + `MatrixFtmsManager.kt`:
+  - Full FTMS GATT state machine (9 states: DISCONNECTED → ACTIVE_SESSION_CONTROLLED)
+  - Matrix Request Control handshake (opcode 0x00 → indication 0x80)
+  - `SetSpeed` (0x02) / `SetIncline` (0x03) com encoding LITTLE_ENDIAN UINT16/SINT16
+  - Keep-alive heartbeat a cada 3s (re-escreve velocidade atual)
+  - Telemetry parsing do Treadmill Data (0x2ACD): speed, distance, incline, elapsed time
+  - Indication response parser (success/opcode not supported/invalid parameter)
+- **`treadmill-ble.ts`** — TypeScript interface + wrapper functions (native only)
+- **`mock-treadmill-engine.ts`** — Simulador manual para desenvolvimento web
+- **`treadmill-connection.ts`** — Hook `useTreadmill()` que abstrai nativo + mock
+- **`TreadmillPanel.tsx`** — Componente UI: scan/connect, telemetria ao vivo, controles de velocidade/inclinação
+- **Integração WorkoutTracker**: auto-ajuste de velocidade via BLE quando step muda + quando usuário ajusta manualmente
+- Permissões BLE no `AndroidManifest.xml` + feature flag `android.hardware.bluetooth_le`
+
+### Changed
+- `MainActivity.java` — registrado `TreadmillBlePlugin`
+
+## [2026-07-29h] — Fix web interface TDZ error
+
+### Fixed
+- **TDZ (Temporal Dead Zone) crash** — `Uncaught ReferenceError: Cannot access 'ei' before initialization` at `App.tsx:134`. O `useEffect` do back button stack (não commitado) referenciou `planToUncomplete` no array de dependências 505 linhas antes da declaração `const`. Movido `useState(planToUncomplete)` da linha ~639 para linha 94.
+- **showBackgroundPrompt duplicado** — removido entry extra (aparecia 3x no corpo do effect e 2x na dependency array).
 
 ## [2026-06-18]
 - Fixed: Dark mode preference persistence (now correctly loads from Firebase or system preference).

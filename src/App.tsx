@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
-import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar, Bluetooth } from 'lucide-react';
+import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar, Bluetooth, BluetoothSearching, BluetoothConnected, X, Check } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData } from './types';
@@ -23,6 +23,7 @@ import WeekCalendar from './components/WeekCalendar';
 import MonthCalendar from './components/MonthCalendar';
 import BottomSheet from './components/BottomSheet';
 import GoogleCalendarModal from './components/GoogleCalendarModal';
+import { useTreadmill, type TreadmillConnection } from './lib/use-treadmill';
 import { getAuth, getDb } from './lib/firebase';
 import { downloadIcal } from './lib/ical';
 import { keepAwake, allowSleep } from './lib/capacitor/wakeLock';
@@ -67,10 +68,11 @@ export default function App() {
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
   const [activePlan, setActivePlan] = useState<{plan: WorkoutPlan, mode: 'treadmill' | 'outdoor', sessionId: string, simulateGps?: boolean} | null>(null);
   const [isFreeTraining, setIsFreeTraining] = useState(false);
-  const [workoutToStart, setWorkoutToStart] = useState<{plan: WorkoutPlan, mode?: 'treadmill' | 'outdoor', simulateGps?: boolean} | null>(null);
+  const [workoutToStart, setWorkoutToStart] = useState<{plan: WorkoutPlan, mode?: 'treadmill' | 'outdoor', simulateGps?: boolean, simulateBle?: boolean} | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [isLightMode, setIsLightMode] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
+  const treadmill = useTreadmill();
   const [isEditing, setIsEditing] = useState(false);
   const [showGenerator, setShowGenerator] = useState(false);
   const [programToReview, setProgramToReview] = useState<TrainingProgram | null>(null);
@@ -343,26 +345,16 @@ const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
         const url = new URL(event.url);
         if (url.protocol === 'com.correlogo.app:' && url.hostname === 'oauth') {
           const token = url.searchParams.get('token');
+          const refreshToken = url.searchParams.get('refresh_token');
           const error = url.searchParams.get('error');
           const state = url.searchParams.get('state');
-          if (state && state.startsWith('gm_web_')) {
+          if (state && (state.startsWith('gm_web_') || state.startsWith('gm_'))) {
             const expectedState = sessionStorage.getItem('gmail_oauth_state');
             if (expectedState && state === expectedState) {
               sessionStorage.removeItem('gmail_oauth_state');
             }
             if (token) {
-              localStorage.setItem('gmail_strava_token', token);
-              showFeedback('success', 'Gmail conectado!');
-            } else if (error) {
-              showFeedback('error', 'Falha ao conectar Gmail.');
-            }
-          } else if (state && state.startsWith('gm_')) {
-            const expectedState = sessionStorage.getItem('gmail_oauth_state');
-            if (expectedState && state === expectedState) {
-              sessionStorage.removeItem('gmail_oauth_state');
-            }
-            if (token) {
-              localStorage.setItem('gmail_strava_token', token);
+              localStorage.setItem('gmail_strava_token', JSON.stringify({ access_token: token, refresh_token: refreshToken || undefined }));
               showFeedback('success', 'Gmail conectado!');
             } else if (error) {
               showFeedback('error', 'Falha ao conectar Gmail.');
@@ -409,7 +401,8 @@ const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
       const savedState = sessionStorage.getItem('gmail_oauth_state');
       if (savedState === state) {
         sessionStorage.removeItem('gmail_oauth_state');
-        localStorage.setItem('gmail_strava_token', token);
+        const refreshToken = params.get('refresh_token');
+        localStorage.setItem('gmail_strava_token', JSON.stringify({ access_token: token, refresh_token: refreshToken || undefined }));
         showFeedback('success', 'Gmail conectado!');
         window.history.replaceState(null, '', window.location.pathname);
       }
@@ -1040,12 +1033,64 @@ CapApp.addListener('backButton', () => {
                         </label>
                       )}
                       {workoutToStart.mode === 'treadmill' && (
-                        <div className="p-3 bg-bg-elevated rounded-lg">
-                          <p className="text-sm text-text-secondary flex items-center gap-2">
-                            <Bluetooth size={16} />
-                            Conectar esteira Bluetooth (opcional)
-                          </p>
-                          <p className="text-[10px] text-text-muted mt-1">
+                        <div className="bg-bg-elevated rounded-lg space-y-2">
+                          {!treadmill.connected ? (
+                            <>
+                              <button
+                                onClick={() => treadmill.scan()}
+                                disabled={treadmill.state === 'SCANNING'}
+                                className="w-full flex items-center justify-center gap-2 p-3 rounded-lg bg-bg-surface hover:bg-bg-elevated text-text-primary transition-colors disabled:opacity-50"
+                              >
+                                {treadmill.state === 'SCANNING' ? (
+                                  <BluetoothSearching size={18} className="animate-pulse" />
+                                ) : (
+                                  <Bluetooth size={18} />
+                                )}
+                                <span className="text-sm font-medium">
+                                  {treadmill.state === 'SCANNING' ? 'Escaneando...' : 'Conectar esteira Bluetooth'}
+                                </span>
+                              </button>
+                              {treadmill.devices.length > 0 && (
+                                <div className="border border-border rounded-lg max-h-32 overflow-y-auto space-y-1">
+                                  {treadmill.devices.map(d => (
+                                    <button
+                                      key={d.address}
+                                      onClick={() => treadmill.connect(d.address)}
+                                      disabled={treadmill.state === 'CONNECTING'}
+                                      className="w-full text-left p-2 rounded bg-bg-surface text-xs hover:bg-bg-elevated transition-colors disabled:opacity-50"
+                                    >
+                                      {d.name}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              {treadmill.state === 'CONNECTING' && (
+                                <p className="text-xs text-yellow-400 flex items-center gap-1 px-1">
+                                  <BluetoothSearching size={14} className="animate-pulse" />
+                                  Conectando...
+                                </p>
+                              )}
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-green-900/20 border border-green-700/30">
+                              <p className="text-sm text-green-400 flex items-center gap-2">
+                                <BluetoothConnected size={16} />
+                                <span className="font-medium">
+                                  {treadmill.connectedDeviceName ? `Conectado: ${treadmill.connectedDeviceName}` : 'Conectado'}
+                                </span>
+                              </p>
+                              <button
+                                onClick={() => treadmill.disconnect()}
+                                className="text-text-secondary hover:text-red-400 transition-colors p-1"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          )}
+                          {treadmill.error && (
+                            <p className="text-danger text-xs px-1">{treadmill.error}</p>
+                          )}
+                          <p className="text-[10px] text-text-muted px-1">
                             Se conectado, a velocidade do treino será ajustada automaticamente
                           </p>
                         </div>
@@ -1070,6 +1115,8 @@ CapApp.addListener('backButton', () => {
                   plan={activePlan.plan} 
                   mode={activePlan.mode} 
                   simulateGps={activePlan.simulateGps}
+                  treadmill={treadmill}
+                  showFeedback={showFeedback}
                   onStop={() => { allowSleep(); setActivePlan(null); setIsFreeTraining(false); }} 
                   markAsCompleted={markAsCompleted}
                   totalWorkoutTime={calculateTotalDuration(activePlan.plan)}

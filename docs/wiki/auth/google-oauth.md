@@ -39,10 +39,19 @@ export const authCallback = onRequest(async (req, res) => {
       : `/?gcal_error=...`);
   }
   
+  const redirectParams = new URLSearchParams({
+    token: tokens.access_token,
+    state: state,
+  });
+  // Opcional: refresh_token só disponível na primeira auth com prompt=consent
+  if (tokens.refresh_token) {
+    redirectParams.set('refresh_token', tokens.refresh_token);
+  }
+  
   if (isNative) {
-    res.redirect(`com.correlogo.app://oauth/callback?token=${tokens.access_token}&state=${state}`);
+    res.redirect(`com.correlogo.app://oauth/callback?${redirectParams}`);
   } else {
-    res.redirect(`/?gcal_token=${tokens.access_token}&state=${state}`);
+    res.redirect(`/?gcal_token=${redirectParams.get('token')}&state=${redirectParams.get('state')}${tokens.refresh_token ? '&refresh_token=' + tokens.refresh_token : ''}`);
   }
 });
 ```
@@ -247,7 +256,58 @@ VITE_GOOGLE_WEB_CLIENT_ID=985879764466-kd0plotbh6349qrniqv09enasnajst1i.apps.goo
 | `access_denied` | User cancelou ou app não verificado | Adicionar test user no Console |
 | Deep link não abre | `intent-filter` faltando | Verificar AndroidManifest.xml |
 | Toast não aparece | State prefix errado | Verificar `gm_` vs `gm_web_` vs `c3_` |
+| Token expira após 1h | `refresh_token` não capturado | Cloud Function agora retorna `refresh_token`; re-autorizar 1x para capturar |
 
 ---
 
-*Última revisão: 2026-07-29*
+## Cloud Function: refreshAuthToken
+
+Endpoint que troca `refresh_token` por um novo `access_token` sem intervenção do usuário.
+
+```typescript
+// POST https://us-central1-correlogo-prod.cloudfunctions.net/refreshAuthToken
+// Body: { refresh_token: "1//0xxx" }
+// Response: { access_token: "ya29.yyy" }
+
+export const refreshAuthToken = onRequest(async (req, res) => {
+  const { refresh_token } = req.body;
+  
+  const tokens = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    body: JSON.stringify({
+      client_id: WEB_CLIENT_ID,
+      client_secret: WEB_CLIENT_SECRET,
+      refresh_token,
+      grant_type: 'refresh_token',
+    })
+  }).then(r => r.json());
+  
+  if (tokens.error) return res.status(400).json({ error: tokens.error });
+  res.json({ access_token: tokens.access_token });
+});
+```
+
+---
+
+## Token Refresh Lifecycle
+
+```
+401 Unauthorized (Gmail API)
+    │
+    ├─ Has refresh_token stored? ──Yes──▶ POST /refreshAuthToken
+    │                                       │
+    │                                       ▼
+    │                                  New access_token
+    │                                       │
+    │                                       ▼
+    │                                  Retry original request
+    │                                       │
+    │                                       ├─ Success → continue
+    │                                       └─ Fail → clear token, show "Reconecte Gmail"
+    │
+    └─ No refresh_token → clear token → "Reconecte Gmail"
+```
+
+---
+
+*Última revisão: 2026-07-30*

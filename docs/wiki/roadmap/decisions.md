@@ -221,4 +221,37 @@ Remoção do `server.ts` (Express + Vite middleware) após migração para Fireb
 
 ---
 
-*Última revisão: 2026-07-29*
+## ADR-009: Refresh Token via Cloud Function (not Client-Side)
+
+**Status**: ✅ Aceito  
+**Data**: 2026-07
+
+### Contexto
+O Gmail OAuth token expira após ~1h. Precisávamos de acesso permanente sem re-autorizar toda hora.
+
+### Alternativas
+
+| Opção | Prós | Contras |
+|-------|------|---------|
+| **Client-side refresh** (Google Identity Services) | Sem cloud function | GIS não disponível em WebView Android; complicado com Capacitor |
+| **Cloud Function refresh** | Centralizado, client_id/secret seguros, funciona em APK | Cold start ~200ms, dependência de rede |
+| **PKCE + SPA** | Sem client_secret | Requer alteração no fluxo OAuth, mais complexo |
+
+### Decisão
+**Cloud Function `refreshAuthToken`**: endpoint simples que recebe `refresh_token`, faz `POST oauth2.googleapis.com/token` e retorna novo `access_token`.
+
+### Fluxo
+1. `authCallback` já recebe `refresh_token` do Google (porque usamos `access_type=offline`)
+2. Na primeira auth de cada usuário, o `refresh_token` é passado no redirect: `?token=...&refresh_token=...`
+3. App salva ambos no localStorage como JSON
+4. Em 401, app envia `refresh_token` para `refreshAuthToken`, recebe novo `access_token`, atualiza localStorage, retry
+
+### Consequências
+- ✅ Uma só re-autorização → acesso permanente
+- ✅ `client_secret` nunca exposto no client
+- ⚠️ Usuários com token antigo (sem `refresh_token`) precisam re-autorizar 1x
+- ⚠️ Cold start na primeira requisição após período inativo
+
+---
+
+*Última revisão: 2026-07-30*

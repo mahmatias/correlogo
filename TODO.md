@@ -8,9 +8,8 @@
 ## Pendentes
 
 ### Alta (imediato)
-- [ ] **SDD Samsung Health** — Tasks 1-6 do plano `docs/superpowers/plans/2026-07-29-samsung-health-sync.md`
+- [ ] **Permission intent Health Connect** — `PermissionController.createIntent()` não resolve no device do usuário. Próximo passo: depurar `health-connect://permissions` deep link ou tentar `Intent(ACTION_VIEW, Uri.parse(...))` alternativo
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
-- [ ] ~~Testar Reschedule cascade em conjunto (criar plano em outro usuário)~~ ✅ Funcionando (fix: generatedFromProgramId não era setado)
 - [ ] Foto do perfil — exibição com problemas (dívida técnica)
 
 ### Média
@@ -26,6 +25,12 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+## ✅ Concluídos (Sessão 2026-07-29c — Permission Flow Refactoring)
+- [x] Health ConnectPlugin refatorado: `startActivityForResult` → `activity.startActivity(intent)` direto
+- [x] `handleOnActivityResult()` + `pendingPermCall` removidos (dead code no Capacitor 7)
+- [x] Fallback chain: PermissionController → Play Store → app settings
+- [x] APK v1.6 build + validado (`npm run build` ✅, `gradlew assembleDebug` ✅)
 
 ## ✅ Concluídos (Sessão 2026-07-29 — 4 Bug Fixes + Samsung Health Plan)
 

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup v4 — Tela de Atividade</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, sans-serif; background: #0d1117; color: #e6edf3; display: flex; gap: 24px; padding: 24px; justify-content: center; flex-wrap: wrap; }
+  .phone { width: 375px; height: 780px; border: 2px solid #30363d; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; padding: 12px 16px; background: #0d1117; position: relative; }
+  .phone-label { position: absolute; top: -28px; left: 0; font-size: 12px; color: #8b949e; font-weight: 600; }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #8b949e; }
+  .step-label { font-size: 24px; font-weight: 700; color: #58a6ff; text-transform: uppercase; }
+  .step-label small { font-size: 11px; color: #8b949e; font-weight: 400; display: block; text-transform: none; letter-spacing: 0; }
+
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 6px; }
+  .stat-item { text-align: center; }
+  .stat-value { font-size: 16px; font-weight: 700; }
+  .stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: #8b949e; }
+
+  .marquee-bar { background: #161b22; border-radius: 6px; padding: 4px 8px; margin-top: 6px; overflow: hidden; display: flex; align-items: center; height: 36px; }
+  .marquee-text { white-space: nowrap; font-size: 16px; font-weight: 600; color: #c9d1d9; }
+
+  .progress-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: #8b949e; margin-top: 6px; margin-bottom: 1px; }
+  .progress-wrapper { margin-top: 2px; position: relative; }
+  .progress-bar { width: 100%; height: 18px; background: #161b22; border-radius: 999px; overflow: hidden; position: relative; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #238636, #2ea043); border-radius: 999px; transition: width 0.3s; }
+  .progress-pct { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); z-index: 1; }
+
+  .map-container { background: #1a2332; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: #30363d; font-size: 12px; }
+
+  .distance-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 12px 16px; text-align: center; }
+  .distance-box.treadmill { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; }
+  .distance-box.outdoor { flex-shrink: 0; }
+  .primary-value { font-size: 42px; font-weight: 700; }
+  .primary-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: #8b949e; }
+  .secondary-value { font-size: 20px; font-weight: 700; margin-top: 8px; }
+  .secondary-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: #8b949e; }
+
+  .speed-controls { display: flex; align-items: center; justify-content: space-between; background: #161b22; border-radius: 12px; padding: 8px 12px; }
+  .speed-btn { width: 40px; height: 40px; border-radius: 10px; background: #21262d; border: 1px solid #30363d; color: #e6edf3; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+  .speed-value { font-size: 22px; font-weight: 700; }
+
+  .btn-stacked { display: flex; flex-direction: column; gap: 8px; }
+  .btn-primary-full { width: 100%; padding: 14px; border-radius: 10px; background: #238636; color: #fff; font-size: 15px; font-weight: 600; text-align: center; border: none; }
+  .btn-secondary-full { width: 100%; padding: 14px; border-radius: 10px; background: #21262d; color: #e6edf3; font-size: 15px; font-weight: 600; text-align: center; border: 1px solid #30363d; }
+
+  .spacer { height: 6px; }
+  .spacer-lg { height: 10px; }
+</style>
+</head>
+<body>
+
+<!-- TREADMILL -->
+<div style="position: relative;">
+<div class="phone-label">TREADMILL (esteira)</div>
+<div class="phone">
+  <div class="label">Atual</div>
+  <div class="step-label">Corrida<small>Semana 5 — Treino 2</small></div>
+
+  <div class="stats-row">
+    <div class="stat-item"><div class="stat-value">3,25 km</div><div class="stat-label">Dist. Total</div></div>
+    <div class="stat-item"><div class="stat-value">18:42</div><div class="stat-label">Tempo Total</div></div>
+    <div class="stat-item"><div class="stat-value">10,4 km/h</div><div class="stat-label">Vel. Média</div></div>
+  </div>
+
+  <div class="marquee-bar">
+    <div class="marquee-text">3:00 Corrida @ 10,0 km/h</div>
+  </div>
+
+  <div class="progress-label">Progresso da Volta</div>
+  <div class="progress-wrapper">
+    <div class="progress-bar">
+      <div class="progress-fill" style="width: 62%"></div>
+      <div class="progress-pct">62%</div>
+    </div>
+  </div>
+
+  <div class="progress-label">Progresso do Treino</div>
+  <div class="progress-wrapper">
+    <div class="progress-bar">
+      <div class="progress-fill" style="width: 45%"></div>
+      <div class="progress-pct">45%</div>
+    </div>
+  </div>
+
+  <div class="spacer-lg"></div>
+  <div class="distance-box treadmill">
+    <div class="primary-value">1:14</div>
+    <div class="primary-label">Tempo Restante</div>
+    <div class="secondary-value">1,85 km</div>
+    <div class="secondary-label">Distância Percorrida</div>
+  </div>
+
+  <div class="spacer-lg"></div>
+  <div class="speed-controls">
+    <div class="speed-btn">−</div>
+    <div style="text-align: center"><div class="speed-value">10,0 KM/h</div><div class="stat-label">Velocidade</div></div>
+    <div class="speed-btn">+</div>
+  </div>
+
+  <div class="spacer-lg"></div>
+  <div class="btn-stacked">
+    <button class="btn-primary-full">⏭ Próxima Volta</button>
+    <button class="btn-secondary-full">⏸ Pausar</button>
+  </div>
+</div>
+</div>
+
+<!-- OUTDOOR -->
+<div style="position: relative;">
+<div class="phone-label">OUTDOOR (ao ar livre)</div>
+<div class="phone">
+  <div class="label">Atual</div>
+  <div class="step-label">Corrida<small>Semana 5 — Treino 2</small></div>
+
+  <div class="stats-row">
+    <div class="stat-item"><div class="stat-value">5,10 km</div><div class="stat-label">Dist. Total</div></div>
+    <div class="stat-item"><div class="stat-value">32:15</div><div class="stat-label">Tempo Total</div></div>
+    <div class="stat-item"><div class="stat-value">9,5 km/h</div><div class="stat-label">Vel. Média</div></div>
+  </div>
+
+  <div class="marquee-bar">
+    <div class="marquee-text">850m Corrida @ Ritmo 6:20 min/km</div>
+  </div>
+
+  <div class="progress-label">Progresso da Volta</div>
+  <div class="progress-wrapper">
+    <div class="progress-bar">
+      <div class="progress-fill" style="width: 38%"></div>
+      <div class="progress-pct">38%</div>
+    </div>
+  </div>
+
+  <div class="progress-label">Progresso do Treino</div>
+  <div class="progress-wrapper">
+    <div class="progress-bar">
+      <div class="progress-fill" style="width: 55%"></div>
+      <div class="progress-pct">55%</div>
+    </div>
+  </div>
+
+  <div class="spacer-lg"></div>
+  <div class="spacer-lg"></div>
+
+  <!-- MAP: 85% -->
+  <div class="map-container" style="flex: 0.85; min-height: 180px;">
+    <span>[ Mapa 85% ]</span>
+  </div>
+
+  <div class="spacer-lg"></div>
+
+  <div class="distance-box outdoor">
+    <div class="primary-value">520m</div>
+    <div class="primary-label">Distância Restante</div>
+    <div class="secondary-value">4:18</div>
+    <div class="secondary-label">Tempo da Volta</div>
+  </div>
+
+  <!-- Botões alinhados ao rodapé -->
+  <div style="margin-top: auto; padding-bottom: 4px;">
+    <div class="btn-stacked">
+      <button class="btn-primary-full">⏭ Próxima Volta</button>
+      <button class="btn-secondary-full">⏸ Pausar</button>
+    </div>
+  </div>
+</div>
+</div>
+
+</body>
+</html>

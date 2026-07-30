@@ -12,7 +12,7 @@ interface Props {
 
 export default function TreadmillPanel({ treadmill, targetSpeedKmh, onSpeedChange, onInclineChange }: Props) {
   const [showScan, setShowScan] = useState(false);
-  const { state, connected, devices, metrics, speedKmh, error, scan, connect, disconnect, setSpeed, setIncline } = treadmill;
+  const { state, connected, devices, metrics, speedKmh, inclinePercent, error, scan, connect, disconnect, setSpeed, setIncline } = treadmill;
   const isConnecting = state === 'CONNECTING';
 
   const handleToggleConnect = () => {

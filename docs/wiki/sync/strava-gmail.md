@@ -292,20 +292,51 @@ onExportSession={async (session) => {
 ```typescript
 const STORAGE_KEY = 'gmail_strava_token';
 
-export function getStoredGmailToken(): string | null {
-  return localStorage.getItem(STORAGE_KEY);
+interface StoredToken {
+  access_token: string;
+  refresh_token?: string;
+}
+
+export function getStoredToken(): StoredToken | null {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
+  // Backward compat: old plain string tokens
+  try { return JSON.parse(raw); } catch { return { access_token: raw }; }
+}
+
+function storeToken(token: StoredToken) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(token));
 }
 
 function clearGmailToken() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-// Auto-refresh on 401
+// Refresh via cloud function
+async function refreshAccessToken(refreshToken: string): Promise<string> {
+  const res = await fetch('https://us-central1-correlogo-prod.cloudfunctions.net/refreshAuthToken', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error);
+  return data.access_token;
+}
+
+// Auto-refresh on 401 with retry
 async function sendMessage(token: string, raw: string) {
-  const res = await fetch(..., { headers: { Authorization: `Bearer ${token}` }});
+  let res = await fetch(..., { headers: { Authorization: `Bearer ${token}` }});
   if (res.status === 401) {
-    clearGmailToken();
-    return { success: false, error: 'Token expirado. Reconecte o Gmail.' };
+    const stored = getStoredToken();
+    if (stored?.refresh_token) {
+      const newToken = await refreshAccessToken(stored.refresh_token);
+      storeToken({ access_token: newToken, refresh_token: stored.refresh_token });
+      res = await fetch(..., { headers: { Authorization: `Bearer ${newToken}` }});
+    } else {
+      clearGmailToken();
+      return { success: false, error: 'Token expirado. Reconecte o Gmail.' };
+    }
   }
   return res.ok ? { success: true } : { success: false, error: await res.text() };
 }

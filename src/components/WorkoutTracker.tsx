@@ -9,7 +9,7 @@ import { exportWorkoutToHealthConnect } from '../lib/capacitor/health-connect';
 import type { WorkoutExport, SyncStatus } from '../lib/capacitor/health-connect';
 import { sendWorkoutToStravaViaEmail } from '../lib/gmailApi';
 import TreadmillPanel from './TreadmillPanel';
-import { useTreadmill } from '../lib/use-treadmill';
+import type { TreadmillConnection } from '../lib/use-treadmill';
 import type { TrainingSession } from '../types';
 
 interface Props {
@@ -27,9 +27,11 @@ interface Props {
   simulateGps?: boolean;
   key?: string;
   onSyncResult?: (status: SyncStatus) => void;
+  showFeedback?: (type: 'success' | 'error', message: string) => void;
+  treadmill: TreadmillConnection;
 }
 
-export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime, isFreeTraining, simulateGps, onSyncResult }: Props) {
+export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime, isFreeTraining, simulateGps, onSyncResult, showFeedback, treadmill }: Props) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedRef = useRef(0);
@@ -54,7 +56,6 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const [retryKey, setRetryKey] = useState(0);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'failed'>('idle');
 
-  const treadmill = useTreadmill();
   const distRef = useRef(0);
   const speedRef = useRef(10);
   const lapDistRef = useRef(0);
@@ -92,6 +93,16 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
           sessionStartTimeRef.current = Date.now();
       }
   }, [countdown]);
+
+  // Set treadmill speed to first step's target when workout starts
+  useEffect(() => {
+    if (countdown === 0 && treadmill.connected) {
+      const step = plan.steps[0];
+      if (step?.targetPace && step.targetPace > 0) {
+        treadmill.setSpeed(60 / step.targetPace);
+      }
+    }
+  }, [countdown, treadmill.connected]);
 
   // Sync refs to state
   useEffect(() => {
@@ -730,7 +741,12 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       completed: true, points: pointsRef.current,
     };
     sendWorkoutToStravaViaEmail(stravaSession).then(sr => {
-      if (!sr.success && sr.error) console.warn('[strava] send failed:', sr.error);
+      if (sr.success) {
+        showFeedback?.('success', 'Atividade enviada ao Strava!');
+      } else if (sr.error && sr.error !== 'Apenas dispositivo nativo') {
+        console.warn('[strava] send failed:', sr.error);
+        showFeedback?.('error', `Strava: ${sr.error}`);
+      }
     });
 
     onStop();
