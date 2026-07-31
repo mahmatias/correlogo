@@ -50,10 +50,13 @@
   .g4 { background: linear-gradient(160deg, #1c0303 0%, #4a0e0e 42%, #dc2626 78%, #fbbf24 100%); }
   .blob { position: absolute; border-radius: 50%; background: rgba(255,255,255,.05); pointer-events: none; }
 
-  /* logo block: app icon (swoosh da Load screen) + CORRE/LOGO, all same width, smallest legible */
-  .logo { position: absolute; top: 352px; right: 60px; width: 180px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; z-index: 20; }
-  .logo .chip { width: 100%; height: 56px; border-radius: 14px; background: rgba(255,255,255,.16); border: 2px solid rgba(255,255,255,.35); display: flex; align-items: center; justify-content: center; }
-  .logo .chip svg { width: 44px; height: 44px; }
+  /* logo block: uniform — icon (square) + CORRE + LOGO, all same total width */
+  .logo { position: absolute; top: 352px; right: 60px; width: 180px; display: flex; flex-direction: column; align-items: stretch; gap: 10px; z-index: 20; }
+  .logo .icon { width: 100%; aspect-ratio: 1; }
+  .logo .icon svg { width: 100%; height: 100%; display: block; }
+  .logo .t { width: 100%; text-align: center; white-space: nowrap; font-weight: 600; line-height: 1.15; }
+  .logo .t.corre { font-size: 38px; letter-spacing: .34em; text-indent: .34em; }
+  .logo .t.logo { font-size: 44px; letter-spacing: .42em; text-indent: .42em; }
   .logo .t { width: 100%; text-align: center; font-size: 19px; font-weight: 600; letter-spacing: .22em; line-height: 1.15; text-indent: .22em; }
   .title { position: absolute; top: 352px; left: 60px; width: 720px; font-size: 56px; font-weight: 800; line-height: 1.05; z-index: 20; }
 
@@ -70,7 +73,7 @@
   .c1 .bar .k { font-size: 20px; opacity: .5; }
   .c1 .stats { position: absolute; top: 1235px; left: 60px; right: 60px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 28px; }
   .c1 .stat .v { font-size: 46px; font-weight: 800; line-height: 1.05; }
-  .c1 .stat .k { font-size: 21px; font-weight: 300; opacity: .55; margin-top: 4px; }
+  .c1 .stat .k { font-size: 32px; font-weight: 300; opacity: .55; margin-top: 4px; }
   .c1 .stat:nth-child(3n+1) { text-align: left; }
   .c1 .stat:nth-child(3n+2) { text-align: center; }
   .c1 .stat:nth-child(3n+3) { text-align: right; }
@@ -92,7 +95,7 @@
   .c3 .statrow .k, .c4 .statrow .k { font-size: 20px; font-weight: 300; opacity: .6; margin-bottom: 8px; }
   .c3 .statrow .v, .c4 .statrow .v { font-size: 42px; font-weight: 800; line-height: 1.1; }
 
-  #map4 { position: absolute; left: 132px; top: 540px; width: 816px; height: 816px; background: #15151f; }
+  #map4 { position: absolute; left: 132px; top: 540px; width: 816px; height: 816px; background: #15151f; overflow: hidden; }
   #map4 .tile { position: absolute; width: 256px; height: 256px; }
   #map4 svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; }
   #map4 svg path { fill: none; stroke: #7c3aed; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 3px 8px rgba(0,0,0,.5)); }
@@ -102,8 +105,8 @@
 <body>
 
 <header>
-  <h1>Share Cards — mockup v3</h1>
-  <span>1080×1920 · área útil y 350–1650 · logo swoosh (Load screen) · card 4 mapa 816×816</span>
+  <h1>Share Cards — mockup v4</h1>
+  <span>1080×1920 · área útil y 350–1650 · logo uniforme (icon=CORRE=LOGO) · card 4 mapa 816×816</span>
   <button id="tgl">Ocultar guias de área útil</button>
 </header>
 
@@ -115,7 +118,7 @@
     <div class="card"><div class="canvas c1 g1">
       <div class="blob" style="width:520px;height:520px;top:-140px;right:-160px;"></div>
       <div class="blob" style="width:640px;height:640px;bottom:-260px;left:-120px;"></div>
-      <div class="logo"><div class="chip"><svg viewBox="0 0 100 100"><path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="#FF006E"/><path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="#FF006E" opacity=".6"/></svg></div><div class="t">CORRE</div><div class="t">LOGO</div></div>
+      <div class="logo"><div class="icon"><svg viewBox="0 0 100 100"><path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="#FF006E"/><path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="#FF006E" opacity=".6"/></svg></div><div class="t corre">CORRE</div><div class="t logo">LOGO</div></div>
       <div class="title">Treino de 5&nbsp;km</div>
       <div class="route"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
         <path d="M12,78 C20,62 24,48 20,34 C26,40 40,44 52,40 C44,30 50,16 60,12 C66,22 76,26 86,22 C78,36 70,52 62,64 C56,74 52,82 46,88"></path>
@@ -149,7 +152,7 @@
     <label>Card 2 · Stats à esquerda</label>
     <div class="card"><div class="canvas c2 g2">
       <div class="blob" style="width:460px;height:460px;top:-120px;left:-140px;"></div>
-      <div class="logo"><div class="chip"><svg viewBox="0 0 100 100"><path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="#FF006E"/><path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="#FF006E" opacity=".6"/></svg></div><div class="t">CORRE</div><div class="t">LOGO</div></div>
+      <div class="logo"><div class="icon"><svg viewBox="0 0 100 100"><path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="#FF006E"/><path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="#FF006E" opacity=".6"/></svg></div><div class="t corre">CORRE</div><div class="t logo">LOGO</div></div>
       <div class="title">Treino de 5&nbsp;km</div>
       <div class="route big"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
         <path d="M22,82 C30,64 34,48 30,34 C36,40 48,44 58,40 C50,30 56,18 66,14 C72,24 82,28 92,24"></path>
@@ -170,7 +173,7 @@
     <label>Card 3 · Stats embaixo</label>
     <div class="card"><div class="canvas c3 g3">
       <div class="blob" style="width:520px;height:520px;top:-160px;right:-120px;"></div>
-      <div class="logo"><div class="chip"><svg viewBox="0 0 100 100"><path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="#FF006E"/><path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="#FF006E" opacity=".6"/></svg></div><div class="t">CORRE</div><div class="t">LOGO</div></div>
+      <div class="logo"><div class="icon"><svg viewBox="0 0 100 100"><path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="#FF006E"/><path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="#FF006E" opacity=".6"/></svg></div><div class="t corre">CORRE</div><div class="t logo">LOGO</div></div>
       <div class="title">Treino de 5&nbsp;km</div>
       <div class="route big"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
         <path d="M22,82 C30,64 34,48 30,34 C36,40 48,44 58,40 C50,30 56,18 66,14 C72,24 82,28 92,24"></path>
@@ -190,7 +193,7 @@
   <div class="stage">
     <label>Card 4 · Mapa real + traçado</label>
     <div class="card"><div class="canvas c4 g4">
-      <div class="logo"><div class="chip"><svg viewBox="0 0 100 100"><path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="#FF006E"/><path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="#FF006E" opacity=".6"/></svg></div><div class="t">CORRE</div><div class="t">LOGO</div></div>
+      <div class="logo"><div class="icon"><svg viewBox="0 0 100 100"><path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="#FF006E"/><path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="#FF006E" opacity=".6"/></svg></div><div class="t corre">CORRE</div><div class="t logo">LOGO</div></div>
       <div class="title">Treino de 5&nbsp;km</div>
       <div id="map4"></div>
       <div class="shade"></div>
