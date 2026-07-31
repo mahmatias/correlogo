@@ -1,5 +1,22 @@
 # Handoff
 
+## Session Context (2026-07-31g — Share Cards/Adesivos: design fechado, spec escrito)
+
+### O que aconteceu
+- **Mock `mockups/share-cards.html`** iterado de v1 a **v6** com validação no celular e fix de colisão de classes (`.t.logo` colidia com `.logo` do container → jogava a linha LOGO 352px abaixo; reescrito em block flow puro). Cards 1–4 **aprovados** pelo usuário.
+- **Decisões de design fechadas**: canvas 1080×1920, área útil do story y 350–1650, logo uniforme 60px, mapa card 4 = 816×816 tiles `dark_all` (fundo < mapa < logo), 6 presets de gradiente, edição = **painel inline colapsável** (não modal), stats selectáveis por card, **Salvar na Galeria** (MediaStore `Pictures/CorreLogo`) nos Cartões, **PNG transparente** nos Adesivos, foto de fundo via `@capacitor/camera@^7` (cards 1–3).
+- **Spike CORS tiles CARTO + dom-to-image passou** (harness + CDP, Edge headless): canvas **not-tainted**, tiles na captura → card 4 sem Leaflet.
+- **Descoberta**: `@capacitor/share` não tem `packageName` (provado no `.d.ts`) → `shareToWhatsApp` nativo no `SocialSharePlugin.kt`.
+- **Spec escrito**: `docs/superpowers/specs/2026-07-31-share-cards-design.md` — arquitetura em camadas (libs puras `splits.ts`/`card-map.ts`, UI `ShareScreen.tsx`, nativo `saveToGallery`/`shareToWhatsApp`), workflow, testes, considerações.
+
+### Cuidados para a próxima sessão
+1. **Espec não foi implementado ainda** — próximo passo: revisão do usuário → `writing-plans` (`docs/plans/`) → implementação + pipeline completo (`Copy-Item .env.apk .env -Force` → `npm run build` → `npx cap sync android` → `gradlew assembleDebug`, com `JAVA_HOME` em `C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot`).
+2. Commit atual é **docs-only** (`[skip ci]`). Instalar `@capacitor/camera@^7` (compatível com core 7) no commit de implementação; **não** subir `@capacitor/app`/`@capacitor/browser` para 8.
+3. **Edições Android** restritas a `android/app/src/main/java/com/correlogo/app/` (regra 3 do AGENTS.md).
+4. Decisões de implementação ainda em aberto (não mockadas): tema dark dos cards, efeito do gradiente 4-cores cortado em IG story, paleta de widgets em tema light.
+
+---
+
 ## Session Context (2026-07-31f — Housekeeping: auditoria de limpeza)
 
 ### O que aconteceu

@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-07-31g] — Share Cards/Adesivos: mock aprovado + spec de design (docs only, `[skip ci]`)
+
+### Added
+- **Mock interativo** `mockups/share-cards.html` (v1→v6) com os 4 cards de compartilhamento (stats+pace / stats esquerda / stats embaixo / mapa real), proporções aprovadas: canvas 1080×1920, área útil do story y 350–1650, logo uniforme 60px (swoosh `#FF006E` + CORRE + LOGO), mapa do card 4 em 816×816 com tiles CARTO `dark_all`, 6 presets de gradiente.
+- **Spec de design** `docs/superpowers/specs/2026-07-31-share-cards-design.md` (primeira spec na pasta nova `docs/superpowers/specs/`): arquitetura em camadas (`splits.ts` pace por km/5km, `card-map.ts` Web Mercator sem Leaflet, `ShareScreen.tsx` abas Cartões/Adesivos + EditPanel inline, `saveToGallery`/`shareToWhatsApp` no `SocialSharePlugin.kt`, `@capacitor/camera@^7`), workflows, testes e considerações.
+
+### Fixed (decidido via spike, pré-implementação)
+- **CORS dos tiles CARTO + dom-to-image validado** (harness + CDP): `canvas not-tainted`, tiles renderizam na captura → card 4 pode usar tiles `<img>` + SVG no DOM, sem Leaflet.
+- **`@capacitor/share` não aceita `packageName`** (verificado no `.d.ts`) → WhatsApp por intent nativa `package="com.whatsapp"` em método novo `shareToWhatsApp` + fallback share sheet.
+
+### Build
+- Docs-only. `npm run build` ✅ (2381) · `npm test` ✅ (29/29) na sessão anterior (2026-07-31f). Commit com `[skip ci]`.
+
+---
+
 ## [2026-07-31e] — Housekeeping: auditoria de limpeza (docs archive + resíduos AWS + deps mortas)
 
 ### Removed (repo hygiene)
