@@ -1,6 +1,30 @@
 # Handoff
 
-## Session Context (2026-07-31c — v3.3: Fix overlay — mapa não cobre modal de compartilhamento)
+## Session Context (2026-07-31d — v3.4: Sticker de verdade — PNG transparente + intent do Instagram conforme spec)
+
+### Bugs reportados (device, na 3.2/3.3)
+1. **Copiar imagem**: copia e cola, mas a imagem "apesar de ter fundo transparente, tem alguma cor" — o esperado é **só o texto** com opacidade, o resto 0.
+2. **Instagram Stories**: abre o Instagram no composer de story, mas **não vai como figurinha** — fica na camada mais baixa (fundo).
+
+### Causa raiz (uma para os dois + um no plugin)
+- **`ShareCard.tsx` variante D (Foto)**: o card era `background: 'transparent'` MAS tinha um `<div className="absolute inset-0 bg-black/30" />` (véu preto 30%) para legibilidade. O PNG capturado (copy e sticker) saía com camada preta 30% → "tem alguma cor".
+- **`SocialSharePlugin.kt`**:
+  - O PNG de sticker não era transparente → Meta exige PNG **com transparência** no `interactive_asset_uri`; sem transparência o Instagram coloca o asset como **fundo** (camada mais baixa) — explica exatamente o sintoma 2.
+  - Sticker-only: só `intent.type = "image/png"`, **sem** `setData` no intent principal; sem `setPackage("com.instagram.android")`.
+
+### Fix (commit a definir)
+- `ShareCard.tsx`: véu `bg-black/30` **removido** da variante D → PNG com apenas texto visível (drop-shadow suave nos valores mantido — avisar o usuário se quiser zero sombra).
+- `SocialSharePlugin.kt` (`shareToInstagram`): sempre `setPackage(INSTAGRAM_PACKAGE)` + `setDataAndType(primaryUri, "image/png")` (primary = background ?? sticker) + `addFlags(FLAG_GRANT_READ_URI_PERMISSION)` + extras `background_image_uri`/`interactive_asset_uri` + `grantUriPermission` no sticker. Spec oficial da Meta.
+- `build.gradle`: versionName **"3.4"**.
+
+### Pending / próximos passos
+1. **Instalar 3.4** (a 3.2+ já instala sozinha via auto-update — primeira prova de fogo de ponta a ponta: 3.2 → 3.4 direto, versionCode 132 → 134)
+2. Validar: Copiar imagem (só texto, fundo transparente) e Instagram Stories (figurinha na camada superior, arrastável)
+3. Validar o fix da 3.3 (overlay do mapa) que também vem no 3.4
+4. (Alerta) `correlogo.sytes.net` fora do ar — verificar `pm2`/Nginx/Security Group no EC2
+
+---
+
 
 ### Bug reportado (device, na 3.2)
 - No relatório de treinos com mapa, ao clicar em **Compartilhar**, o **mapa (somente ele)** fica por cima do novo modal de compartilhamento.

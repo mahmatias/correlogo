@@ -231,9 +231,6 @@ export default function ShareCard({ data, variant, showStats, className, style, 
           ...style,
         }}
       >
-        {/* Semi-transparent backdrop for readability on photos */}
-        <div className="absolute inset-0 bg-black/30" />
-
         <div className="flex flex-col items-center gap-8 px-16 text-center z-10" style={{ fontFamily: 'Geologica, sans-serif' }}>
           {showLogo && (
             <div className="text-lg tracking-[0.3em] opacity-80 mb-4">CORRE LOGO</div>
