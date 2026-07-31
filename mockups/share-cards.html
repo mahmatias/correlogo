@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Share Cards — Mockup de proporções</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geologica:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root { --s: calc(84vh / 1920); }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #07070f; color: #e8e8f0;
+    font-family: 'Geologica', system-ui, -apple-system, sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 16px;
+    padding: 10px 20px; background: rgba(7,7,15,.92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid #ffffff14;
+  }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .02em; }
+  header span { font-size: 12px; color: #8b8b9e; }
+  button {
+    font-family: inherit; font-size: 12px; cursor: pointer;
+    background: #1c1c2e; color: #e8e8f0; border: 1px solid #ffffff20;
+    border-radius: 8px; padding: 6px 12px;
+  }
+  button.active { background: #7c3aed; border-color: #a78bfa; }
+  .row {
+    display: flex; gap: 36px; padding: 24px 28px 40px;
+    overflow-x: auto; align-items: flex-start;
+  }
+  .stage { display: flex; flex-direction: column; gap: 10px; align-items: center; flex: 0 0 auto; }
+  .stage label { font-size: 12px; font-weight: 600; color: #b9b9cc; letter-spacing: .06em; text-transform: uppercase; }
+  .card {
+    position: relative; width: calc(1080 * var(--s)); height: calc(1920 * var(--s));
+    border-radius: 10px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.55);
+    background: #10101c;
+  }
+  .canvas { position: absolute; top: 0; left: 0; width: 1080px; height: 1920px; transform: scale(var(--s)); transform-origin: 0 0; }
+  /* safe-area guide */
+  .safe { position: absolute; top: 350px; left: 0; width: 1080px; height: 1300px; border: 3px dashed rgba(255,80,80,.55); pointer-events: none; z-index: 40; }
+  .safe .lbl { position: absolute; top: -28px; left: 0; background: rgba(255,80,80,.85); color:#fff; font-size: 20px; padding: 4px 14px; border-radius: 0 8px 8px 0; letter-spacing: .08em; }
+  body.hide-safe .safe { display: none; }
+
+  /* shared card bits */
+  .g1 { background: linear-gradient(160deg, #1a0533 0%, #2d1b69 38%, #e8598b 74%, #ffb347 100%); }
+  .g2 { background: linear-gradient(160deg, #041229 0%, #0b3a6b 42%, #00b4d8 78%, #90e0ef 100%); }
+  .g3 { background: linear-gradient(160deg, #0a2e12 0%, #14532d 42%, #65a30d 78%, #facc15 100%); }
+  .g4 { background: linear-gradient(160deg, #1c0303 0%, #4a0e0e 42%, #dc2626 78%, #fbbf24 100%); }
+  .blob { position: absolute; border-radius: 50%; background: rgba(255,255,255,.05); pointer-events: none; }
+  .ic { position: absolute; top: 12px; right: 12px; width: 64px; height: 64px; border-radius: 18px; background: rgba(255,255,255,.16); border: 2px solid rgba(255,255,255,.35); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 28px; }
+
+  /* card 1 */
+  .c1 .title { position: absolute; top: 352px; left: 60px; width: 760px; font-size: 56px; font-weight: 800; line-height: 1.05; }
+  .c1 .route { position: absolute; top: 470px; left: 60px; right: 60px; height: 450px; }
+  .c1 .route svg { width: 100%; height: 100%; }
+  .c1 .route svg path { fill: none; stroke: rgba(255,255,255,.75); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 2px 4px rgba(0,0,0,.35)); }
+  .c1 .pacebox { position: absolute; top: 948px; left: 60px; right: 60px; height: 240px; }
+  .c1 .pacebox .cap { font-size: 22px; font-weight: 600; letter-spacing: .22em; opacity: .55; margin-bottom: 14px; }
+  .c1 .bars { display: flex; gap: 26px; height: 180px; align-items: flex-end; }
+  .c1 .bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; }
+  .c1 .bar .v { font-size: 26px; font-weight: 700; }
+  .c1 .bar .r { width: 100%; max-width: 88px; border-radius: 14px 14px 6px 6px; background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.35)); }
+  .c1 .bar .k { font-size: 20px; opacity: .5; }
+  .c1 .stats { position: absolute; top: 1235px; left: 60px; right: 60px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 28px; }
+  .c1 .stat .v { font-size: 46px; font-weight: 800; line-height: 1.05; }
+  .c1 .stat .k { font-size: 21px; font-weight: 300; opacity: .55; margin-top: 4px; }
+
+  /* card 2/3/4 */
+  .c2 .route, .c3 .route, .c4 .route { position: absolute; }
+  .c2 .big, .c3 .big { left: 60px; right: 60px; top: 470px; bottom: 60px; }
+  .c2 .big svg, .c3 .big svg { width: 100%; height: 100%; }
+  .c2 .big svg path, .c3 .big svg path { fill: none; stroke: rgba(255,255,255,.8); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 3px 6px rgba(0,0,0,.4)); }
+  .c2 .statcol { position: absolute; left: 60px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 34px; width: 300px; padding: 40px 34px; background: rgba(0,0,0,.32); border-radius: 24px; backdrop-filter: blur(6px); }
+  .c2 .statcol .k { font-size: 21px; font-weight: 300; opacity: .6; }
+  .c2 .statcol .v { font-size: 44px; font-weight: 800; line-height: 1.1; }
+  .c3 .statrow, .c4 .statrow { position: absolute; left: 60px; right: 60px; bottom: 70px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .c3 .statrow .cell, .c4 .statrow .cell { background: rgba(0,0,0,.34); border-radius: 22px; padding: 26px 22px; text-align: center; backdrop-filter: blur(6px); }
+  .c3 .statrow .k, .c4 .statrow .k { font-size: 20px; font-weight: 300; opacity: .6; margin-bottom: 8px; }
+  .c3 .statrow .v, .c4 .statrow .v { font-size: 42px; font-weight: 800; line-height: 1.1; }
+  #map4 { position: absolute; left: 0; right: 0; top: 470px; bottom: 0; }
+  .c4 .route { left: 0; right: 0; top: 470px; bottom: 0; z-index: 5; }
+  .c4 .route svg { width: 100%; height: 100%; }
+  .c4 .route svg path { fill: none; stroke: #7c3aed; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 3px 8px rgba(0,0,0,.5)); }
+  .c4 .shade { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; background: linear-gradient(0deg, rgba(0,0,0,.65), transparent); pointer-events: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Share Cards — mockup</h1>
+  <span>1080×1920 · conteúdo na área útil do story (y 350–1650)</span>
+  <button id="tgl">Ocultar guias de área útil</button>
+</header>
+
+<div class="row" id="cards">
+
+  <!-- CARD 1: Stats + Pace -->
+  <div class="stage">
+    <label>Card 1 · Stats + Pace</label>
+    <div class="card"><div class="canvas c1 g1">
+      <div class="blob" style="width:520px;height:520px;top:-140px;right:-160px;"></div>
+      <div class="blob" style="width:640px;height:640px;bottom:-260px;left:-120px;"></div>
+      <div class="ic">🏃</div>
+      <div class="title">Treino de 5&nbsp;km</div>
+      <div class="route"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+        <path d="M12,78 C20,62 24,48 20,34 C26,40 40,44 52,40 C44,30 50,16 60,12 C66,22 76,26 86,22 C78,36 70,52 62,64 C56,74 52,82 46,88"></path>
+        <circle cx="12" cy="78" r="2.6" fill="#22C55E"/>
+        <circle cx="46" cy="88" r="2.6" fill="#EF4444"/>
+      </svg></div>
+      <div class="pacebox">
+        <div class="cap">PACE POR KM</div>
+        <div class="bars">
+          <div class="bar"><div class="v">4'52"</div><div class="r" style="height:66%"></div><div class="k">KM 1</div></div>
+          <div class="bar"><div class="v">5'04"</div><div class="r" style="height:80%"></div><div class="k">KM 2</div></div>
+          <div class="bar"><div class="v">4'58"</div><div class="r" style="height:72%"></div><div class="k">KM 3</div></div>
+          <div class="bar"><div class="v">5'12"</div><div class="r" style="height:100%"></div><div class="k">KM 4</div></div>
+          <div class="bar"><div class="v">4'44"</div><div class="r" style="height:52%"></div><div class="k">KM 5</div></div>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="v">5,00&nbsp;km</div><div class="k">Distância</div></div>
+        <div class="stat"><div class="v">4'58"</div><div class="k">Pace</div></div>
+        <div class="stat"><div class="v">24:52</div><div class="k">Tempo total</div></div>
+        <div class="stat"><div class="v">12,1</div><div class="k">km/h</div></div>
+        <div class="stat"><div class="v">31&nbsp;jul</div><div class="k">Data</div></div>
+        <div class="stat"><div class="v">Rua</div><div class="k">Modo</div></div>
+      </div>
+      <div class="safe"><span class="lbl">ÁREA ÚTIL</span></div>
+    </div></div>
+  </div>
+
+  <!-- CARD 2: Left -->
+  <div class="stage">
+    <label>Card 2 · Stats à esquerda</label>
+    <div class="card"><div class="canvas c2 g2">
+      <div class="blob" style="width:460px;height:460px;top:-120px;left:-140px;"></div>
+      <div class="ic">🏃</div>
+      <div class="title" style="position:absolute;top:352px;left:60px;width:760px;font-size:56px;font-weight:800;">Treino de 5&nbsp;km</div>
+      <div class="route big"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+        <path d="M22,82 C30,64 34,48 30,34 C36,40 48,44 58,40 C50,30 56,18 66,14 C72,24 82,28 92,24"></path>
+        <circle cx="22" cy="82" r="2.4" fill="#22C55E"/>
+        <circle cx="92" cy="24" r="2.4" fill="#EF4444"/>
+      </svg></div>
+      <div class="statcol">
+        <div><div class="k">Distância</div><div class="v">5,00&nbsp;km</div></div>
+        <div><div class="k">Pace</div><div class="v">4'58"</div></div>
+        <div><div class="k">Tempo total</div><div class="v">24:52</div></div>
+      </div>
+      <div class="safe"><span class="lbl">ÁREA ÚTIL</span></div>
+    </div></div>
+  </div>
+
+  <!-- CARD 3: Bottom -->
+  <div class="stage">
+    <label>Card 3 · Stats embaixo</label>
+    <div class="card"><div class="canvas c3 g3">
+      <div class="blob" style="width:520px;height:520px;top:-160px;right:-120px;"></div>
+      <div class="ic">🏃</div>
+      <div class="title" style="position:absolute;top:352px;left:60px;width:760px;font-size:56px;font-weight:800;">Treino de 5&nbsp;km</div>
+      <div class="route big"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+        <path d="M22,82 C30,64 34,48 30,34 C36,40 48,44 58,40 C50,30 56,18 66,14 C72,24 82,28 92,24"></path>
+        <circle cx="22" cy="82" r="2.4" fill="#22C55E"/>
+        <circle cx="92" cy="24" r="2.4" fill="#EF4444"/>
+      </svg></div>
+      <div class="statrow">
+        <div class="cell"><div class="k">Distância</div><div class="v">5,00&nbsp;km</div></div>
+        <div class="cell"><div class="k">Pace</div><div class="v">4'58"</div></div>
+        <div class="cell"><div class="k">Tempo total</div><div class="v">24:52</div></div>
+      </div>
+      <div class="safe"><span class="lbl">ÁREA ÚTIL</span></div>
+    </div></div>
+  </div>
+
+  <!-- CARD 4: Map real -->
+  <div class="stage">
+    <label>Card 4 · Mapa real + traçado</label>
+    <div class="card"><div class="canvas c4 g4">
+      <div class="ic" style="z-index:20;">🏃</div>
+      <div class="title" style="position:absolute;top:352px;left:60px;width:760px;font-size:56px;font-weight:800;z-index:20;">Treino de 5&nbsp;km</div>
+      <div id="map4"></div>
+      <div class="route"><svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;">
+        <path d="M22,82 C30,64 34,48 30,34 C36,40 48,44 58,40 C50,30 56,18 66,14 C72,24 82,28 92,24"></path>
+      </svg></div>
+      <div class="shade"></div>
+      <div class="statrow" style="z-index:20;">
+        <div class="cell"><div class="k">Distância</div><div class="v">5,00&nbsp;km</div></div>
+        <div class="cell"><div class="k">Pace</div><div class="v">4'58"</div></div>
+        <div class="cell"><div class="k">Tempo total</div><div class="v">24:52</div></div>
+      </div>
+      <div class="safe"><span class="lbl">ÁREA ÚTIL</span></div>
+    </div></div>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const tgl = document.getElementById('tgl');
+  tgl.addEventListener('click', () => {
+    document.body.classList.toggle('hide-safe');
+    tgl.textContent = document.body.classList.contains('hide-safe') ? 'Mostrar guias de área útil' : 'Ocultar guias de área útil';
+    tgl.classList.toggle('active', document.body.classList.contains('hide-safe'));
+  });
+
+  const pts = [
+    [-23.5834,-46.6634],[-23.5831,-46.6620],[-23.5822,-46.6609],[-23.5812,-46.6601],
+    [-23.5802,-46.6593],[-23.5793,-46.6584],[-23.5791,-46.6572],[-23.5800,-46.6563],
+    [-23.5810,-46.6558],[-23.5819,-46.6550],[-23.5826,-46.6540],[-23.5832,-46.6528],
+    [-23.5841,-46.6524],[-23.5846,-46.6536],[-23.5844,-46.6550],[-23.5839,-46.6562]
+  ];
+  const map = L.map('map4', { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, touchZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 20 }).addTo(map);
+  const line = L.polyline(pts, { color: '#7c3aed', weight: 8, opacity: .95, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+  L.circleMarker(pts[0], { radius: 12, color: '#22C55E', fillOpacity: 1 }).addTo(map);
+  L.circleMarker(pts[pts.length-1], { radius: 12, color: '#EF4444', fillOpacity: 1 }).addTo(map);
+  map.fitBounds(line.getBounds(), { padding: [90, 90] });
+</script>
+</body>
+</html>
