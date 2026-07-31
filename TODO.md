@@ -9,8 +9,8 @@
 
 ### Alta (imediato)
 - [ ] **Instalar 3.2 manualmente (bootstrap — ÚLTIMA instalação manual)** — 3.2 traz `REQUEST_INSTALL_PACKAGES`; a partir dela o auto-update instala sozinho (exige habilitar 1x "Instalar apps desconhecidos" para o Corre Logo)
+- [ ] **Prova de fogo do auto-update** — com a 3.2 no device, a 3.3 deve baixar e instalar **sozinha** (primeira vez de ponta a ponta) — valida também o fix do overlay mapa/modal
 - [ ] **Validar Instagram Stories (fix 3.1)** — Compartilhar → Foto → Instagram Stories deve abrir o composer **direto** com o PNG como **sticker** (App ID baked + plugin registrado no MainActivity); (b) Copiar imagem deve funcionar (se falhar, toast mostra o motivo real); (c) Google Login continua ok
-- [ ] **Prova de fogo do auto-update** — com a 3.2 no device, publicar 3.3 → modal deve baixar, abrir o instalador do sistema e instalar sozinho (sem o "fecha modal e não atualiza" da 3.1)
 - [ ] **`correlogo.sytes.net` FORA DO AR** — verificar `pm2`/Nginx/Security Group no EC2 (web app offline; app Android usa Firebase, ok)
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
 - [ ] **Permission intent Health Connect** — `PermissionController.createIntent()` não resolve no device do usuário. Próximo passo: depurar `health-connect://permissions` deep link ou tentar `Intent(ACTION_VIEW, Uri.parse(...))` alternativo
@@ -30,6 +30,11 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+## ✅ Concluídos (Sessão 2026-07-31c — v3.3 fix overlay mapa/modal)
+- [x] Causa raiz: `MapComponent` raiz com `relative` sem z-index → z-index do Leaflet (400/1000) vencem o modal de compartilhamento `z-60` no stacking context da raiz do SessionSummary (`z-50`)
+- [x] Fix: `relative z-0` no raiz do `MapComponent` (cria stacking context, confina os z-index do Leaflet)
+- [x] Builds ✅ `npm run build` + `npx cap sync android` + `gradlew assembleDebug`
 
 ## ✅ Concluídos (Sessão 2026-07-31b — v3.2 auto-update bootstrap)
 - [x] Causa raiz do "fecha modal e não atualiza": `AndroidManifest.xml` sem `REQUEST_INSTALL_PACKAGES` → Android 8+ bloqueia instalação programática

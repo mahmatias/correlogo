@@ -1,6 +1,20 @@
 # Changelog
 
-## [2026-07-31b] — v3.2: Auto-update vira bootstrap (permissão de instalação + progresso honesto)
+## [2026-07-31c] — v3.3: Fix overlay — mapa do relatório não cobre mais o modal de compartilhamento
+
+### Fixed
+- **Bug visual**: no relatório de treinos com mapa, ao clicar em **Compartilhar**, o **mapa (somente ele)** ficava por cima do novo modal de compartilhamento.
+- **Causa raiz**: o raiz do `MapComponent` tinha `relative` **sem z-index** → não criava stacking context. O Leaflet aplica `z-index: 400` nos panes e `1000` nos controles, que passavam a resolver contra o stacking context mais próximo — a raiz do `SessionSummary` (`fixed inset-0 z-50`). O modal de compartilhamento (`z-[60]`) vive no **mesmo** stacking context → os z-index do Leaflet (400/1000) vencem o `z-60`. Por isso apenas o mapa ficava por cima (o restante do relatório é z-auto, fica abaixo).
+- **Fix**: `relative z-0` no raiz do `MapComponent` — `z-index: 0` em elemento posicionado **cria** stacking context e confina todos os z-index do Leaflet dentro do mapa. O modal (`z-60`), sendo irmão no contexto da raiz do resumo, passa a renderizar acima. Mesmo fix vale para o `WorkoutTracker` (usa o mesmo componente).
+
+### Changed
+- `android/app/build.gradle` — `versionName` 3.2 → **"3.3"**
+
+### Build
+- `npm run build` ✅ · `npx cap sync android` ✅ · `gradlew assembleDebug` ✅
+
+---
+
 
 ### Contexto
 - Na 3.1 o usuário viu o prompt de atualização pela primeira vez, tocou em **Baixar**, a barra de progresso **não andou**, o modal fechou **sem toast** e o app **não atualizou**. O botão manual "Verificar atualizações" no perfil "só rodava" sem achar update.
