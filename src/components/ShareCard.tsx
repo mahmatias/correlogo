@@ -288,7 +288,7 @@ export default function ShareCard({ data, variant, showStats, session, gradient 
         <Blobs />
         {showLogo && <Logo />}
         {showStats.name && <Title>{data.name}</Title>}
-        <div style={{ position: 'absolute', top: 470, left: 132, right: 132, height: 450 }}>
+        <div style={{ position: 'absolute', top: 470, left: 60, right: 60, height: 450 }}>
           <RouteSVG session={session} stroke="rgba(255,255,255,0.75)" strokeWidth={5} />
         </div>
         {showStats.pace && splits.length > 0 && <PaceBox splits={splits} />}
@@ -303,7 +303,7 @@ export default function ShareCard({ data, variant, showStats, session, gradient 
         <div style={{ position: 'absolute', width: 460, height: 460, top: -120, left: -140, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
         {showLogo && <Logo />}
         {showStats.name && <Title>{data.name}</Title>}
-        <div style={{ position: 'absolute', left: 132, right: 132, top: 470, bottom: 60 }}>
+        <div style={{ position: 'absolute', left: 60, right: 60, top: 470, bottom: 60 }}>
           <RouteSVG session={session} stroke="rgba(255,255,255,0.8)" strokeWidth={6} />
         </div>
         <StatCol cells={cells.slice(0, 3)} />
@@ -317,7 +317,7 @@ export default function ShareCard({ data, variant, showStats, session, gradient 
         <div style={{ position: 'absolute', width: 520, height: 520, top: -160, right: -120, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
         {showLogo && <Logo />}
         {showStats.name && <Title>{data.name}</Title>}
-        <div style={{ position: 'absolute', left: 132, right: 132, top: 470, height: 960 }}>
+        <div style={{ position: 'absolute', left: 60, top: 470, width: 960, height: 960 }}>
           <RouteSVG session={session} stroke="rgba(255,255,255,0.8)" strokeWidth={6} />
         </div>
         <StatRow cells={cells.slice(0, 3)} />

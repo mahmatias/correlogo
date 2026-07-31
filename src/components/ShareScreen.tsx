@@ -3,19 +3,15 @@ import { ArrowLeft, ArrowRight, Camera, ClipboardCopy, Download, Instagram, Map 
 import { Camera as CameraPlugin, CameraResultType, CameraSource } from '@capacitor/camera';
 import ShareCard, { extractCardData, gridCells, STAT_CHIP_LABELS } from './ShareCard';
 import type { CardVariant } from './ShareCard';
-import { captureCard, captureSticker, shareImage, copyCardToClipboard, saveCardToGallery, shareToWhatsApp } from '../lib/shareCard';
+import { captureCard, shareImage, copyCardToClipboard, saveCardToGallery, shareToWhatsApp } from '../lib/shareCard';
 import { GRADIENT_PRESETS } from '../lib/gradients';
 import type { GradientPreset } from '../lib/gradients';
 import Button from './Button';
 import type { TrainingSession } from '../types';
 
-const ALL_VARIANTS: CardVariant[] = ['pace', 'left', 'bottom', 'map'];
+const VARIANTS: CardVariant[] = ['pace', 'left', 'bottom', 'map'];
 const PREVIEW_W = 324;
 const CARD_SCALE = PREVIEW_W / 1080;
-
-function sessionHasMap(session: TrainingSession): boolean {
-  return (session.points || []).some(p => p.lat !== undefined && p.lon !== undefined);
-}
 
 interface Props {
   session: TrainingSession;
@@ -37,9 +33,6 @@ const DEFAULT_STATS: Record<string, boolean> = {
 type BusyState = 'idle' | 'sharing' | 'saving' | 'copying';
 
 export default function ShareScreen({ session, onClose, showFeedback }: Props) {
-  const hasMap = useMemo(() => sessionHasMap(session), [session]);
-  const variants = useMemo(() => hasMap ? ALL_VARIANTS : ALL_VARIANTS.filter(v => v !== 'map'), [hasMap]);
-
   const [tab, setTab] = useState<'cards' | 'stickers'>('cards');
   const [cardIndex, setCardIndex] = useState(0);
   const [showStats, setShowStats] = useState(DEFAULT_STATS);
@@ -51,24 +44,18 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
   const carouselRef = useRef<HTMLDivElement>(null);
   const captureRef = useRef<HTMLDivElement>(null);
 
-  // Ajustar cardIndex se ficou fora dos limites (ex.: map desabilitado após seleção anterior)
-  useEffect(() => {
-    if (cardIndex >= variants.length) setCardIndex(variants.length - 1);
-    if (stickerMap && !hasMap) setStickerMap(false);
-  }, [variants.length, cardIndex, hasMap, stickerMap]);
-
-  const variant = variants[cardIndex];
+  const variant = VARIANTS[cardIndex];
   const data = useMemo(() => extractCardData(session), [session]);
   const activeCells = useMemo(() => gridCells(showStats), [showStats]);
   const canSave = activeCells.length >= 2;
   const captureKey = useMemo(
-    () => `${variant}-${gradient.id}-${photoUrl ?? 'none'}-${JSON.stringify(showStats)}-${tab}-${stickerMap ? 'map' : 'nomap'}`,
-    [variant, gradient.id, photoUrl, showStats, tab, stickerMap]
+    () => `${variant}-${gradient.id}-${photoUrl ?? 'none'}-${JSON.stringify(showStats)}-${tab}`,
+    [variant, gradient.id, photoUrl, showStats, tab]
   );
 
   useEffect(() => {
     carouselRef.current?.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
-  }, [variants.length]);
+  }, []);
 
   const scrollToIndex = (i: number) => {
     const el = carouselRef.current;
@@ -80,7 +67,7 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
     const el = carouselRef.current;
     if (!el) return;
     const idx = Math.round(el.scrollLeft / PREVIEW_W);
-    const clamped = Math.max(0, Math.min(variants.length - 1, idx));
+    const clamped = Math.max(0, Math.min(VARIANTS.length - 1, idx));
     if (clamped !== cardIndex) setCardIndex(clamped);
   };
 
@@ -104,13 +91,13 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
     }
   };
 
-  const runAction = async (fn: (blob: Blob) => Promise<void>, state: Exclude<BusyState, 'idle'>, mode: 'card' | 'sticker' = 'card') => {
+  const runAction = async (fn: (blob: Blob) => Promise<void>, state: Exclude<BusyState, 'idle'>) => {
     const el = captureRef.current;
     if (!el) return;
     setBusy(state);
     try {
       await new Promise(r => setTimeout(r, 400));
-      const blob = mode === 'sticker' ? await captureSticker(el) : await captureCard(el);
+      const blob = await captureCard(el);
       await fn(blob);
     } catch (err) {
       console.error('[share-action]', err);
@@ -144,14 +131,14 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
   const onStickerSave = () => runAction(async blob => {
     await saveCardToGallery(blob, 'corre-logo-sticker.png');
     showFeedback?.('success', 'Sticker salvo na galeria');
-  }, 'saving', 'sticker');
+  }, 'saving');
 
   const onCopy = () => runAction(async blob => {
     await copyCardToClipboard(blob);
     showFeedback?.('success', 'Imagem copiada! Abra o Instagram e cole no story');
-  }, 'copying', 'sticker');
+  }, 'copying');
 
-  const stickerVariant: CardVariant = (stickerMap && hasMap) ? 'map' : 'pace';
+  const stickerVariant: CardVariant = stickerMap ? 'map' : 'pace';
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-bg-deep overflow-y-auto p-4">
@@ -197,8 +184,8 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
             className="overflow-x-auto snap-x snap-mandatory no-scrollbar mb-2"
             style={{ scrollSnapType: 'x mandatory' }}
           >
-            <div style={{ display: 'flex', width: PREVIEW_W * variants.length }}>
-              {variants.map((v, i) => (
+            <div style={{ display: 'flex', width: PREVIEW_W * VARIANTS.length }}>
+              {VARIANTS.map((v, i) => (
                 <div key={v} className="snap-center" style={{ width: PREVIEW_W, flexShrink: 0, padding: '0 4px' }}>
                   {i === cardIndex && (
                     <div style={{ aspectRatio: '9/16', overflow: 'hidden', borderRadius: 12 }}>
@@ -225,7 +212,7 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex gap-1.5">
-              {variants.map((_, i) => (
+              {VARIANTS.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => scrollToIndex(i)}
@@ -234,7 +221,7 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
                 />
               ))}
             </div>
-            <button onClick={() => scrollToIndex(cardIndex + 1)} disabled={cardIndex === variants.length - 1} className="text-text-muted disabled:opacity-30 p-1" aria-label="Próximo">
+            <button onClick={() => scrollToIndex(cardIndex + 1)} disabled={cardIndex === VARIANTS.length - 1} className="text-text-muted disabled:opacity-30 p-1" aria-label="Próximo">
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>
@@ -340,15 +327,14 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
                 </label>
               ))}
             </div>
-            <label className={`flex items-center gap-2 text-sm ${hasMap ? 'text-text-primary' : 'text-text-muted opacity-50 cursor-not-allowed'}`}>
+            <label className="flex items-center gap-2 text-text-primary text-sm">
               <input
                 type="checkbox"
-                checked={stickerMap && hasMap}
-                disabled={!hasMap}
+                checked={stickerMap}
                 onChange={e => setStickerMap(e.target.checked)}
-                className="accent-accent w-4 h-4 disabled:opacity-50"
+                className="accent-accent w-4 h-4"
               />
-              <MapIcon className="w-4 h-4" /> {hasMap ? 'Incluir mapa no sticker' : 'Mapa indisponível (sem GPS)'}
+              <MapIcon className="w-4 h-4" /> Incluir mapa no sticker
             </label>
           </div>
 

@@ -79,33 +79,15 @@ export function useTreadmill(simulateBle?: boolean): TreadmillConnection {
 
   useEffect(() => {
     return () => {
-      clearScanTimeout();
       transportRef.current?.disconnect();
       cleanupsRef.current.forEach(fn => fn());
     };
-  }, [clearScanTimeout]);
-
-  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearScanTimeout = useCallback(() => {
-    if (scanTimeoutRef.current) {
-      clearTimeout(scanTimeoutRef.current);
-      scanTimeoutRef.current = null;
-    }
   }, []);
 
   const scan = useCallback(async () => {
     setDevices([]);
     setError(null);
     setState('SCANNING');
-    clearScanTimeout();
-    // Caso o plugin nativo não emita um evento "scan finished", manter o estado SCANNING visível
-    // até o timeout nativo (10s em TreadmillBleService.startScan) + pequena margem.
-    scanTimeoutRef.current = setTimeout(() => {
-      if (transportTypeRef.current) {
-        setState('DISCONNECTED');
-      }
-    }, 11000);
     try {
       const transport = ensureTransport();
       await transport.scan((device) => {
@@ -116,16 +98,14 @@ export function useTreadmill(simulateBle?: boolean): TreadmillConnection {
           return next;
         });
       });
-      // Permanece em SCANNING — o plugin nativo continua escaneando até o timeout interno.
+      setState('DISCONNECTED');
     } catch (err: any) {
-      clearScanTimeout();
       setError(err.message);
       setState('DISCONNECTED');
     }
-  }, [ensureTransport, clearScanTimeout]);
+  }, [ensureTransport]);
 
   const connect = useCallback(async (address: string) => {
-    clearScanTimeout();
     setError(null);
     setState('CONNECTING');
     try {
@@ -137,10 +117,9 @@ export function useTreadmill(simulateBle?: boolean): TreadmillConnection {
       setError(err.message);
       setState('DISCONNECTED');
     }
-  }, [ensureTransport, clearScanTimeout]);
+  }, [ensureTransport]);
 
   const disconnect = useCallback(async () => {
-    clearScanTimeout();
     await ensureTransport().disconnect();
     setState('DISCONNECTED');
     setDevices([]);
@@ -148,7 +127,7 @@ export function useTreadmill(simulateBle?: boolean): TreadmillConnection {
     setSpeedKmh(0);
     setInclinePercent(0);
     setConnectedDeviceName(null);
-  }, [ensureTransport, clearScanTimeout]);
+  }, [ensureTransport]);
 
   const setSpeed = useCallback(async (speed: number) => {
     setSpeedKmh(speed);
