@@ -8,15 +8,6 @@
 ## Pendentes
 
 ### Alta (imediato)
-- [ ] **Implementar Share Cards/Adesivos** — SDD plan `docs/superpowers/plans/2026-07-31-share-cards.md` (8 tasks, subagent-driven):
-  - [x] Task 1: `splits.ts` (pace splits por km/5km)
-  - [x] Task 2: `gradients.ts` (6 presets)
-  - [x] Task 3: `card-map.ts` (Web Mercator, tiles CARTO dark_all, 816×816)
-  - [x] Task 4: `ShareCard.tsx` 4 variantes (A: pace | B: left | C: bottom | D: map)
-  - [x] Task 5: `SocialSharePlugin.kt` — `saveToGallery` + `shareToWhatsApp` (nativo) — **review passed, minSdk bumped to 29**
-  - [ ] Task 6: TS wrappers em `src/lib/shareCard.ts` (`saveToGallery`, `shareToWhatsApp`)
-  - [ ] Task 7: `ShareScreen.tsx` (abas Cartões/Adesivos + EditPanel inline) + `@capacitor/camera@^7`
-  - [ ] Task 8: Wiring em `SessionSummary.tsx` + pipeline completo (`npm run build` → `cap sync` → `gradlew assembleDebug`)
 - [ ] **Figurinha no Stories — dívida técnica (nova abordagem)** — usuário estudando como outros apps fazem (a Meta parece exigir processo/asset específico além do PNG transparente). Investigar alternativas: `MediaSharePlugin` do Capacitor (intent nativo `com.instagram.share.ADD_TO_STORY`), share sheet nativo do Android, ou plugin `@capacitor/share` com MIME correto
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
@@ -37,6 +28,20 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+---
+
+## ✅ Concluídos (Sessão 2026-07-31i — Share Cards/Adesivos: implementation complete)
+
+- [x] **Task 1**: `splits.ts` — pace por km/bloco 5km + fallback (`choosePaceBlocks`, `formatPaceShort`) — 9 testes
+- [x] **Task 2**: `gradients.ts` — 6 presets + swoosh `#FF006E` — 3 testes
+- [x] **Task 3**: `card-map.ts` — Web Mercator tiles `dark_all` 816×816, rota SVG, sem Leaflet — 8 testes
+- [x] **Task 4**: `ShareCard.tsx` 4 variantes (A: pace | B: left | C: bottom | D: map) — 3 testes
+- [x] **Task 5**: `SocialSharePlugin.kt` — `saveToGallery` (MediaStore) + `shareToWhatsApp` (intent `com.whatsapp`) — SDD reviewed
+- [x] **Task 6**: `shareCard.ts` — `saveCardToGallery(blob)`, `shareToWhatsApp(blob)` wrappers TS
+- [x] **Task 7**: `ShareScreen.tsx` — abas Cartões/Adesivos, carrossel 4 variantes, EditPanel inline, `@capacitor/camera@^7` Base64 photo, ações Story/WhatsApp/Mais/Salvar PNG + Copiar
+- [x] **Task 8**: `SessionSummary.tsx` — substituiu modal legado por `ShareScreen`, limpeza de estado/imports mortos
+- [x] **Pipeline completo validado**: `npm run build` ✅ · `npm test` (52/52) ✅ · `lint` (só 2 pré-existentes) ✅ · `cap sync` ✅ (9 plugins) · `gradlew assembleDebug` ✅
 
 ## ✅ Concluídos (Sessão 2026-07-31h — minSdk 29 + Task 5 SDD review + full pipeline)
 
