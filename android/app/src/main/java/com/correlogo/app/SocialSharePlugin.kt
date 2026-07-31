@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import androidx.core.content.FileProvider
 import com.getcapacitor.Plugin
@@ -23,14 +24,20 @@ class SocialSharePlugin : Plugin() {
         private const val EXTRA_STICKER_ASSET = "interactive_asset_uri"
     }
 
-    private fun resolveContentUri(path: String): File? {
-        val cleanPath = path.removePrefix("file://")
-        val file = File(cleanPath)
-        return if (file.exists()) file else null
+    private fun fileForPath(path: String): File? {
+        val cleanPath = path.trim().removePrefix("file://")
+        val direct = File(cleanPath)
+        if (direct.exists()) return direct
+        val inCache = File(context.cacheDir, cleanPath.removePrefix("/"))
+        return if (inCache.exists()) inCache else null
     }
 
-    private fun contentUriFor(file: File) =
-        FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
+    private fun sourceUriForPath(path: String): Uri? {
+        val trimmed = path.trim()
+        if (trimmed.startsWith("content://")) return Uri.parse(trimmed)
+        val file = fileForPath(trimmed) ?: return null
+        return FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
+    }
 
     @PluginMethod
     fun shareToInstagram(call: PluginCall) {
@@ -49,17 +56,15 @@ class SocialSharePlugin : Plugin() {
             }
 
             if (!backgroundPath.isNullOrBlank()) {
-                val file = resolveContentUri(backgroundPath)
+                val uri = sourceUriForPath(backgroundPath)
                     ?: return call.reject("background file not found: $backgroundPath")
-                val uri = contentUriFor(file)
                 intent.setDataAndType(uri, "image/png")
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
             if (!stickerPath.isNullOrBlank()) {
-                val file = resolveContentUri(stickerPath)
+                val uri = sourceUriForPath(stickerPath)
                     ?: return call.reject("sticker file not found: $stickerPath")
-                val uri = contentUriFor(file)
                 intent.putExtra(EXTRA_STICKER_ASSET, uri)
                 if (backgroundPath.isNullOrBlank()) {
                     intent.type = "image/png"
@@ -83,14 +88,14 @@ class SocialSharePlugin : Plugin() {
             return
         }
         try {
-            val file = resolveContentUri(imagePath)
+            val uri = sourceUriForPath(imagePath)
                 ?: return call.reject("file not found: $imagePath")
-            val uri = contentUriFor(file)
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val clip = ClipData.newUri(context.contentResolver, "Corre Logo", uri)
             clipboard.setPrimaryClip(clip)
             call.resolve()
         } catch (e: Exception) {
+            Log.e(TAG, "copyImageToClipboard failed", e)
             call.reject("CLIPBOARD_FAILED", e.message)
         }
     }

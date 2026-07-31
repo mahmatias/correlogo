@@ -136,7 +136,8 @@ export async function shareToInstagramStories(blob: Blob, mode: 'background' | '
       sourceApplication: FACEBOOK_APP_ID,
     });
     return 'ok';
-  } catch {
+  } catch (e) {
+    console.error('[instagram-stories]', e);
     return 'fallback';
   }
 }
