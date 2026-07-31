@@ -1,5 +1,7 @@
 node_modules/
-build/
+# Android build outputs
+android/build/
+android/app/build/
 dist/
 coverage/
 .DS_Store

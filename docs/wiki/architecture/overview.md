@@ -36,13 +36,14 @@
 
 | Decisão | Justificativa | ADR |
 |---------|---------------|-----|
-| **React + Capacitor** | Single codebase web + Android | [ADR-001](adrs/001-capacitor.md) |
-| **Firebase Auth + Firestore** | Offline-first, realtime, generous free tier | [ADR-002](adrs/002-firebase.md) |
-| **Health Connect (not Samsung Health)** | Cobre Strava + GymRats, Jetpack oficial, gratuito | [ADR-003](adrs/003-health-connect.md) |
-| **Strava via Gmail API** | Strava não importa non-GPS do HC; email attachment bypass | [ADR-004](adrs/004-strava-gmail.md) |
-| **Web Client ID para tudo** | Chrome Custom Tab (APK) + web usam mesmo fluxo OAuth | [ADR-005](adrs/005-web-client-id.md) |
-| **Capacitor 7 + ActivityResultLauncher** | Permissões Android corretas (await user consent) | [ADR-006](adrs/006-permissions.md) |
-| **Vite only (no Express)** | Firebase Hosting + Cloud Functions = serverless | [ADR-007](adrs/007-serverless.md) |
+| **React + Capacitor** | Single codebase web + Android | [ADR-001](../roadmap/decisions.md) |
+| **Firebase Auth + Firestore** | Offline-first, realtime, generous free tier | [ADR-002](../roadmap/decisions.md) |
+| **Health Connect (not Samsung Health)** | Cobre Strava + GymRats, Jetpack oficial, gratuito | [ADR-003](../roadmap/decisions.md) |
+| **Strava via Gmail API** | Strava não importa non-GPS do HC; email attachment bypass | [ADR-004](../roadmap/decisions.md) |
+| **Web Client ID para tudo** | Chrome Custom Tab (APK) + web usam mesmo fluxo OAuth | [ADR-005](../roadmap/decisions.md) |
+| **Capacitor 7 + ActivityResultLauncher** | Permissões Android corretas (await user consent) | [ADR-006](../roadmap/decisions.md) |
+| **Vite only (no Express)** | Firebase Hosting + Cloud Functions = serverless | [ADR-007](../roadmap/decisions.md) |
+| **AWS decommissioned** | 100% Firebase (Hosting + Functions + Firestore) | [ADR-010](../roadmap/decisions.md) |
 
 ## Data Flow Overview
 
@@ -121,7 +122,11 @@ App.tsx (Root)
 | `Voice` (TTS) | `speak()`, `stop()` | — |
 | `WakeLock` | `keepAwake()`, `allowSleep()` | — |
 | `LocalNotifications` | `schedule()`, `cancel()` | `localNotificationActionPerformed` |
+| `SocialShare` | `shareToInstagram()`, `copyImageToClipboard()` | — |
+| `ApkInstaller` | `canRequestPackageInstalls()`, `openInstallSettings()`, `installApk()` | — |
+
+> ⚠️ Plugins Kotlin locais **não** entram no `capacitor.plugins.json` (sem kapt). Cada um é registrado manualmente em `MainActivity.load()` — qualquer plugin novo precisa ser registrado lá.
 
 ---
 
-*Última revisão: 2026-07-29*
+*Última revisão: 2026-07-31*

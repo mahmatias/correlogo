@@ -19,9 +19,6 @@
 # Gemini AI
 GEMINI_API_KEY=
 
-# App URL (Legado - server)
-APP_URL=https://correlogo.sytes.net
-
 # Google OAuth (Cloud Functions)
 GOOGLE_CLIENT_ID=550159999478-j2a6b9gknlo9vu4t39lpvo00bijpq0tn.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-REPLACE_WITH_YOUR_SECRET
@@ -111,7 +108,8 @@ npm run build
 npx cap sync android
 cd android && ./gradlew assembleDebug
 
-# Dev Local (usa .env.dev + google-services.json local)
+# Dev Local (usa .env.dev)
+# NOTA: .env.dev SÓ para `npm run dev`. Nunca para build/deploy.
 Copy-Item .env.dev .env -Force
 npm run dev
 ```

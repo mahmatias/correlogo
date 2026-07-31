@@ -2,6 +2,8 @@
 
 **Data:** 25/06/2026 | **11 arquivos analisados**
 
+> 🗓️ **Documento histórico** — snapshot da auditoria de 25/06/2026. Itens que citam `server.ts`/Nginx/Express referem-se ao antigo backend AWS, **removido desde 2026-07-21** (hoje: Firebase Hosting + Cloud Functions). Mantido como registro do que foi auditado, não como descrição do estado atual.
+
 ---
 
 ## 🔴 Críticos (P0)

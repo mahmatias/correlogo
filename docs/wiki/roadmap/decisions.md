@@ -217,7 +217,7 @@ Remoção do `server.ts` (Express + Vite middleware) após migração para Fireb
 - ✅ Firebase Hosting otimizado (CDN, SSL, rewrites)
 - ✅ Cloud Functions para API dinâmica
 - ⚠️ Sem SSR (não necessário para app)
-- ⚠️ Dev server porta 5173 (não 3000)
+- ⚠️ Dev server porta 3000 (`vite.config.ts`)
 
 ---
 
@@ -254,4 +254,29 @@ O Gmail OAuth token expira após ~1h. Precisávamos de acesso permanente sem re-
 
 ---
 
-*Última revisão: 2026-07-30*
+## ADR-010: AWS Decommissioned — Firebase-Only
+
+**Status**: ✅ Aceito  
+**Data**: 2026-07-31
+
+### Contexto
+Após a migração para Firebase (ADR-007/008), a instância EC2 (`correlogo.sytes.net`) ficou como legado: web app no Hosting, API nas Cloud Functions. O servidor próprio não era mais usado por ninguém — só gerava custo e superfície de manutenção.
+
+### Decisão
+**Desativar completamente a infra AWS** (EC2, PM2, Nginx, certificado Let's Encrypt, domínio `correlogo.sytes.net`). Toda a infra passa a ser **100% Firebase**:
+
+- **Web (PWA)**: Firebase Hosting site `correlogo` → `https://correlogo.web.app`
+- **API dinâmica**: Cloud Functions v2 (Node 22) — `authCallback`, `healthCheck`, `refreshAuthToken`
+- **Dados**: Firestore `correlogo-prod` (rules em `firestore.rules`)
+- **APK / CI**: GitHub Actions (`.github/workflows/firebase-deploy.yml`) → Release `latest` + `update-manifest.json` → auto-update no device (a partir da 3.2)
+
+### Consequências
+- ✅ Zero custo de servidor, zero ops
+- ✅ `VITE_*` baked no build + `firebase deploy` = processo simples e reprodutível
+- ✅ Domínio único `correlogo.web.app` (sem split brain sytes/web.app)
+- ⚠️ Perde o domínio custom `correlogo.sytes.net` (pode registrar domínio próprio depois via Firebase Hosting, se quiser)
+- ⚠️ Docs e AGENTS.md desatualizados (seção EC2) — corrigidos nesta sessão
+
+---
+
+*Última revisão: 2026-07-31*

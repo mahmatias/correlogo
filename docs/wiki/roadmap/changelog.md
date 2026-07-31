@@ -1,5 +1,75 @@
 # Roadmap - Changelog
 
+> 🗑️ **Infra**: AWS EC2 / `correlogo.sytes.net` foram **desativados** (2026-07-31). Todo o sistema roda **100% em Firebase** (Hosting `correlogo.web.app` + Cloud Functions + Firestore). Ver [ADR-010](decisions.md).
+
+---
+
+## v3.4 (versionCode 135) — 2026-07-31
+**Sticker de verdade — PNG transparente (só texto) + intent do Instagram conforme spec**
+
+### Fixed
+- **Bug (Copiar imagem)**: o card variante Foto (d) renderizava um véu `bg-black/30` sobre o fundo `transparent` — o PNG capturado saía com uma camada preta a 30%. Removido o véu → **apenas o texto tem opacidade**, todo o resto opacidade 0. **Confirmado pelo usuário**: copia e cola com transparência real.
+- **Bug (Instagram Stories)**: o PNG não era transparente (mesmo véu) → a Meta trata o asset como imagem de fundo (camada mais baixa), não como figurinha. Fix no `SocialSharePlugin.kt`: `setPackage("com.instagram.android")` + `setDataAndType(primaryUri)` sempre presente + extras `background_image_uri`/`interactive_asset_uri` + `grantUriPermission`. **Pendente de validação** (usuário estudando a abordagem ideal — dívida técnica).
+
+### Changed
+- `android/app/build.gradle` — versionName 3.3 → **"3.4"**
+
+---
+
+## v3.3 (versionCode 134) — 2026-07-31
+**Fix overlay — mapa do relatório não cobre mais o modal de compartilhamento**
+
+- **Causa raiz**: raiz do `MapComponent` com `relative` sem z-index → o Leaflet (z-index 400/1000) resolvia contra o stacking context do `SessionSummary` (`z-50`) e venciam o modal (`z-60`).
+- **Fix**: `relative z-0` na raiz do `MapComponent` (cria stacking context e confina os z-index do Leaflet). **Confirmado pelo usuário**: ordem correta.
+
+---
+
+## v3.2 (versionCode 133) — 2026-07-31
+**Auto-update bootstrap — `REQUEST_INSTALL_PACKAGES` + tela de permissão + progresso honesto**
+
+- `AndroidManifest.xml`: adicionado `REQUEST_INSTALL_PACKAGES` (destrava instalação programática no Android 8+).
+- `ApkInstallerPlugin.kt`: `canRequestPackageInstalls()` + `openInstallSettings()` + pre-check nativo `INSTALL_BLOCKED`.
+- `update-checker.ts`: validação do APK baixado (magic `UEsD`), `_onProgress` removido (código morto).
+- `UpdatePrompt.tsx`: barra de progresso indeterminada + tela de permissão de instalação.
+- `App.tsx`/`UserProfile.tsx`: rota única pelo modal (`onUpdateAvailable`).
+- **Confirmado pelo usuário**: 3.2 → 3.4 atualizou **sozinho** (prova de fogo do auto-update de ponta a ponta).
+
+---
+
+## v3.1 (versionCode 132) — 2026-07-31
+**Fix Instagram Stories + Copiar imagem (causa raiz: plugin não registrado)**
+
+- **Causa raiz**: `capacitor.plugins.json` (asset do annotation processor) indexa **apenas plugins de biblioteca** (8). Nenhum plugin Kotlin local entra — cada um é registrado manualmente em `MainActivity.load()`, e o `SocialSharePlugin` **tinha sido esquecido na v3.0**. No device: "not implemented on android" → fallback → share sheet.
+- `MainActivity.java`: `registerPlugin(SocialSharePlugin.class)`.
+- Secret `ENV_FILE` do GitHub Actions não continha `VITE_FACEBOOK_APP_ID` → APK do CI buildado com App ID vazio. Secret atualizado.
+
+---
+
+## v3.0.2 (versionCode 131) — 2026-07-30
+**Auto-update definitivo — CapacitorHttp nativo (bypass CORS)**
+
+- **Causa raiz real**: GitHub Releases não envia `Access-Control-Allow-Origin` → toda `fetch` da WebView falhava com CORS ("Failed to fetch" mascarado como up-to-date).
+- `checkForUpdate` + `downloadApkAndInstall` via `CapacitorHttp.get()` (OkHttp nativo, sem CORS) no Android; web mantém `fetch`.
+
+---
+
+## v3.0.1 (versionCode 130) — 2026-07-30
+**Fix auto-update — cache-buster + erro visível + versão instalada na tela**
+
+- `checkForUpdate` mascarava toda falha como "up to date" → retorno `UpdateCheckResult { update, error? }` + cache-buster `?v=Date.now()` + `cache: 'no-store'`.
+- Seção "Atualização do app" mostra **Versão instalada: X (build Y)**.
+
+---
+
+## v3.0 (versionCode 129) — 2026-07-30
+**Instagram Stories direto (native plugin) + Copiar PNG modo Foto**
+
+- `SocialSharePlugin.kt`: intent oficial `com.instagram.share.ADD_TO_STORY` (background + sticker `interactive_asset_uri`), `source_application` com Facebook App ID `1604373561408021`.
+- Botão "Copiar imagem" no modo Foto (variante D) + `copyImageToClipboard()` via FileProvider.
+- Fallback para share sheet se intent/App ID falhar.
+
+---
+
 ## v2.3 (versionCode 20) — 2026-07-30
 **CI/CD GitHub Actions**
 
