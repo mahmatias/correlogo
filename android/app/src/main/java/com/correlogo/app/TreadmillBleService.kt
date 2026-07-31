@@ -46,6 +46,7 @@ class TreadmillBleService(private val context: Context) {
     private var discoveryTimeoutRunnable: Runnable? = null
     private var requestControlAttempts = 0
     private var requestControlRetryRunnable: Runnable? = null
+    private var controlPointNotificationsEnabled = false
     private val ftms = TreadmillFtmsManager()
 
     var onMetrics: ((ByteArray) -> Unit)? = null
@@ -118,7 +119,6 @@ class TreadmillBleService(private val context: Context) {
             onStateChange?.invoke(state)
 
             enableNotifications()
-            requestControlWithRetry()
         }
 
         override fun onCharacteristicChanged(
@@ -163,12 +163,24 @@ class TreadmillBleService(private val context: Context) {
             descriptor: BluetoothGattDescriptor,
             status: Int,
         ) {
+            val next = pendingDescriptorWrite
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 Log.w(TAG, "Descriptor write failed: $status")
+                pendingDescriptorWrite = null
                 onError?.invoke("Notification enable failed")
+                return
+            }
+            if (next != null) {
+                pendingDescriptorWrite = null
+                next.run()
+            } else if (state is BleState.Ready && !controlPointNotificationsEnabled) {
+                controlPointNotificationsEnabled = true
+                requestControlWithRetry()
             }
         }
     }
+
+    private var pendingDescriptorWrite: Runnable? = null
 
     private fun enableNotifications() {
         val measurementChar = ftmsMeasurementChar ?: return
@@ -177,12 +189,14 @@ class TreadmillBleService(private val context: Context) {
         gatt?.setCharacteristicNotification(measurementChar, true)
         val descMeasurement = measurementChar.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR)
         descMeasurement?.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-        gatt?.writeDescriptor(descMeasurement)
 
-        gatt?.setCharacteristicNotification(controlPointChar, true)
-        val descControl = controlPointChar.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR)
-        descControl?.value = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
-        gatt?.writeDescriptor(descControl)
+        pendingDescriptorWrite = Runnable {
+            gatt?.setCharacteristicNotification(controlPointChar, true)
+            val descControl = controlPointChar.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR)
+            descControl?.value = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+            gatt?.writeDescriptor(descControl)
+        }
+        gatt?.writeDescriptor(descMeasurement)
     }
 
     private fun requestControlWithRetry(maxAttempts: Int = 3) {
@@ -316,8 +330,13 @@ class TreadmillBleService(private val context: Context) {
 
         isWriting = true
         gatt?.let {
+            char.value = data
             char.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-            it.writeCharacteristic(char)
+            if (!it.writeCharacteristic(char)) {
+                Log.w(TAG, "writeCharacteristic() returned false (queue busy or char invalid)")
+                isWriting = false
+                processNextCommand()
+            }
         }
     }
 
@@ -350,6 +369,8 @@ class TreadmillBleService(private val context: Context) {
         requestControlRetryRunnable = null
         keepAliveJob?.cancel()
         keepAliveJob = null
+        pendingDescriptorWrite = null
+        controlPointNotificationsEnabled = false
         gatt?.close()
         gatt = null
         ftmsMeasurementChar = null
