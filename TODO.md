@@ -8,7 +8,8 @@
 ## Pendentes
 
 ### Alta (imediato)
-- [ ] **Testar v3.0.1 no device** — auto-update (a tela agora mostra "Versão instalada (build)" e erro real se o fetch falhar; distinguir: erro→rede, "up to date" sem erro→versionCode inesperado, update→cache stale resolvido)
+- [ ] **Testar 3.0.2 no device** — "Verificar atualizações" deve dar "versão mais recente" **sem erro** (CapacitorHttp). Provas de fogo: bump futuro deve oferecer update e instalar
+- [ ] **`correlogo.sytes.net` FORA DO AR** — verificar `pm2`/Nginx/Security Group no EC2 (web app offline; app Android usa Firebase, ok)
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
 - [ ] **Testar v3.0 no device** — Instagram Stories direto (background/sticker), Copiar PNG modo Foto, Google Login (já validado funcionando)
 - [ ] **Permission intent Health Connect** — `PermissionController.createIntent()` não resolve no device do usuário. Próximo passo: depurar `health-connect://permissions` deep link ou tentar `Intent(ACTION_VIEW, Uri.parse(...))` alternativo
@@ -28,6 +29,12 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+## ✅ Concluídos (Sessão 2026-07-30j — v3.0.2 auto-update definitivo)
+- [x] Causa raiz real: GitHub Releases sem `Access-Control-Allow-Origin` + CORS da WebView → "Failed to fetch" (auto-update nunca funcionou em device)
+- [x] `checkForUpdate` + `downloadApkAndInstall` via `CapacitorHttp.get()` nativo (OkHttp, sem CORS); web mantém `fetch`
+- [x] Download APK: `responseType: 'blob'` → base64 direto para o Filesystem
+- [x] Builds ✅ `npm run build` + `npx cap sync android` + `gradlew assembleDebug`
 
 ## ✅ Concluídos (Sessão 2026-07-30i — v3.0.1 fix auto-update)
 - [x] Causa raiz: `checkForUpdate` mascarava toda falha como "up to date" (fetch/timeout/cache stale)
