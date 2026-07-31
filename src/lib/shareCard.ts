@@ -20,6 +20,8 @@ export interface SocialSharePluginInterface {
     sourceApplication?: string;
   }): Promise<void>;
   copyImageToClipboard(options: { imagePath: string }): Promise<void>;
+  saveToGallery(options: { data: string; filename?: string; mimeType?: string }): Promise<{ uri: string }>;
+  shareToWhatsApp(options: { imagePath: string }): Promise<void>;
 }
 
 const SocialShare = registerPlugin<SocialSharePluginInterface>('SocialShare');
