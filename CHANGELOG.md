@@ -1,5 +1,30 @@
 # Changelog
 
+## [2026-07-31i] — Share Cards/Adesivos: implementation complete (Tasks 1–8)
+
+### Added
+- **`src/lib/splits.ts`** — pace por km / bloco 5km + fallback total (`choosePaceBlocks`, `formatPaceShort`) — Task 1 (9 tests)
+- **`src/lib/gradients.ts`** — 6 presets de gradiente (`GRADIENT_PRESETS`) + swoosh `#FF006E` — Task 2 (3 tests)
+- **`src/lib/card-map.ts`** — Web Mercator tiles `dark_all` (816×816), rota SVG, sem Leaflet — Task 3 (8 tests)
+- **`src/components/ShareCard.tsx`** — 4 variantes (A: pace | B: left | C: bottom | D: map), logo 60px uniforme, grid 2×3, stat col/row — Task 4 (3 tests)
+- **`src/lib/shareCard.ts`** — `saveCardToGallery(blob)`, `shareToWhatsApp(blob)` wrappers TS — Task 6
+- **`src/components/ShareScreen.tsx`** — nova tela modal: abas Cartões/Adesivos, carrossel 4 variantes, EditPanel inline (stats checkboxes, 6 presets, foto via `@capacitor/camera@^7` Base64), ações Story/WhatsApp/Mais/Salvar PNG + Copiar (stickers) — Task 7
+- **`android/app/src/main/java/com/correlogo/app/SocialSharePlugin.kt`** — `saveToGallery` (MediaStore Pictures/CorreLogo) + `shareToWhatsApp` (intent `com.whatsapp`) — Task 5 (SDD reviewed, minSdk bumped to 29)
+
+### Changed
+- **`android/variables.gradle`** — `minSdkVersion` **26 → 29** (API 29) — drops Android 8/9 support; decision from Task 5 review (MediaStore APIs only on API 29+)
+- **`src/components/SessionSummary.tsx`** — replaced legacy share modal with `ShareScreen`; removed dead state (`cardVariant`, `showStats`, `shareTarget`, `captureReady`, `sharing`, `cardCaptureRef`) and imports (`ShareCard`, `extractCardData`, `captureCard`, `shareImage`, `copyCardToClipboard`, `SHARE_TARGETS`)
+
+### Build
+- Full pipeline validated:
+  - `npm run build` ✅ (6.28s, 2388 modules)
+  - `npm test` ✅ (52 tests, 7 files)
+  - `npm run lint` ✅ (only 2 pre-existing errors)
+  - `npx cap sync android` ✅ (9 plugins including `@capacitor/camera@7.0.5`)
+  - `gradlew assembleDebug` ✅ (20s, 343 tasks)
+
+---
+
 ## [2026-07-31h] — Android minSdk bump to 29 (API 29 / Android 10)
 
 ### Changed

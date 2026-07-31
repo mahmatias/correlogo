@@ -1,5 +1,30 @@
 # Handoff
 
+## Session Context (2026-07-31i — Share Cards/Adesivos: implementation complete, all 8 tasks done)
+
+### What happened
+- **All 8 SDD tasks completed** via subagent-driven development (Tasks 1–4 inline, Task 5 SDD reviewed, Tasks 6–8 inline):
+  - Task 1: `splits.ts` (pace por km/5km, 9 tests)
+  - Task 2: `gradients.ts` (6 presets + swoosh, 3 tests)
+  - Task 3: `card-map.ts` (Web Mercator tiles `dark_all`, 816×816, 8 tests)
+  - Task 4: `ShareCard.tsx` 4 variantes (A: pace | B: left | C: bottom | D: map), 3 tests
+  - Task 5: `SocialSharePlugin.kt` — `saveToGallery` (MediaStore) + `shareToWhatsApp` (intent `com.whatsapp`) — **SDD reviewed**, found API 29+ only → **minSdk 26→29** (user chose clean bump over legacy path)
+  - Task 6: `shareCard.ts` — `saveCardToGallery(blob)`, `shareToWhatsApp(blob)` TS wrappers
+  - Task 7: `ShareScreen.tsx` — abas Cartões/Adesivos, carrossel, EditPanel inline, `@capacitor/camera@^7` Base64 photo, actions Story/WhatsApp/Mais/Salvar PNG + Copiar
+  - Task 8: `SessionSummary.tsx` — replaced legacy modal with `ShareScreen`, cleaned up dead state/imports
+
+- **Full pipeline validated**: `npm run build` ✅ · `npm test` (52/52) ✅ · `npm run lint` (only 2 pre-existing) ✅ · `npx cap sync android` (9 plugins) ✅ · `gradlew assembleDebug` ✅ (20s)
+- **Commits**: `8554255` (Task 6), `e8f5db8` (Task 7), `937921d` (minSdk 29), current Task 8 commit
+
+### Cautions for next session
+1. **minSdk now 29** — Android 8/9 unsupported (intentional per Task 5 review decision)
+2. Share Cards/Adesivos feature **complete and production-ready** — next steps are user testing on device
+3. **Figurinha no Stories** still open debt (Task 7 sticker flow works but Meta's sticker behavior may need investigation)
+4. `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` still mismatch core 7.6.7 (known landmine, don't fix without discussion)
+5. Health Connect permission intent still needs debugging on user's device
+
+---
+
 ## Session Context (2026-07-31h — Android minSdk bump to 29)
 
 ### What happened

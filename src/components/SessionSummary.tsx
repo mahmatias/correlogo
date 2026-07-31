@@ -1,4 +1,4 @@
-import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X, Instagram, ClipboardCopy } from 'lucide-react';
+import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X } from 'lucide-react';
 import { formatDistance, formatDuration, TrainingSession, WorkoutPlan, getStepTypeLabel } from '../types';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
@@ -8,8 +8,7 @@ import { generateTCX, generateGPX } from '../lib/exportUtils';
 import { evaluateSessionPerformance, suggestAdjustment } from '../lib/evaluatePerformance';
 import { isNative } from '../lib/capacitor/platform';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import ShareCard, { extractCardData, CardVariant } from './ShareCard';
-import { captureCard, shareImage, copyCardToClipboard, SHARE_TARGETS } from '../lib/shareCard';
+import ShareScreen from './ShareScreen';
 
 interface Props {
   session: TrainingSession;
@@ -43,27 +42,6 @@ function ScrollHint({ visible }: { visible: boolean }) {
 export default function SessionSummary({ session, plan, onClose, onSuggestAdjustment, showFeedback }: Props) {
   const [viewMode, setViewMode] = useState<'km' | 'lap'>('km');
   const [showShareModal, setShowShareModal] = useState(false);
-  const [cardVariant, setCardVariant] = useState<CardVariant>('a');
-  const [showStats, setShowStats] = useState<Record<string, boolean>>({
-    distance: true,
-    duration: true,
-    pace: true,
-    speed: false,
-    date: true,
-    mode: true,
-    name: true,
-    logo: true,
-  });
-  const [shareTarget, setShareTarget] = useState<'native' | 'instagram-stories'>('native');
-  const [captureReady, setCaptureReady] = useState(true);
-  const cardCaptureRef = useRef<HTMLDivElement>(null);
-  const [sharing, setSharing] = useState(false);
-
-  useEffect(() => {
-    setCaptureReady(false);
-    const timer = setTimeout(() => setCaptureReady(true), 450);
-    return () => clearTimeout(timer);
-  }, [showStats, cardVariant, shareTarget]);
 
   // Basic stats
   const avgPace = session.totalDurationSeconds / (session.totalDistanceKm || 1); // seconds per km
@@ -325,141 +303,13 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
             </div>
         )}
 
-        {showShareModal && (
-          <>
-            {/* Hidden full-size card for capture — key forces re-render on variant change */}
-            <div key={cardVariant} ref={cardCaptureRef} style={{ position: 'fixed', left: '-9999px', top: 0, zIndex: -1 }}>
-              <ShareCard
-                data={extractCardData(session)}
-                variant={cardVariant}
-                showStats={showStats}
-                session={session}
-              />
-            </div>
-
-            {/* Share modal overlay */}
-            <div className="fixed inset-0 z-[60] flex flex-col bg-bg-deep overflow-y-auto p-4">
-              <div className="flex items-center justify-between mb-4">
-                <button onClick={() => setShowShareModal(false)} className="text-text-muted p-1">
-                  <X className="w-6 h-6" />
-                </button>
-                <h2 className="text-lg font-bold">Compartilhar atividade</h2>
-                <div className="w-7" />
-              </div>
-
-              <div className="flex gap-2 mb-4">
-                {(['a', 'b', 'c', 'd'] as const).map(v => (
-                  <button
-                    key={v}
-                    onClick={() => setCardVariant(v)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-colors ${cardVariant === v ? 'bg-accent text-white border-accent' : 'bg-bg-elevated text-text-secondary border-border'}`}
-                  >
-                    {v === 'a' ? 'Gradiente' : v === 'b' ? 'Vidro' : v === 'c' ? 'Mapa' : 'Foto'}
-                  </button>
-                ))}
-              </div>
-
-              {/* Share target selector */}
-              <div className="flex gap-2 mb-4">
-                {SHARE_TARGETS.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => setShareTarget(t.id)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-colors flex items-center justify-center gap-1 ${
-                      shareTarget === t.id ? 'bg-accent text-white border-accent' : 'bg-bg-elevated text-text-secondary border-border'
-                    }`}
-                  >
-                    {t.id === 'native' ? <Share2 className="w-4 h-4" /> : <Instagram className="w-4 h-4" />}
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
-                {[
-                  ['distance', 'Distância'],
-                  ['duration', 'Duração'],
-                  ['pace', 'Pace'],
-                  ['speed', 'Velocidade'],
-                  ['date', 'Data'],
-                  ['mode', 'Tipo'],
-                  ['name', 'Treino'],
-                  ['logo', 'Logo'],
-                ].map(([key, label]) => (
-                  <label key={key} className="flex items-center gap-2 text-text-primary">
-                    <input
-                      type="checkbox"
-                      checked={showStats[key]}
-                      onChange={e => setShowStats(p => ({ ...p, [key]: e.target.checked }))}
-                      className="accent-accent w-4 h-4"
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-
-              <div className="flex-1 flex items-center justify-center mb-4 min-h-0">
-                <div className="w-[200px] overflow-hidden rounded-xl" style={{ aspectRatio: '9/16' }}>
-                  <div style={{ transform: `scale(${200 / 1080})`, transformOrigin: 'top left' }}>
-                    <ShareCard
-                      data={extractCardData(session)}
-                      variant={cardVariant}
-                      showStats={showStats}
-                      session={session}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {cardVariant === 'd' && (
-                <button
-                  onClick={async () => {
-                    if (!cardCaptureRef.current) return;
-                    setSharing(true);
-                    try {
-                      await new Promise(r => setTimeout(r, 400));
-                      const blob = await captureCard(cardCaptureRef.current);
-                      await copyCardToClipboard(blob);
-                      showFeedback?.('success', 'Imagem copiada! Abra o Instagram e cole no story');
-                      setShowShareModal(false);
-                    } catch (err) {
-                      console.error('[copy-card]', err);
-                      showFeedback?.('error', `Erro ao copiar imagem: ${(err as Error)?.message ?? err}`);
-                    } finally {
-                      setSharing(false);
-                    }
-                  }}
-                  disabled={!captureReady || sharing}
-                  className="w-full py-3 bg-bg-elevated text-text-primary rounded-xl font-bold flex items-center justify-center gap-2 mb-2 disabled:opacity-50 border border-border"
-                >
-                  <ClipboardCopy className="w-5 h-5" /> {sharing ? 'Copiando...' : !captureReady ? 'Preparando...' : 'Copiar imagem'}
-                </button>
-              )}
-
-              <button
-                onClick={async () => {
-                  if (!cardCaptureRef.current) return;
-                  setSharing(true);
-                  try {
-                    await new Promise(r => setTimeout(r, 400));
-                    const blob = await captureCard(cardCaptureRef.current);
-                    await shareImage(blob, 'corre-logo-card.png', shareTarget, cardVariant === 'd' ? 'sticker' : 'background');
-                    setShowShareModal(false);
-                  } catch (err) {
-                    console.error('[share-card]', err);
-                    showFeedback?.('error', 'Erro ao compartilhar');
-                  } finally {
-                    setSharing(false);
-                  }
-                }}
-                disabled={!captureReady || sharing}
-                className="w-full py-4 bg-accent text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Share2 className="w-5 h-5" /> {sharing ? 'Compartilhando...' : !captureReady ? 'Preparando...' : 'Compartilhar'}
-              </button>
-            </div>
-          </>
-        )}
+{showShareModal && (
+  <ShareScreen
+    session={session}
+    onClose={() => setShowShareModal(false)}
+    showFeedback={showFeedback}
+  />
+)}
     </div>
   );
 }
