@@ -579,7 +579,8 @@ Create `src/components/__tests__/ShareCard.test.ts`:
 ```typescript
 import { describe, it, expect } from 'vitest';
 import { gridCells, statFor, extractCardData } from '../ShareCard';
-import type { ShareCardData, TrainingSession } from '../../types';
+import type { ShareCardData } from '../ShareCard';
+import type { TrainingSession } from '../../types';
 
 const data: ShareCardData = {
   distance: '5,00 km',
