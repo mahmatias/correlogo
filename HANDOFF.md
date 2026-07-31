@@ -7,15 +7,14 @@
 2. Compartilhar → abre o **share sheet do Android** (deveria abrir o deep link do Instagram Stories)
 3. Selecionar Instagram no share sheet → story abre mas o PNG entra como **imagem normal** (fica por baixo de fotos novas) — ou seja, nunca virou sticker
 
-### Causa raiz #2/#3 (confirmada com evidência)
-- O **secret `ENV_FILE` do GitHub Actions** não tinha `VITE_FACEBOOK_APP_ID`. O APK do CI era buildado com App ID vazio → `shareToInstagramStories()` cai no `'fallback'` (`if (!FACEBOOK_APP_ID) return 'fallback'`) → share sheet → imagem como fundo.
-- **Evidência**: extraí o `SessionSummary-BJzWAPCK.js` de dentro do `app-release.apk` (release 3.0.2) — **não contém** `1604373561408021`. O APK local debug (3.1) contém. (Nota: buscar string nos bytes crus do APK é **inconclusivo** — as entries ZIP estão comprimidas com deflate; é preciso extrair/descomprimir o chunk.)
-- **Fix**: `gh secret set ENV_FILE` com base64 do `.env.apk` completo (inclui `VITE_FACEBOOK_APP_ID=1604373561408021`). Próximo build CI bakeia o App ID. `VITE_*` é bake-time → só vale para a 3.1 em diante.
+### Causa raiz REAL (confirmada — explica #1 e #2 juntos)
+- **`SocialSharePlugin` nunca foi registrado no `MainActivity.java`.** Mecanismo comprovado em `PluginManager.java`: o runtime carrega `capacitor.plugins.json` (asset gerado pelo annotation processor) — e ele contém **só os 8 plugins de biblioteca** (verificado extraindo do APK). App Kotlin plugins **não** são indexados (sem kapt) → todo plugin Kotlin do app é registrado à mão em `MainActivity.load()` (Tracking, Permissions, AudioFocus, HealthConnect, TreadmillBle, ApkInstaller). `SocialSharePlugin` foi adicionado na v3.0 **sem** o `registerPlugin` → no device: `shareToInstagram` e `copyImageToClipboard` lançam "not implemented on android" → share caía no `'fallback'` e copy dava o toast de erro.
+- **Fix**: `MainActivity.java` agora faz `registerPlugin(SocialSharePlugin.class)`.
+- **Fator adicional (necessário, não suficiente)**: secret `ENV_FILE` do CI não tinha `VITE_FACEBOOK_APP_ID` → `shareToInstagramStories()` retornava `'fallback'` **antes** de chamar o plugin. Confirmado: extraí `SessionSummary-BJzWAPCK.js` de dentro do release 3.0.2 — sem `1604373561408021`. APK debug local (3.1) contém. (Nota: grep nos bytes crus do APK é inconclusivo — entries ZIP comprimidas; é preciso extrair/descomprimir.) Secret já atualizado com base64 do `.env.apk`.
+- `SocialSharePlugin.kt` endurecido (`sourceUriForPath` aceita `file://`/`content://`/absoluto + fallback `cacheDir` + `Log.e`). Toast de copy mostra o erro real (diagnóstico).
 
-### Fix #1 (diagnóstico instrumentado — erro real não reproduzido localmente)
-- `SocialSharePlugin.kt`: `sourceUriForPath()` aceita `file://`, caminho absoluto **e** `content://`; fallback `context.cacheDir`; `Log.e` nos rejects. Teoria descartada: arquivo não existe/uri não `file://` (o `nativeShare` usa o mesmo `saved.uri` e funciona — o arquivo existe).
-- `SessionSummary.tsx`: toast de copy mostra a **mensagem real** (temporário). `shareCard.ts`: `console.error('[instagram-stories]', e)`.
-- **Se o copy falhar de novo na 3.1, o toast agora mostra o motivo exato** (ex: `file not found: ...`, `CLIPBOARD_FAILED`, `not implemented on android`).
+### ⚠️ Release publicada pelo CI (run 30600140244) está QUEBRADA
+- O primeiro push da 3.1 (`2379aeb`) rodou o CI e publicou release `latest` **com App ID mas SEM o `registerPlugin(SocialSharePlugin.class)`** → Instagram Stories ainda cai no fallback e copy ainda falha. **Não instalar essa release.** O próximo push (MainActivity fix) gera release nova com versionCode maior que sobrescreve.
 
 ### Teste do usuário na 3.1 (pending)
 1. Compartilhar → Foto → Instagram Stories → deve abrir o composer do Stories **direto**, PNG como sticker

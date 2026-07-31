@@ -3,11 +3,11 @@
 ## [2026-07-31a] — v3.1: Instagram Stories de verdade (App ID no APK) + copiar imagem diagnosticado
 
 ### Fixed
-- **Compartilhar → Foto → Instagram Stories abria o share sheet do Android em vez do deep link `ADD_TO_STORY`** — causa raiz: o **secret `ENV_FILE` do GitHub Actions não continha `VITE_FACEBOOK_APP_ID`**, então o APK do CI era buildado com App ID vazio → `shareToInstagramStories()` retornava `'fallback'` → share sheet → imagem entrava como fundo normal (nunca como sticker). **Confirmado extraindo o JS do APK release 3.0.2**: chunk `SessionSummary-BJzWAPCK.js` não contém `1604373561408021`.
-- **Fix**: `ENV_FILE` (GitHub secret) atualizado para o base64 do `.env.apk` (inclui `VITE_FACEBOOK_APP_ID=1604373561408021`). **Validado**: APK debug local 3.1 contém o App ID no bundle. `VITE_*` é bake-time — vale apenas para builds novos (por isso a 3.1).
-- **Copiar imagem dava "Erro ao copiar imagem"** — diagnóstico instrumentado (não consegui reproduzir o erro sem device):
-  - `SocialSharePlugin.kt` endurecido: `sourceUriForPath()` aceita `file://`, caminho absoluto **e** `content://`; fallback para `context.cacheDir` se o caminho relativo não achar; `Log.e` no reject.
-  - `SessionSummary.tsx`: toast de copy agora mostra a **mensagem real do erro** (temporário, para diagnóstico) + `console.error`. `shareCard.ts`: `console.error` no reject do Instagram.
+- **Compartilhar → Foto → Instagram Stories abria o share sheet do Android em vez do deep link `ADD_TO_STORY`, e o Copiar imagem dava "Erro ao copiar imagem"** — causa raiz real encontrada em **`capacitor.plugins.json`** (asset gerado pelo annotation processor): ele indexa **apenas os plugins de biblioteca** (8); nenhum plugin Kotlin local do app é incluído (sem `kapt`). Por isso todo plugin Kotlin é registrado manualmente em `MainActivity.load()` — e o **`SocialSharePlugin` foi esquecido na v3.0**. No device: `SocialShare.shareToInstagram` → "not implemented on android" → `'fallback'` → share sheet; `copyImageToClipboard` → "not implemented" → toast de erro. Explica #1 e #2 juntos.
+- **Fix 1 (o principal)**: `MainActivity.java` agora registra `registerPlugin(SocialSharePlugin.class)` — o deep link passa a abrir o composer do Stories **direto** com o PNG como sticker (`interactive_asset_uri`).
+- **Fix 2 (necessário, mas não suficiente)**: o secret `ENV_FILE` do GitHub Actions **não continha `VITE_FACEBOOK_APP_ID`** → APK do CI buildado com App ID vazio → `shareToInstagramStories()` retornava `'fallback'` **antes** de tocar no plugin (confirmado extraindo `SessionSummary-BJzWAPCK.js` do release 3.0.2). Secret atualizado para o base64 do `.env.apk`; APK 3.1 local validado com o App ID no bundle.
+- **`SocialSharePlugin.kt` endurecido**: `sourceUriForPath()` aceita `file://`, caminho absoluto **e** `content://`; fallback para `context.cacheDir`; `Log.e` nos rejects.
+- **Instrumentação diagnóstica**: `SessionSummary.tsx` mostra a mensagem real do erro no toast de copy (temporário) + `console.error`; `shareCard.ts` loga o reject do Instagram.
 
 ### Changed
 - `android/app/build.gradle` — `versionName` 3.0.2 → **"3.1"**
