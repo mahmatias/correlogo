@@ -21,6 +21,7 @@ class SocialSharePlugin : Plugin() {
         private const val ACTION_INSTAGRAM_STORIES = "com.instagram.share.ADD_TO_STORY"
         private const val INSTAGRAM_PACKAGE = "com.instagram.android"
         private const val EXTRA_SOURCE_APPLICATION = "source_application"
+        private const val EXTRA_BACKGROUND_ASSET = "background_image_uri"
         private const val EXTRA_STICKER_ASSET = "interactive_asset_uri"
     }
 
@@ -50,26 +51,36 @@ class SocialSharePlugin : Plugin() {
             return
         }
 
+        val backgroundUri: Uri? = if (!backgroundPath.isNullOrBlank()) {
+            sourceUriForPath(backgroundPath)
+                ?: return call.reject("background file not found: $backgroundPath")
+        } else {
+            null
+        }
+
+        val stickerUri: Uri? = if (!stickerPath.isNullOrBlank()) {
+            sourceUriForPath(stickerPath)
+                ?: return call.reject("sticker file not found: $stickerPath")
+        } else {
+            null
+        }
+
+        val primaryUri = backgroundUri ?: stickerUri
+            ?: return call.reject("backgroundPath or stickerPath is required")
+
         try {
             val intent = Intent(ACTION_INSTAGRAM_STORIES).apply {
+                setPackage(INSTAGRAM_PACKAGE)
                 putExtra(EXTRA_SOURCE_APPLICATION, sourceApplication)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                setDataAndType(primaryUri, "image/png")
             }
 
-            if (!backgroundPath.isNullOrBlank()) {
-                val uri = sourceUriForPath(backgroundPath)
-                    ?: return call.reject("background file not found: $backgroundPath")
-                intent.setDataAndType(uri, "image/png")
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
+            backgroundUri?.let { intent.putExtra(EXTRA_BACKGROUND_ASSET, it) }
 
-            if (!stickerPath.isNullOrBlank()) {
-                val uri = sourceUriForPath(stickerPath)
-                    ?: return call.reject("sticker file not found: $stickerPath")
-                intent.putExtra(EXTRA_STICKER_ASSET, uri)
-                if (backgroundPath.isNullOrBlank()) {
-                    intent.type = "image/png"
-                }
-                activity.grantUriPermission(INSTAGRAM_PACKAGE, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            stickerUri?.let {
+                intent.putExtra(EXTRA_STICKER_ASSET, it)
+                activity.grantUriPermission(INSTAGRAM_PACKAGE, it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
             activity.startActivity(intent)

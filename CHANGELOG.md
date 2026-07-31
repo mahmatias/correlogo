@@ -1,6 +1,27 @@
 # Changelog
 
-## [2026-07-31c] — v3.3: Fix overlay — mapa do relatório não cobre mais o modal de compartilhamento
+## [2026-07-31d] — v3.4: Sticker de verdade — PNG transparente (só texto) + intent do Instagram conforme spec
+
+### Fixed
+- **Bug (Copiar imagem)**: a imagem copiada, "apesar de ter fundo transparente", tinha uma cor — o card variante **Foto (d)** renderizava um véu `bg-black/30` sobre o fundo `transparent` (linha 235 do `ShareCard.tsx`). O PNG capturado saía com uma camada preta a 30%. Removido o véu → **apenas o texto tem opacidade, todo o resto é opacidade 0**.
+- **Bug (Instagram Stories)**: o story abria no Instagram, mas a imagem entrava na **camada mais baixa** (como foto de fundo), não como figurinha. Duas causas no `SocialSharePlugin.kt`:
+  1. O PNG de sticker não era transparente (mesmo véu `bg-black/30`) — a Meta exige PNG **com transparência** no `interactive_asset_uri`; sem transparência o Instagram trata o asset como imagem de fundo.
+  2. Em modo sticker-only o plugin setava só `intent.type` **sem** o data URI principal (`setDataAndType`), e não havia `setPackage("com.instagram.android")`.
+- **Fix do plugin**: intent agora sempre com `setPackage(INSTAGRAM_PACKAGE)`, `setDataAndType(primaryUri, "image/png")` (primary = background se existir, senão o próprio sticker), `addFlags(FLAG_GRANT_READ_URI_PERMISSION)`, extras `background_image_uri` + `interactive_asset_uri`, e `grantUriPermission` para o Instagram no sticker. Conforme o spec oficial da Meta.
+
+### Changed
+- `android/app/build.gradle` — `versionName` 3.3 → **"3.4"**
+
+### Build
+- `npm run build` ✅ · `npx cap sync android` ✅ · `gradlew assembleDebug` ✅ (APK debug verificado com o chunk novo)
+
+### Próximo teste (device)
+1. Compartilhar → Foto → **Copiar imagem** → colar: só o texto visível, fundo 100% transparente
+2. Compartilhar → Foto → **Instagram Stories** → o PNG deve entrar como **figurinha** (camada superior, arrastável), não como fundo
+3. (Observação) o `drop-shadow` nos valores mantém uma sombra suave junto ao texto — se quiser zero sombra, é uma linha a mais
+
+---
+
 
 ### Fixed
 - **Bug visual**: no relatório de treinos com mapa, ao clicar em **Compartilhar**, o **mapa (somente ele)** ficava por cima do novo modal de compartilhamento.
