@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-07-30i] — v3.0.1: Fix auto-update — cache-buster + erro visível + versão instalada na tela
+
+### Fixed
+- **Auto-update não pegava 3.0** — `checkForUpdate` retornava `null` em **qualquer** falha (rede, timeout, manifest stale no cache do CDN/WebView) e a UI reportava "App já está na versão mais recente". Agora:
+  - **Cache-buster** `?v=${Date.now()}` na URL do manifest + `cache: 'no-store'` — evita redirect/assets stale do GitHub CDN e cache da WebView
+  - Retorno `UpdateCheckResult { update, error? }` — falha de rede/HTTP/manifest inválido é exibida como **erro real** no toast, não mais mascarada como "up to date"
+  - Seção "Atualização do app" agora mostra **Versão instalada: X (build Y)** — diagnóstico visual imediato
+- `App.tsx`: log `console.warn('[update-check]', error)` no auto-check de login
+
+### Changed
+- `android/app/build.gradle` — `versionName` 3.0 → **"3.0.1"**
+
+### Build
+- `npm run build` ✅ · `npx cap sync android` ✅ · `gradlew assembleDebug` ✅ · `vitest` ✅ (29 testes)
+
+---
+
 ## [2026-07-30h] — v3.0: Instagram Stories Direto (native plugin) + Copiar PNG Modo Foto
 
 ### Added

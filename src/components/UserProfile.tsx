@@ -48,6 +48,7 @@ export default function UserProfile({
   const [gmailConnected, setGmailConnected] = useState(false);
   const [gmailLoading, setGmailLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [appInfo, setAppInfo] = useState<{ version: string; build: string } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -87,6 +88,12 @@ export default function UserProfile({
 
     isHealthConnectAvailable().then(setHcAvailable);
     checkHealthPermissions().then(setHcGranted);
+
+    if (isNative()) {
+      CapApp.getInfo()
+        .then(info => setAppInfo({ version: info.version, build: info.build }))
+        .catch(() => {});
+    }
   }, [open]);
 
   const handleWeightUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -358,6 +365,11 @@ export default function UserProfile({
           <Download size={16} className="text-text-muted" />
           <span className="text-sm text-text-primary">Atualização do app</span>
         </div>
+        {appInfo && (
+          <div className="text-xs text-text-muted mb-2">
+            Versão instalada: {appInfo.version} (build {appInfo.build})
+          </div>
+        )}
         <button
           disabled={updating}
           onClick={async () => {
@@ -365,9 +377,11 @@ export default function UserProfile({
               setUpdating(true);
               const info = await CapApp.getInfo();
               const versionCode = parseInt(info.build, 10);
-              const update = await checkForUpdate(versionCode);
-              if (update) {
-                await downloadApkAndInstall(update);
+              const result = await checkForUpdate(versionCode);
+              if (result.update) {
+                await downloadApkAndInstall(result.update);
+              } else if (result.error) {
+                showFeedback('error', `Erro ao verificar atualização: ${result.error}`);
               } else {
                 showFeedback('success', 'App já está na versão mais recente');
               }

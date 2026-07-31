@@ -349,8 +349,9 @@ const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
       try {
         const info = await CapApp.getInfo();
         const versionCode = parseInt(info.build, 10);
-        const update = await checkForUpdate(versionCode);
-        if (!cancelled && update) setUpdateInfo(update);
+        const result = await checkForUpdate(versionCode);
+        if (result.error) console.warn('[update-check]', result.error);
+        if (!cancelled && result.update) setUpdateInfo(result.update);
       } catch { /* silent */ }
     })();
     return () => { cancelled = true; };

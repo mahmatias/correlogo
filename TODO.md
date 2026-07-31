@@ -8,7 +8,9 @@
 ## Pendentes
 
 ### Alta (imediato)
-- [ ] **Testar v3.0 no device** — Instagram Stories direto (background/sticker), Copiar PNG modo Foto, Google Login, auto-update (release `latest` do CI)
+- [ ] **Testar v3.0.1 no device** — auto-update (a tela agora mostra "Versão instalada (build)" e erro real se o fetch falhar; distinguir: erro→rede, "up to date" sem erro→versionCode inesperado, update→cache stale resolvido)
+- [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
+- [ ] **Testar v3.0 no device** — Instagram Stories direto (background/sticker), Copiar PNG modo Foto, Google Login (já validado funcionando)
 - [ ] **Permission intent Health Connect** — `PermissionController.createIntent()` não resolve no device do usuário. Próximo passo: depurar `health-connect://permissions` deep link ou tentar `Intent(ACTION_VIEW, Uri.parse(...))` alternativo
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
 - [ ] Foto do perfil — exibição com problemas (dívida técnica)
@@ -26,6 +28,13 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+## ✅ Concluídos (Sessão 2026-07-30i — v3.0.1 fix auto-update)
+- [x] Causa raiz: `checkForUpdate` mascarava toda falha como "up to date" (fetch/timeout/cache stale)
+- [x] Cache-buster `?v=Date.now()` + `cache: 'no-store'` no manifest
+- [x] Retorno `UpdateCheckResult {update, error}` — erro real exibido no toast
+- [x] "Versão instalada: X (build Y)" na seção de atualização do app
+- [x] Builds ✅ `npm run build` + `npx cap sync android` + `gradlew assembleDebug` + `vitest` (29 testes)
 
 ## ✅ Concluídos (Sessão 2026-07-30h — v3.0 Instagram Stories direto + Copiar PNG modo Foto)
 - [x] `SocialSharePlugin.kt` nativo — intent `com.instagram.share.ADD_TO_STORY` (background/sticker) + `copyImageToClipboard`
