@@ -1,6 +1,40 @@
 # Changelog
 
-## [2026-07-31a] — v3.1: Instagram Stories de verdade (App ID no APK) + copiar imagem diagnosticado
+## [2026-07-31b] — v3.2: Auto-update vira bootstrap (permissão de instalação + progresso honesto)
+
+### Contexto
+- Na 3.1 o usuário viu o prompt de atualização pela primeira vez, tocou em **Baixar**, a barra de progresso **não andou**, o modal fechou **sem toast** e o app **não atualizou**. O botão manual "Verificar atualizações" no perfil "só rodava" sem achar update.
+- Diagnóstico: o modal do `UpdatePrompt` só fecha no sucesso (`setUpdateInfo(null)` após `downloadApkAndInstall`) → download + `writeFile` + `getUri` + `startActivity` resolveram; a falha é na etapa de **instalação**. O Android 8+ bloqueia a instalação de APK por um app que **não tem `REQUEST_INSTALL_PACKAGES`** — e o manifest nunca teve essa permissão.
+
+### Fixed
+- **`AndroidManifest.xml`**: adicionado `<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>` — destrava a instalação programática do auto-update **a partir da 3.2** (a 3.2 é o bootstrap: precisa ser instalada na mão **uma última vez**; depois, as versões futuras instalam sozinhas).
+- **`ApkInstallerPlugin.kt`**:
+  - `canRequestPackageInstalls()` → verifica se "instalar apps desconhecidos" está habilitado para o Corre Logo
+  - `openInstallSettings()` → abre `Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES` com `package:` URI
+  - `installApk` agora faz pre-check nativo e rejeita com **`INSTALL_BLOCKED`** quando a permissão está desligada (defesa extra além do check no JS)
+- **`update-checker.ts`**:
+  - `canInstallApk()` + `openInstallSettings()` (wrappers do plugin)
+  - `downloadApkAndInstall` **sem** o callback `_onProgress` (era código morto — `CapacitorHttp` não expõe progresso de blob; barra de % ficava em 0% fixo e parecia travada)
+  - **Validação do APK baixado**: o base64 precisa começar com `UEsD` (magic `PK\x03\x04` do ZIP/APK) — download corrompido/incompleto agora falha com mensagem real em vez de instalar lixo
+- **`UpdatePrompt.tsx`**: barra de % trocada por **progresso indeterminado** ("Baixando… aguarde"); nova tela de **permissão de instalação** com botão **"Permitir"** que abre as configurações do sistema e botão "Agora não".
+- **`App.tsx`**:
+  - `onUpdate` pré-checa `canInstallApk()` antes de baixar — se negado, mostra a tela de permissão em vez de baixar 8MB à toa
+  - `onUpdateAvailable` → o botão do perfil agora **abre o mesmo modal** em vez de baixar direto (resolvido o "só roda e não acha update": o download de 8.4MB sem feedback parecia travado)
+- **`UserProfile.tsx`**: botão "Verificar atualizações" repassa o update via `onUpdateAvailable`; se não houver handler, mostra toast simples.
+
+### Changed
+- `android/app/build.gradle` — `versionName` 3.1 → **"3.2"**
+
+### Build
+- `npm run build` ✅ · `npx cap sync android` ✅ · `gradlew assembleDebug` ✅
+
+### Próximo teste (device)
+1. **Instalar a 3.2 na mão (bootstrap — última vez)**
+2. Rodar → auto-update deve baixar e instalar sozinho quando a 3.3+ sair
+3. Validar Instagram Stories (deep link direto + sticker) e Copiar imagem (fix da 3.1)
+
+---
+
 
 ### Fixed
 - **Compartilhar → Foto → Instagram Stories abria o share sheet do Android em vez do deep link `ADD_TO_STORY`, e o Copiar imagem dava "Erro ao copiar imagem"** — causa raiz real encontrada em **`capacitor.plugins.json`** (asset gerado pelo annotation processor): ele indexa **apenas os plugins de biblioteca** (8); nenhum plugin Kotlin local do app é incluído (sem `kapt`). Por isso todo plugin Kotlin é registrado manualmente em `MainActivity.load()` — e o **`SocialSharePlugin` foi esquecido na v3.0**. No device: `SocialShare.shareToInstagram` → "not implemented on android" → `'fallback'` → share sheet; `copyImageToClipboard` → "not implemented" → toast de erro. Explica #1 e #2 juntos.

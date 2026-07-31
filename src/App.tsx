@@ -33,8 +33,7 @@ import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { exportWorkoutToHealthConnect } from './lib/capacitor/health-connect';
 import type { WorkoutExport, SyncStatus } from './lib/capacitor/health-connect';
 import { sendWorkoutToStravaViaEmail, handleGmailWebCallback } from './lib/gmailApi';
-import { checkForUpdate, downloadApkAndInstall } from './lib/update-checker';
-import type { UpdateInfo } from './lib/update-checker';
+import { checkForUpdate, downloadApkAndInstall, canInstallApk, openInstallSettings, type UpdateInfo } from './lib/update-checker';
 import UpdatePrompt from './components/UpdatePrompt';
 import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
@@ -99,8 +98,8 @@ export default function App() {
 const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
   const [planToUncomplete, setPlanToUncomplete] = useState<WorkoutPlan | null>(null);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateInstallBlocked, setUpdateInstallBlocked] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
   const getWeekStart = (d: Date) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -1576,6 +1575,7 @@ CapApp.addListener('backButton', () => {
             initialSettings={settings}
             showFeedback={showFeedback}
             onSaved={handleProfileSaved}
+            onUpdateAvailable={setUpdateInfo}
           />
         )}
         <GoogleCalendarModal
@@ -1614,20 +1614,33 @@ CapApp.addListener('backButton', () => {
           open={updateInfo !== null}
           update={updateInfo}
           downloading={updating}
-          downloadProgress={downloadProgress}
+          installBlocked={updateInstallBlocked}
           onUpdate={async () => {
             if (!updateInfo) return;
             setUpdating(true);
-            setDownloadProgress(0);
             try {
-              await downloadApkAndInstall(updateInfo, setDownloadProgress);
+              if (!(await canInstallApk())) {
+                setUpdateInstallBlocked(true);
+                return;
+              }
+              await downloadApkAndInstall(updateInfo);
               setUpdateInfo(null);
             } catch (e) {
               showFeedback('error', `Erro ao atualizar: ${e instanceof Error ? e.message : String(e)}`);
+            } finally {
+              setUpdating(false);
             }
-            setUpdating(false);
           }}
-          onDismiss={() => setUpdateInfo(null)}
+          onOpenInstallSettings={() => {
+            openInstallSettings().catch(() => {
+              showFeedback('error', 'Não foi possível abrir as configurações de instalação');
+            });
+            setUpdateInstallBlocked(false);
+          }}
+          onDismiss={() => {
+            setUpdateInfo(null);
+            setUpdateInstallBlocked(false);
+          }}
         />
       </main>
     </div>

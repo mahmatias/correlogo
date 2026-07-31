@@ -8,8 +8,9 @@
 ## Pendentes
 
 ### Alta (imediato)
-- [ ] **Instalar 3.1 e validar Instagram Stories** — (a) Compartilhar → Foto → Instagram Stories deve abrir o composer **direto** com o PNG como **sticker** (App ID agora baked no APK); (b) Copiar imagem deve funcionar (se falhar, toast mostra o motivo real); (c) Google Login continua ok
-- [ ] **Auto-update 3.0.2 → 3.1** — release nova (versionCode 131) deve aparecer como "Nova versão", baixar via CapacitorHttp e instalar via `ApkInstaller` (prova de fogo de ponta a ponta)
+- [ ] **Instalar 3.2 manualmente (bootstrap — ÚLTIMA instalação manual)** — 3.2 traz `REQUEST_INSTALL_PACKAGES`; a partir dela o auto-update instala sozinho (exige habilitar 1x "Instalar apps desconhecidos" para o Corre Logo)
+- [ ] **Validar Instagram Stories (fix 3.1)** — Compartilhar → Foto → Instagram Stories deve abrir o composer **direto** com o PNG como **sticker** (App ID baked + plugin registrado no MainActivity); (b) Copiar imagem deve funcionar (se falhar, toast mostra o motivo real); (c) Google Login continua ok
+- [ ] **Prova de fogo do auto-update** — com a 3.2 no device, publicar 3.3 → modal deve baixar, abrir o instalador do sistema e instalar sozinho (sem o "fecha modal e não atualiza" da 3.1)
 - [ ] **`correlogo.sytes.net` FORA DO AR** — verificar `pm2`/Nginx/Security Group no EC2 (web app offline; app Android usa Firebase, ok)
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
 - [ ] **Permission intent Health Connect** — `PermissionController.createIntent()` não resolve no device do usuário. Próximo passo: depurar `health-connect://permissions` deep link ou tentar `Intent(ACTION_VIEW, Uri.parse(...))` alternativo
@@ -29,6 +30,14 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+## ✅ Concluídos (Sessão 2026-07-31b — v3.2 auto-update bootstrap)
+- [x] Causa raiz do "fecha modal e não atualiza": `AndroidManifest.xml` sem `REQUEST_INSTALL_PACKAGES` → Android 8+ bloqueia instalação programática
+- [x] `ApkInstallerPlugin.kt`: `canRequestPackageInstalls()` + `openInstallSettings()` (`ACTION_MANAGE_UNKNOWN_APP_SOURCES`) + pre-check nativo `INSTALL_BLOCKED`
+- [x] `update-checker.ts`: wrappers `canInstallApk`/`openInstallSettings`; `_onProgress` removido (código morto); validação do APK baixado (magic `UEsD`)
+- [x] `UpdatePrompt.tsx`: progresso indeterminado + tela de permissão de instalação
+- [x] `App.tsx`/`UserProfile.tsx`: rota única pelo modal (`onUpdateAvailable`) — resolve "botão do perfil só roda"
+- [x] Builds ✅ `npm run build` + `npx cap sync android` + `gradlew assembleDebug`
 
 ## ✅ Concluídos (Sessão 2026-07-30j — v3.0.2 auto-update definitivo)
 - [x] Causa raiz real: GitHub Releases sem `Access-Control-Allow-Origin` + CORS da WebView → "Failed to fetch" (auto-update nunca funcionou em device)

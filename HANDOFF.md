@@ -1,5 +1,33 @@
 # Handoff
 
+## Session Context (2026-07-31b — v3.2: Auto-update bootstrap — permissão de instalação + progresso honesto)
+
+### Teste do usuário na 3.1 (retorno — resultado do fluxo de update)
+- Usuário abriu o APK, o prompt da 3.1 apareceu, tocou **Baixar** → barra de progresso **não andou** → modal **fechou sem toast** → app **não atualizou**. Depois: botão "Verificar atualizações" no perfil "só roda" e não acha update.
+- **Leitura**: o modal do `UpdatePrompt` só fecha no sucesso (`setUpdateInfo(null)` após `downloadApkAndInstall`); erro mantém o modal aberto + toast. Como fechou sem toast → `CapacitorHttp` download + `Filesystem.writeFile` + `getUri` + `startActivity` **resolveram**; a falha é na etapa de **instalação**. Hipótese "falta permissão de escrita" descartada [Certain] — `Directory.Cache` é interno, sem permissão runtime.
+- **Causa raiz**: `AndroidManifest.xml` **nunca teve `REQUEST_INSTALL_PACKAGES`** (targetSdk 36). Android 8+ bloqueia instalação programática vinda de app sem essa permissão → `ACTION_VIEW` abria mas o PackageInstaller do sistema recusava silenciosamente.
+- **Barra de progresso**: código morto — `CapacitorHttp` (blob) não expõe progresso desde a 3.0.2; a barra ficava em 0% e parecia travada. Hoje é indeterminada ("Baixando… aguarde").
+- **Botão do perfil "só roda"**: fazia `checkForUpdate` + `downloadApkAndInstall` direto (8.4MB sem feedback) — agora repassa via `onUpdateAvailable` → abre o **mesmo modal** (download com UX + checagem de permissão).
+- **Bootstrap**: 3.2 precisa de instalação manual (o 3.0.x instalado não tem a permissão para instalar programaticamente). Depois da 3.2, futuras versões instalam sozinhas — com a ressalva de que o usuário precisa habilitar **uma vez** "Instalar apps desconhecidos" para o Corre Logo.
+
+### Fixes da 3.2 (commit a definir)
+- `AndroidManifest.xml`: `<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>`
+- `ApkInstallerPlugin.kt`: `canRequestPackageInstalls()` (JSObject `{canRequestPackageInstalls}`), `openInstallSettings()` → `Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES` + `package:` URI; `installApk` pre-check nativo → reject `INSTALL_BLOCKED`
+- `update-checker.ts`: `canInstallApk()`/`openInstallSettings()` wrappers; `downloadApkAndInstall` sem `_onProgress`; **validação do base64** (`startsWith('UEsD')` = magic ZIP `PK\x03\x04`) — download corrompido falha com mensagem real
+- `UpdatePrompt.tsx`: barra indeterminada; nova tela de permissão (botão **Permitir** → `openInstallSettings`, botão **Agora não**)
+- `App.tsx`: `onUpdate` pré-checa `canInstallApk()` antes de baixar (sem download inútil quando bloqueado); estado `updateInstallBlocked`; prop `onUpdateAvailable` para o UserProfile
+- `UserProfile.tsx`: botão "Verificar atualizações" chama `onUpdateAvailable(result.update)` (modal); fallback toast se sem handler
+- `build.gradle`: versionName **"3.2"**
+
+### Pending / próximos passos
+1. **Usuário instala 3.2 manualmente (bootstrap — última instalação manual)**; validar Instagram Stories (fix 3.1) + Copiar imagem
+2. Publicar uma 3.3 dummy ou aguardar a próxima mudança real → **prova de fogo do auto-update**: modal → Baixar → deve abrir o instalador do sistema → instalar sozinho
+3. Confirmar qual versão o usuário tinha (130 ou 132) quando o botão do perfil "não achava update" — se era 132, comportamento correto; se 130, investigar (a rota única via modal já resolve o caso mais provável: download sem feedback)
+4. (Alerta) `correlogo.sytes.net` fora do ar — verificar `pm2`/Nginx/Security Group no EC2
+
+---
+
+
 ## Session Context (2026-07-31a — v3.1: Instagram Stories de verdade + copiar imagem diagnosticado)
 
 ### Bug reportado (device, na 3.0.2)
