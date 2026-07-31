@@ -1,5 +1,51 @@
 # Changelog
 
+## [2026-07-31k] — Revert: APK 138 quebrou no device (tela branca/loading)
+
+### Reverted
+- **a555426** "fix: 4 device-test feedback issues" (4 files, +67/-29) via `git revert` in a57d42b. Device reported white screen / stuck on loading after auto-update from versionCode 136 → 138. Reverted to the previously published code at 4ac2f5a (Task 8 wiring, versionCode 136).
+- This session had applied:
+  1. GPS-aware variant filter in ShareScreen
+  2. Sticker PNG supersampling 3×
+  3. Map clipping margins 60 px → 132 px lateral
+  4. BLE scan indicator persistence (10 s)
+- Root cause of the white screen still TBD. None of the 4 changes touched the bundle entry, app initialization, or service worker, but the symptoms indicate something went wrong post-build (or on the device). Diagnose in a follow-up session before re-applying the fixes individually.
+
+### Build
+- npm run build ✓ (5.5s) · npm test ✓ (52/52) · gradlew assembleDebug ✓ (16s).
+- Next CI run will publish a new release (versionCode ~139) with the reverted code; auto-update should replace the broken APK 138 with a working build.
+
+---
+
+
+## [2026-07-31j] — Share cards: 4 device-test fixes (GPS filter, sticker 3x, map clipping, BLE scan indicator)
+
+### Fixed
+1. **GPS-aware variants in ShareScreen** (`src/components/ShareScreen.tsx`)
+   - `sessionHasMap(session)` helper returns true only if GPS samples exist (`routePoints?.length > 0` or `distance > 0.5 km`)
+   - `variants` array filtered via `useMemo` to hide variant D (map) when no GPS
+   - `cardIndex` auto-corrected to stay within bounds when session was previously mapped
+   - Sticker map checkbox disabled when `!sessionHasMap`
+
+2. **Sticker PNG supersampling 3×** (`src/lib/shareCard.ts`, `src/components/ShareScreen.tsx`)
+   - `captureCard(element, scale?)` parameterized (default 2)
+   - New `captureSticker(element)` with scale=3
+   - `onStickerSave` now uses `runAction(..., mode='sticker')` for crisp rendering at small sizes
+
+3. **Map clipping in cards B (pace/left) and C (bottom)** (`src/components/ShareCard.tsx`)
+   - `RouteSVG` margins adjusted from 60px → 132px lateral (matching `CardMap` variant D) so the route no longer overflows the visible area on the smaller cards
+
+4. **Treadmill BLE scan indicator persistence** (`src/lib/use-treadmill.ts`)
+   - Added `scanTimeoutRef` + `clearScanTimeout`
+   - `scan()` sets state to `SCANNING` and only resets after 10.5s (matches `TreadmillBleService.startScan` native 10s timeout), on `connect`/`disconnect`, or on unmount
+   - Result: the UI "Searching..." spinner is now visible during the full native scan window instead of flickering off
+
+### Build
+- `npm test` ✅ (52/52) · `npm run build` ✅ · `gradlew assembleDebug` ✅ (16s)
+- CI run `30668697053` succeeded; release `latest` updated to **versionCode 138** (3.4), APK 22 MB
+
+---
+
 ## [2026-07-31i] — Share Cards/Adesivos: implementation complete (Tasks 1–8)
 
 ### Added
