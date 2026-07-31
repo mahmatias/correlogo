@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-07-30j] — v3.0.2: Auto-update definitivo — CapacitorHttp nativo (bypass CORS)
+
+### Fixed
+- **Causa raiz real do auto-update quebrado**: o GitHub Releases **não envia `Access-Control-Allow-Origin`** no download dos assets e a WebView do Android impõe CORS → todo `fetch` para `releases/download/latest/...` falhava com "Failed to fetch" (mascarado como "App já está na versão mais recente"). Por isso o auto-update **nunca** funcionou no device (atualizações sempre foram manuais/App Distribution).
+- **`checkForUpdate`** agora usa `CapacitorHttp.get()` (`@capacitor/core`, HTTP nativo via OkHttp — imune a CORS) no Android para ler o manifest; mantém `fetch` no web. Timeouts nativos (`connectTimeout`/`readTimeout`).
+- **`downloadApkAndInstall`** usa `CapacitorHttp.get({ responseType: 'blob' })` — download nativo (sem CORS), `resp.data` já vem em base64, escreve direto no `Filesystem.Cache` (remove FileReader/streaming).
+- Evidência: headers do `releases/download/latest/update-manifest.json` confirmam ACAO ausente; `raw.githubusercontent.com` e o servidor próprio seriam alternativas com ACAO, mas `CapacitorHttp` mantém o GitHub como fonte única e conserta manifest + APK juntos.
+
+### Changed
+- `android/app/build.gradle` — `versionName` 3.0.1 → **"3.0.2"**
+
+### Build
+- `npm run build` ✅ · `npx cap sync android` ✅ · `gradlew assembleDebug` ✅
+
+### Observação
+- **`correlogo.sytes.net` (AWS EC2) está fora do ar** — "Impossível conectar ao servidor remoto". Web app indisponível; app Android não depende do servidor (Firebase ok). Verificar `pm2`/Nginx/Security Group no EC2.
+
+---
+
 ## [2026-07-30i] — v3.0.1: Fix auto-update — cache-buster + erro visível + versão instalada na tela
 
 ### Fixed

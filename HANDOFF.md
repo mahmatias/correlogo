@@ -1,5 +1,33 @@
 # Handoff
 
+## Session Context (2026-07-30j — v3.0.2: Auto-update definitivo — CapacitorHttp nativo)
+
+### Causa raiz encontrada (com evidência do device)
+- 3.0.1 instalado confirmado (build 129), diagnóstico mostrou **"Erro ao verificar atualização: Failed to fetch"**.
+- **"Failed to fetch" sem código HTTP = assinatura de CORS bloqueado na WebView.** O Android System WebView impõe CORS para `fetch` de origem cruzada (`https://localhost` → `github.com`).
+- Verificado via headers: `github.com/mahmatias/correlogo/releases/download/latest/update-manifest.json` → 302 → `release-assets.githubusercontent.com` responde **sem `Access-Control-Allow-Origin`**. `raw.githubusercontent.com` tem `ACAO: *`; `correlogo.web.app` (HEAD) não tem; `correlogo.sytes.net` deu timeout.
+- Conclusão: o auto-update **nunca** funcionou em device — sempre falhou no CORS do fetch (manifest e APK). As correções anteriores (retry/timeout/CI/release) eram sintomas, não a causa.
+- Confirmação adicional: `PowerShell`/`Invoke-RestMethod` não aplicam CORS — por isso meus testes locais passavam e o device falhava.
+
+### Fix (commit a definir)
+- **`update-checker.ts`**: no Android, `checkForUpdate` e `downloadApkAndInstall` passam a usar **`CapacitorHttp.get()`** (`@capacitor/core`, core plugin nativo do Capacitor 7 — OkHttp, sem CORS). Web continua com `fetch`.
+  - Manifest: `responseType: 'text'` + `JSON.parse`, `connectTimeout: 10000`, `readTimeout: 15000`.
+  - APK: `responseType: 'blob'` → `resp.data` é base64 → `Filesystem.writeFile` direto (sem FileReader). `readTimeout: 300000`. Progresso de streaming removido (API nativa não expõe stream) — botão fica em "Baixando…" sem barra.
+  - API direta `CapacitorHttp.get()` NÃO precisa de `CapacitorHttp.enabled` no config (esse flag só patcha `window.fetch`/XHR globalmente).
+- **`build.gradle`**: versionName 3.0.1 → **"3.0.2"**.
+
+### Infra (ALERTA — fora do escopo desta sessão)
+- **`correlogo.sytes.net` está FORA DO AR** (conexão recusada/timeout, testado 2x). O app Android usa Firebase (ok), mas o web app está offline. Próximo passo: `sudo NODE_ENV=production pm2 status` / Nginx / Security Group no EC2.
+
+### Pending
+1. **Usuário instala 3.0.2 e testa** (instalação manual; o auto-update ainda não está funcional nele — esse é o ponto do teste):
+   - Perfil → Atualização do app → deve mostrar "Versão instalada: 3.0.2 (build 130)"
+   - "Verificar atualizações" deve retornar **"App já está na versão mais recente"** (sem erro)
+   - Para provar o fluxo de update de ponta a ponta: bump futuro (3.1) → check deve oferecer "Nova versão disponível" → Baixar → instalar via `ApkInstaller`
+2. Verificar servidor AWS (`correlogo.sytes.net`) fora do ar.
+
+---
+
 ## Session Context (2026-07-30i — v3.0.1: Fix auto-update não pegava 3.0)
 
 ### Bug reportado
