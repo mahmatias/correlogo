@@ -51,12 +51,12 @@
   .blob { position: absolute; border-radius: 50%; background: rgba(255,255,255,.05); pointer-events: none; }
 
   /* logo block: uniform — icon (square) + CORRE + LOGO, all same total width */
-  .logo { position: absolute; top: 352px; right: 60px; width: 180px; display: flex; flex-direction: column; align-items: stretch; gap: 10px; z-index: 20; }
+  .logo { position: absolute; top: 352px; right: 60px; width: 60px; display: flex; flex-direction: column; align-items: stretch; gap: 6px; z-index: 20; }
   .logo .icon { width: 100%; aspect-ratio: 1; }
   .logo .icon svg { width: 100%; height: 100%; display: block; }
-  .logo .t { width: 100%; text-align: center; white-space: nowrap; font-weight: 600; line-height: 1.15; }
-  .logo .t.corre { font-size: 38px; letter-spacing: .34em; text-indent: .34em; }
-  .logo .t.logo { font-size: 44px; letter-spacing: .42em; text-indent: .42em; }
+  .logo .t { width: 100%; text-align: center; white-space: nowrap; font-weight: 600; line-height: 1.1; }
+  .logo .t.corre { font-size: 15px; letter-spacing: .16em; text-indent: .16em; }
+  .logo .t.logo { font-size: 16px; letter-spacing: .30em; text-indent: .30em; }
   .logo .t { width: 100%; text-align: center; font-size: 19px; font-weight: 600; letter-spacing: .22em; line-height: 1.15; text-indent: .22em; }
   .title { position: absolute; top: 352px; left: 60px; width: 720px; font-size: 56px; font-weight: 800; line-height: 1.05; z-index: 20; }
 
@@ -95,7 +95,7 @@
   .c3 .statrow .k, .c4 .statrow .k { font-size: 20px; font-weight: 300; opacity: .6; margin-bottom: 8px; }
   .c3 .statrow .v, .c4 .statrow .v { font-size: 42px; font-weight: 800; line-height: 1.1; }
 
-  #map4 { position: absolute; left: 132px; top: 540px; width: 816px; height: 816px; background: #15151f; overflow: hidden; }
+  #map4 { position: absolute; left: 132px; top: 540px; width: 816px; height: 816px; background: #15151f; overflow: hidden; z-index: 1; }
   #map4 .tile { position: absolute; width: 256px; height: 256px; }
   #map4 svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; }
   #map4 svg path { fill: none; stroke: #7c3aed; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 3px 8px rgba(0,0,0,.5)); }
@@ -105,8 +105,8 @@
 <body>
 
 <header>
-  <h1>Share Cards — mockup v4</h1>
-  <span>1080×1920 · área útil y 350–1650 · logo uniforme (icon=CORRE=LOGO) · card 4 mapa 816×816</span>
+  <h1>Share Cards — mockup v5</h1>
+  <span>1080×1920 · área útil y 350–1650 · logo 60px uniforme · card 4 mapa 816×816 (z: fundo &lt; mapa &lt; logo)</span>
   <button id="tgl">Ocultar guias de área útil</button>
 </header>
 
