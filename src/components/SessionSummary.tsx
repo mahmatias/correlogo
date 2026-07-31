@@ -1,4 +1,4 @@
-import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X, Instagram } from 'lucide-react';
+import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X, Instagram, ClipboardCopy } from 'lucide-react';
 import { formatDistance, formatDuration, TrainingSession, WorkoutPlan, getStepTypeLabel } from '../types';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
@@ -9,7 +9,7 @@ import { evaluateSessionPerformance, suggestAdjustment } from '../lib/evaluatePe
 import { isNative } from '../lib/capacitor/platform';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import ShareCard, { extractCardData, CardVariant } from './ShareCard';
-import { captureCard, shareImage, SHARE_TARGETS } from '../lib/shareCard';
+import { captureCard, shareImage, copyCardToClipboard, SHARE_TARGETS } from '../lib/shareCard';
 
 interface Props {
   session: TrainingSession;
@@ -411,6 +411,30 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
                 </div>
               </div>
 
+              {cardVariant === 'd' && (
+                <button
+                  onClick={async () => {
+                    if (!cardCaptureRef.current) return;
+                    setSharing(true);
+                    try {
+                      await new Promise(r => setTimeout(r, 400));
+                      const blob = await captureCard(cardCaptureRef.current);
+                      await copyCardToClipboard(blob);
+                      showFeedback?.('success', 'Imagem copiada! Abra o Instagram e cole no story');
+                      setShowShareModal(false);
+                    } catch {
+                      showFeedback?.('error', 'Erro ao copiar imagem');
+                    } finally {
+                      setSharing(false);
+                    }
+                  }}
+                  disabled={!captureReady || sharing}
+                  className="w-full py-3 bg-bg-elevated text-text-primary rounded-xl font-bold flex items-center justify-center gap-2 mb-2 disabled:opacity-50 border border-border"
+                >
+                  <ClipboardCopy className="w-5 h-5" /> {sharing ? 'Copiando...' : !captureReady ? 'Preparando...' : 'Copiar imagem'}
+                </button>
+              )}
+
               <button
                 onClick={async () => {
                   if (!cardCaptureRef.current) return;
@@ -418,7 +442,7 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
                   try {
                     await new Promise(r => setTimeout(r, 400));
                     const blob = await captureCard(cardCaptureRef.current);
-                    await shareImage(blob, 'corre-logo-card.png', shareTarget);
+                    await shareImage(blob, 'corre-logo-card.png', shareTarget, cardVariant === 'd' ? 'sticker' : 'background');
                     setShowShareModal(false);
                   } catch {
                     showFeedback?.('error', 'Erro ao compartilhar');

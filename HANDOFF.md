@@ -1,5 +1,53 @@
 # Handoff
 
+## Session Context (2026-07-30h — v3.0: Instagram Stories direto + Copiar PNG modo Foto)
+
+### What changed
+Nova experiência de compartilhamento, com **plugin Capacitor nativo** em vez do share sheet genérico:
+
+**`SocialSharePlugin.kt`** (novo, `android/app/src/main/java/com/correlogo/app/`):
+- `shareToInstagram(call)` — Intent `com.instagram.share.ADD_TO_STORY` (documentado oficialmente pela Meta, atualizado jun/2026). Params: `sourceApplication` (Facebook App ID), `backgroundPath` (card completo), `stickerPath` (PNG transparente). Background via `setDataAndType(uri, "image/png")`; sticker via `putExtra("interactive_asset_uri", uri)` + `grantUriPermission("com.instagram.android", ...)`. Reject `"NO_RESOLVE"` se intent não resolver (ex.: Instagram não instalado).
+- `copyImageToClipboard(call)` — FileProvider content Uri → `ClipData.newUri` → `ClipboardManager.setPrimaryClip`. Reject `"CLIPBOARD_FAILED"`.
+- Registrado como `@CapacitorPlugin(name = "SocialShare")` — o Capacitor detecta automaticamente (sem registrar no MainActivity).
+
+**Fluxos de UI (`SessionSummary.tsx`):**
+- Modos Gradiente/Vidro/Mapa (variantes a/b/c) → Instagram Stories envia **card completo como background**.
+- Modo Foto (variante d) → Instagram Stories envia **só o PNG transparente como sticker** (`interactive_asset_uri`); o usuário escolhe a foto de base dentro do Instagram.
+- Botão **"Copiar imagem"** (ícone `ClipboardCopy`, visível apenas na variante d) — captura e copia o PNG transparente para o clipboard sem abrir modal; toast "Imagem copiada! Abra o Instagram e cole no story".
+- **Fallback**: se intent falhar (`NO_RESOLVE`), App ID vazio ou ambiente web → share sheet genérica (como antes).
+
+**Env**: `VITE_FACEBOOK_APP_ID=1604373561408021` no `.env.apk` (e vazio no `.env.dev`/`.env.example`). **Obrigatório para o Stories** — a Meta rejeita `ADD_TO_STORY` sem `source_application` desde jan/2023.
+
+**Versão**: `versionName` 2.2 → **3.0** em `android/app/build.gradle` (versionCode continua via `ciVersionCode` no CI).
+
+### Files created
+- `android/app/src/main/java/com/correlogo/app/SocialSharePlugin.kt`
+
+### Files modified
+- `src/lib/shareCard.ts` — `shareToInstagramStories(blob, mode: 'background'|'sticker')` → `'ok' | 'fallback'`; `copyCardToClipboard(blob)`; `shareImage` ganhou `instagramMode`; `FACEBOOK_APP_ID` do env
+- `src/components/SessionSummary.tsx` — botão "Copiar imagem" (variante d) + `instagramMode` por variante
+- `android/app/build.gradle` — versionName 3.0
+- `.env.apk` / `.env.dev` / `.env.example` — `VITE_FACEBOOK_APP_ID`
+- `CHANGELOG.md`
+
+### Validation
+- `npm run build` ✅ (Vite 6.4.3, 2381 módulos)
+- `npx cap sync android` ✅ (8 plugins)
+- `gradlew assembleDebug` ✅ **BUILD SUCCESSFUL in 33s** (SocialSharePlugin.kt compilou sem erros)
+- `vitest run` ✅ 29 testes / 3 arquivos
+
+### Pending
+1. **Commit + push na main** → CI gera release 3.0 (`app-release.apk` + `update-manifest.json`)
+2. **Testar no device real**:
+   - Stories variantes Gradiente/Vidro/Mapa → card completo abre no composer
+   - Stories variante Foto → sticker transparente (escolher foto de base no Instagram)
+   - Botão "Copiar imagem" → colar no story (clipboard)
+   - Fallback: desinstalar Instagram (ou App ID errado) → share sheet genérica
+   - Revalidar Google Login (erro antigo "FirebaseAuthentication plugin is not implemented" — provável APK antigo)
+   - Auto-update: abrir o app e confirmar atualização para 3.0
+
+---
+
 ## Session Context (2026-07-30f — ShareCard Improvements: Instagram Stories, Variant Foto, 2x Capture, z-index Fix)
 
 ### What changed
