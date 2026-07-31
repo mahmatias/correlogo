@@ -42,6 +42,10 @@ class TreadmillBleService(private val context: Context) {
     private var keepAliveJob: Job? = null
     private var lastCommand: ByteArray? = null
     private val handler = Handler(Looper.getMainLooper())
+    private var connectionTimeoutRunnable: Runnable? = null
+    private var discoveryTimeoutRunnable: Runnable? = null
+    private var requestControlAttempts = 0
+    private var requestControlRetryRunnable: Runnable? = null
     private val ftms = TreadmillFtmsManager()
 
     var onMetrics: ((ByteArray) -> Unit)? = null
@@ -58,9 +62,21 @@ class TreadmillBleService(private val context: Context) {
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
                     Log.d(TAG, "Connected to GATT server")
+                    connectionTimeoutRunnable?.let { handler.removeCallbacks(it) }
+                    connectionTimeoutRunnable = null
+
                     state = BleState.Discovering
                     onStateChange?.invoke(state)
                     handler.post { gatt.discoverServices() }
+
+                    discoveryTimeoutRunnable = Runnable {
+                        if (state is BleState.Discovering) {
+                            Log.e(TAG, "Service discovery timeout (5s)")
+                            onError?.invoke("Falha ao descobrir serviços após 5s")
+                            cleanup()
+                        }
+                    }
+                    handler.postDelayed(discoveryTimeoutRunnable!!, 5000)
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     Log.d(TAG, "Disconnected from GATT server")
@@ -71,6 +87,9 @@ class TreadmillBleService(private val context: Context) {
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            discoveryTimeoutRunnable?.let { handler.removeCallbacks(it) }
+            discoveryTimeoutRunnable = null
+
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 Log.e(TAG, "Service discovery failed: $status")
                 onError?.invoke("Service discovery failed")
@@ -99,6 +118,7 @@ class TreadmillBleService(private val context: Context) {
             onStateChange?.invoke(state)
 
             enableNotifications()
+            requestControlWithRetry()
         }
 
         override fun onCharacteristicChanged(
@@ -111,6 +131,15 @@ class TreadmillBleService(private val context: Context) {
                     onMetrics?.invoke(value)
                 }
                 FTMS_CONTROL_POINT_CHAR -> {
+                    if (value.isNotEmpty() && value[0] == 0x80.toByte() && value.size > 1) {
+                        val resultCode = value[1].toInt() and 0xFF
+                        if (resultCode == 0x00) {
+                            requestControlRetryRunnable?.let { handler.removeCallbacks(it) }
+                            requestControlRetryRunnable = null
+                            state = BleState.Controlled
+                            onStateChange?.invoke(state)
+                        }
+                    }
                     onControlPointResponse?.invoke(value)
                 }
             }
@@ -154,8 +183,33 @@ class TreadmillBleService(private val context: Context) {
         val descControl = controlPointChar.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR)
         descControl?.value = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
         gatt?.writeDescriptor(descControl)
+    }
 
-        sendCommand(ftms.encodeRequestControl())
+    private fun requestControlWithRetry(maxAttempts: Int = 3) {
+        requestControlAttempts = 0
+
+        fun attempt() {
+            if (requestControlAttempts >= maxAttempts) {
+                Log.e(TAG, "Request Control failed after $maxAttempts attempts")
+                requestControlRetryRunnable = null
+                onError?.invoke("Falha ao assumir controle da esteira")
+                cleanup()
+                return
+            }
+
+            requestControlAttempts++
+            Log.d(TAG, "Request Control attempt ${requestControlAttempts}/$maxAttempts")
+            sendCommand(ftms.encodeRequestControl())
+
+            requestControlRetryRunnable = Runnable {
+                if (state !is BleState.Controlled) {
+                    attempt()
+                }
+            }
+            handler.postDelayed(requestControlRetryRunnable!!, 500)
+        }
+
+        attempt()
     }
 
     fun startScan(onDeviceFound: (name: String, address: String) -> Unit) {
@@ -220,10 +274,25 @@ class TreadmillBleService(private val context: Context) {
             return
         }
 
+        connectionTimeoutRunnable = Runnable {
+            if (state is BleState.Connecting) {
+                Log.e(TAG, "Connection timeout (10s)")
+                onError?.invoke("Conexão expirada após 10s")
+                cleanup()
+            }
+        }
+        handler.postDelayed(connectionTimeoutRunnable!!, 10000)
+
         gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
     }
 
     fun disconnect() {
+        connectionTimeoutRunnable?.let { handler.removeCallbacks(it) }
+        connectionTimeoutRunnable = null
+        discoveryTimeoutRunnable?.let { handler.removeCallbacks(it) }
+        discoveryTimeoutRunnable = null
+        requestControlRetryRunnable?.let { handler.removeCallbacks(it) }
+        requestControlRetryRunnable = null
         keepAliveJob?.cancel()
         keepAliveJob = null
         gatt?.disconnect()
@@ -256,16 +325,29 @@ class TreadmillBleService(private val context: Context) {
         keepAliveJob?.cancel()
         keepAliveJob = scope.launch {
             while (isActive) {
-                delay(KEEP_ALIVE_INTERVAL_MS)
-                val cmd = lastCommand ?: continue
-                if (state is BleState.Controlled) {
-                    sendCommand(cmd)
+                try {
+                    delay(KEEP_ALIVE_INTERVAL_MS)
+                    val cmd = lastCommand ?: continue
+                    if (state is BleState.Controlled) {
+                        sendCommand(cmd)
+                    }
+                } catch (e: CancellationException) {
+                    Log.d(TAG, "Keep-alive cancelled")
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Keep-alive error: ${e.message}")
                 }
             }
         }
     }
 
     private fun cleanup() {
+        connectionTimeoutRunnable?.let { handler.removeCallbacks(it) }
+        connectionTimeoutRunnable = null
+        discoveryTimeoutRunnable?.let { handler.removeCallbacks(it) }
+        discoveryTimeoutRunnable = null
+        requestControlRetryRunnable?.let { handler.removeCallbacks(it) }
+        requestControlRetryRunnable = null
         keepAliveJob?.cancel()
         keepAliveJob = null
         gatt?.close()
