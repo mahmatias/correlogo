@@ -31,6 +31,22 @@
 
 ---
 
+## ✅ Concluídos (Sessão 2026-07-31l — BLE fix: "Falha ao assumir controle da esteira")
+
+- [x] **Bug encontrado** (não relacionado aos 4 fixes do APK 138): `TreadmillBleService.processNextCommand()` lia `data` da fila mas nunca setava `char.value = data` antes do `writeCharacteristic()` — write era no-op/silencioso.
+- [x] **Bug 2**: `enableNotifications()` encadeava 2 `writeDescriptor` (CCCD measurement + CCCD control point) sem chaining — Android BLE permite 1 write pendente por vez; segundo write era rejeitado e Request Control competia pelo GATT.
+- [x] **Bug 3**: `requestControlWithRetry()` chamado em paralelo com `enableNotifications()`, antes do CCCD terminar.
+- [x] **Fixes aplicados** (`android/app/src/main/java/com/correlogo/app/TreadmillBleService.kt`):
+  1. `char.value = data` em `processNextCommand()`
+  2. `pendingDescriptorWrite: Runnable?` + `onDescriptorWrite` chaining os 2 CCCD writes
+  3. `requestControlWithRetry()` agora dispara **só** depois do segundo CCCD confirmado (flag `controlPointNotificationsEnabled`)
+  4. `cleanup()` zera `pendingDescriptorWrite` + `controlPointNotificationsEnabled` pra próxima reconexão
+- [x] **Build**: `gradlew compileDebugKotlin` ✅ · `gradlew assembleDebug` ✅ (23s) · `gradlew assembleRelease` ✅ (1m36s)
+- [x] **CI run `30673149958`** succeeded; release `latest` → **versionCode 142** (3.4), APK 22 MB, auto-update disponível
+- [x] **Commit `43517e1`** com descrição detalhada das 3 causas raízes
+- [x] **Próximo passo (user)**: testar esteira no device; se ainda falhar, capturar logcat filtrando `CorreLogo-BLE` + `CorreLogo-FTMS` no Logcat Reader
+- [x] **Não relacionados**: APK 138 white-screen ainda sem causa raiz TBD — investigar antes de re-aplicar os 4 fixes (GPS filter, sticker 3x, map clipping, BLE scan indicator)
+
 ## ✅ Concluídos (Sessão 2026-07-31i — Share Cards/Adesivos: implementation complete)
 
 - [x] **Task 1**: `splits.ts` — pace por km/bloco 5km + fallback (`choosePaceBlocks`, `formatPaceShort`) — 9 testes
