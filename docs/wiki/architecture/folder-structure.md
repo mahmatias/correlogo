@@ -80,10 +80,8 @@ corre-logo/
 ├── AGENTS.md                         # Instruções para agentes
 └── docs/
     ├── wiki/                         # ESTE WIKI
-    ├── registro-e-exportacao-atividades.md
-    ├── gerador-treinos-technical.md
-    ├── samsung-health-setup.md
-    └── superpowers/                  # Design docs + plans (legacy)
+    ├── todo.md                       # Redirect para TODO.md
+    └── archive/                      # Docs históricos (plans, specs, audits, research)
 ```
 
 ---

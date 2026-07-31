@@ -87,6 +87,6 @@ Simula dispositivo FTMS após 100ms de scan. Gera telemetria a cada 100ms. Proce
 
 ## Referências
 
-- `docs/FTMS-Bluetooth-Esteiras/CHECKLIST-TESTES-FTMS-COMPLETO.md` — checklist de testes
-- `docs/FTMS-Bluetooth-Esteiras/DIAGNOSTICO-FTMS-NRF.md` — diagnóstico nRF Connect
-- `docs/agent-reference-SHARE-FTMS-UPDATE.md` — referência detalhada para agentes
+- `docs/archive/FTMS-Bluetooth-Esteiras/CHECKLIST-TESTES-FTMS-COMPLETO.md` — checklist de testes
+- `docs/archive/FTMS-Bluetooth-Esteiras/DIAGNOSTICO-FTMS-NRF.md` — diagnóstico nRF Connect
+- `docs/archive/agent-reference-SHARE-FTMS-UPDATE.md` — referência detalhada para agentes

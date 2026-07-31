@@ -1,11 +1,28 @@
 # Handoff
 
-## Session Context (2026-07-31e — Docs rewrite: Firebase-only)
+## Session Context (2026-07-31f — Housekeeping: auditoria de limpeza)
+
+### O que aconteceu
+- **Auditoria completa** de arquivos/deps/scripts/docs mortos. Nada foi deletado sem aprovação; relatório apresentado em 5 grupos, usuário aprovou (G1–G4 deletar, G5 arquivar).
+- **Arquivado em `docs/archive/`** (git mv preserva histórico): docs históricas da raiz `docs/` (`analise-skills`, `AUDITORIA-TECNICA-3-FEATURES`, `CORRECOES-PRONTAS`, `color-proposal.html`, `PROMPTS-PARA-AGENTE-IA`, `ui-audit-report`, `agent-reference-SHARE-FTMS-UPDATE`, `gerador-treinos-technical`, `registro-e-exportacao-atividades`, `samsung-health-setup`, `tcx`, `mockup-workout.html`), `superpowers/`, `FTMS-Bluetooth-Esteiras/` (+zip), `GitHub-Actions-Firebase-APK/` (+zip), `.firecrawl/` → `docs/archive/firecrawl-research/`.
+- **Deletado**: resíduos AWS (`install_server.sh`, `server.err`, `server.log`, `dist.tar.gz`, `cert/`), `Corre Logo v2.2.apk`, `metadata.json` (0 refs), segredos CI em disco (`gh_*_base64.txt`), `.firebase/hosting.ZGlzdA.cache` (cache commitado em `8de8624`) + `.firebase/` no `.gitignore`, `docs/Download/` (logcats) + `logs/`.
+- **Deps**: `autoprefixer` + `tsx` removidos. **`react-is` restaurado** — o build quebrou com "Rollup failed to resolve import react-is from recharts" (recharts importa em runtime); era [Likely] seguro e não era. `npm install --legacy-peer-deps` (conflito peer firebase 11/12 pré-existente).
+- **Links corrigidos**: `docs/wiki/tracking/ftms.md`, `docs/wiki/architecture/folder-structure.md`, `HANDOFF.md`, `TODO.md`.
+- Validação: `npm run build` ✅ (2381) · `npm test` ✅ (29/29) · `npx cap sync android` ✅ (`android/` sem diff). Lint tem 2 erros **pré-existentes** (`treadmill-machine.ts:85`, `vite.config.ts:6` allowedHosts boolean).
+
+### Cuidados para a próxima sessão
+1. **Nada foi commitado/pushed ainda** — 65 mudanças staged (renames/deletes via git mv/rm). Revisar `git status` + `git diff --cached` antes de commitar. `.env` gerado no disco (gitignored).
+2. **Docs-only push dispara CI** (release nova com versionCode novo). Se o próximo commit for só housekeeping, considerar `[skip ci]` ou aguardar mudança de código.
+3. **`docs/archive/`** = docs históricas preservadas. Não arquivar mais nada sem necessidade; wiki viva é `docs/wiki/`.
+4. Sticker do Instagram = dívida técnica aberta (usuário estudando).
+5. Deps Capacitor v8 vs core 7.6.7 = landmine conhecida (TODO.md), não "corrigir" sem conversar.
+
+---
 
 ### O que aconteceu
 - Usuário **desativou toda a infra AWS** (EC2, PM2, Nginx, `correlogo.sytes.net`). Sistema agora é **100% Firebase** (Hosting `correlogo.web.app` + Cloud Functions `authCallback`/`healthCheck`/`refreshAuthToken` + Firestore `correlogo-prod`). Confirmado: hosting UP (200), `/api/health` → `{"status":"ok"}`.
 - Feedback do usuário sobre a 3.4: **auto-update 3.2→3.4 ✅**, **overlay do mapa ✅**, **copiar PNG transparente ✅**, **figurinha no Stories ❎** (dívida técnica — usuário estudando como outros apps fazem).
-- **Docs reescritos** (sessão docs, ainda não commitado): AGENTS.md ("Production & Deploy — Firebase Only"), README.md, `docs/todo.md` → redirect para `TODO.md`, wiki 7 páginas (web-deploy sem seção AWS/nginx/certbot, env-vars sem `APP_URL` morto, stack/overview atualizados com plugins novos, changelog wiki com v3.0→v3.4 + banner, **ADR-010 AWS Decommissioned**), nota histórica no `docs/ui-audit-report.md`.
+- **Docs reescritos** (sessão docs, ainda não commitado): AGENTS.md ("Production & Deploy — Firebase Only"), README.md, `docs/todo.md` → redirect para `TODO.md`, wiki 7 páginas (web-deploy sem seção AWS/nginx/certbot, env-vars sem `APP_URL` morto, stack/overview atualizados com plugins novos, changelog wiki com v3.0→v3.4 + banner, **ADR-010 AWS Decommissioned**), nota histórica no `docs/archive/ui-audit-report.md`.
 
 ### Cuidados para a próxima sessão
 1. **Push de docs dispara o CI** → gera release nova (versionCode = run+100) com versionName inalterado. Decidir se faz docs-only push ou aguarda próxima mudança de código. Se push for feito, o app vai ver "3.4 (136+)" — inofensivo.
@@ -796,8 +813,8 @@ Health Connect (Android's native health platform, `androidx.health.connect:conne
 - `scripts/export-apk.ps1` — (novo) script PowerShell de export
 - `android/app/src/main/java/com/correlogo/app/AudioFocusPlugin.kt` — setWillPauseWhenDucked(true)
 - `src/lib/capacitor/voice.ts` — timer reduzido
-- `docs/superpowers/specs/2026-07-10-5-improvements-design.md` — design aprovado
-- `docs/superpowers/plans/2026-07-10-5-improvements.md` — implementation plan
+- `docs/archive/superpowers/specs/2026-07-10-5-improvements-design.md` — design aprovado
+- `docs/archive/superpowers/plans/2026-07-10-5-improvements.md` — implementation plan
 
 ### Build validation
 - `npm run build` passou (vite + esbuild server.cjs). Warnings pré-existentes (duplicate keys no server.ts CSP, chunk size).
