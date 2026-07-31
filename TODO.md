@@ -8,7 +8,15 @@
 ## Pendentes
 
 ### Alta (imediato)
-- [ ] **Implementar Share Cards/Adesivos** conforme `docs/superpowers/specs/2026-07-31-share-cards-design.md` (após revisão do usuário → `writing-plans`): `splits.ts`, `card-map.ts`, `ShareScreen.tsx` (substitui modal em `SessionSummary.tsx:45/147`), `ShareCard.tsx` 4 variantes, `saveToGallery` + `shareToWhatsApp` no `SocialSharePlugin.kt`, `@capacitor/camera@^7`. Pipeline: `npm run build` → `cap sync android` → `gradlew assembleDebug`. (ref: commit spec `[skip ci]`)
+- [ ] **Implementar Share Cards/Adesivos** — SDD plan `docs/superpowers/plans/2026-07-31-share-cards.md` (8 tasks, subagent-driven):
+  - [x] Task 1: `splits.ts` (pace splits por km/5km)
+  - [x] Task 2: `gradients.ts` (6 presets)
+  - [x] Task 3: `card-map.ts` (Web Mercator, tiles CARTO dark_all, 816×816)
+  - [x] Task 4: `ShareCard.tsx` 4 variantes (A: pace | B: left | C: bottom | D: map)
+  - [x] Task 5: `SocialSharePlugin.kt` — `saveToGallery` + `shareToWhatsApp` (nativo) — **review passed, minSdk bumped to 29**
+  - [ ] Task 6: TS wrappers em `src/lib/shareCard.ts` (`saveToGallery`, `shareToWhatsApp`)
+  - [ ] Task 7: `ShareScreen.tsx` (abas Cartões/Adesivos + EditPanel inline) + `@capacitor/camera@^7`
+  - [ ] Task 8: Wiring em `SessionSummary.tsx` + pipeline completo (`npm run build` → `cap sync` → `gradlew assembleDebug`)
 - [ ] **Figurinha no Stories — dívida técnica (nova abordagem)** — usuário estudando como outros apps fazem (a Meta parece exigir processo/asset específico além do PNG transparente). Investigar alternativas: `MediaSharePlugin` do Capacitor (intent nativo `com.instagram.share.ADD_TO_STORY`), share sheet nativo do Android, ou plugin `@capacitor/share` com MIME correto
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
@@ -29,6 +37,15 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+## ✅ Concluídos (Sessão 2026-07-31h — minSdk 29 + Task 5 SDD review + full pipeline)
+
+- [x] **Task 5 review (SDD)**: reviewer found `saveToGallery` uses API 29+ MediaStore APIs (`VOLUME_EXTERNAL_PRIMARY`, `RELATIVE_PATH`, `IS_PENDING`) but `minSdk=26` → method always failed on Android 8/9
+- [x] **Decision**: user chose Option 2 — raise `minSdkVersion` 26→29 (drops Android 8/9 support) instead of legacy path + WRITE_EXTERNAL_STORAGE permission
+- [x] **Applied**: `android/variables.gradle` — `minSdkVersion = 29` (compileSdk/targetSdk kept at 36)
+- [x] **Full pipeline validated**: `npm run build` ✅ (6.93s) · `npx cap sync android` ✅ (0.14s, 8 plugins) · `gradlew assembleDebug` ✅ (19s, 315 tasks up-to-date)
+- [x] **CHANGELOG.md** + **HANDOFF.md** updated with decision and build evidence
+- [x] Task 5 implementation now valid for entire supported range → Task 6 can proceed without SDK guards
 
 ## ✅ Concluídos (Sessão 2026-07-31g — Share Cards/Adesivos: design fechado)
 - [x] **Mock v1→v6** (`mockups/share-cards.html`): 4 cards aprovados no celular (stats+pace / stats esquerda / stats embaixo / mapa real 816×816 tiles `dark_all`), logo uniforme 60px, 6 presets de gradiente, área útil y 350–1650. Fix colisão `.t.logo` (block flow puro).

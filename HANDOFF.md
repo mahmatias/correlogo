@@ -1,5 +1,20 @@
 # Handoff
 
+## Session Context (2026-07-31h — Android minSdk bump to 29)
+
+### What happened
+- **Task 5 review** (SDD subagent-driven) found `saveToGallery` uses MediaStore APIs (`VOLUME_EXTERNAL_PRIMARY`, `RELATIVE_PATH`, `IS_PENDING`) only available on API 29+. The app's `minSdkVersion = 26` (Android 8) meant `saveToGallery` would **always reject with `GALLERY_FAILED` on Android 8/9** (NoSuchMethodError caught by try/catch).
+- **Decision**: raise `minSdkVersion` from 26 → 29 (Android 10) instead of adding legacy path + WRITE_EXTERNAL_STORAGE runtime permission. User chose Option 2 (cleaner code, drops Android 8/9 support — product decision).
+- **Applied**: `android/variables.gradle` — `minSdkVersion = 29` (compileSdk/targetSdk kept at 36).
+- **Full pipeline validated**: `npm run build` ✅ · `npx cap sync android` ✅ · `gradlew assembleDebug` ✅ (19s, 315 tasks).
+
+### Cautions for next session
+1. **Android 8/9 users are now unsupported** — the app will not install on devices below API 29. This is intentional per the decision above.
+2. Task 5 native code (`SocialSharePlugin.kt` — `saveToGallery` + `shareToWhatsApp`) is now valid for the entire supported range. Task 6 (TS wrappers) can proceed without SDK guards.
+3. Next steps: continue SDD plan — Task 6 (TS wrappers), Task 7 (ShareScreen + `@capacitor/camera@^7`), Task 8 (wiring + full pipeline).
+
+---
+
 ## Session Context (2026-07-31g — Share Cards/Adesivos: design fechado, spec escrito)
 
 ### O que aconteceu
