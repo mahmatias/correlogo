@@ -93,9 +93,11 @@ cd android && ./gradlew assembleDebug
 | Ambiente | Projeto | Uso |
 |----------|---------|-----|
 | **Prod (APK)** | `correlogo-prod` | Auth, Firestore, Functions, Hosting |
-| **Dev (Web local)** | `correlogo-dev-9a96a` | Firestore test mode (expira 2026-07-25) |
+| **Dev (Web local)** | `correlogo-dev-9a96a` | Firestore test mode |
 
-> ⚠️ **NUNCA** copie `.env.dev` → `.env` — quebra APK e servidor prod.
+> ⚠️ **NUNCA** copie `.env.dev` → `.env` — quebra o APK e o site em produção.
+
+> 🗑️ **Sem servidor próprio**: AWS EC2 / `correlogo.sytes.net` foram **desativados** (2026-07-31). Toda a infra roda no Firebase (Hosting + Cloud Functions + Firestore). Ver [ADR-010](roadmap/decisions.md).
 
 ---
 
@@ -117,4 +119,4 @@ cd android && ./gradlew assembleDebug
 
 ---
 
-*Última atualização: 2026-07-30 | Versão wiki: 1.1*
+*Última atualização: 2026-07-31 | Versão wiki: 1.2*

@@ -8,10 +8,9 @@
 ## Pendentes
 
 ### Alta (imediato)
-- [ ] **Instalar 3.2 manualmente (bootstrap — ÚLTIMA instalação manual)** — 3.2 traz `REQUEST_INSTALL_PACKAGES`; a partir dela o auto-update instala sozinho (exige habilitar 1x "Instalar apps desconhecidos" para o Corre Logo)
-- [ ] **Prova de fogo do auto-update** — com a 3.2 no device, a 3.4 deve baixar e instalar **sozinha** (primeira vez de ponta a ponta) — valida fix overlay (3.3) + sticker transparente (3.4)
-- [ ] **Validar sticker Instagram** — (a) Copiar imagem → colar: só o texto visível, fundo 100% transparente; (b) Instagram Stories → PNG como **figurinha** (camada superior, arrastável), não como fundo
-- [ ] **`correlogo.sytes.net` FORA DO AR** — verificar `pm2`/Nginx/Security Group no EC2 (web app offline; app Android usa Firebase, ok)
+- [ ] **Figurinha no Stories — dívida técnica (nova abordagem)** — usuário estudando como outros apps fazem (a Meta parece exigir processo/asset específico além do PNG transparente). Investigar alternativas: `MediaSharePlugin` do Capacitor (intent nativo `com.instagram.share.ADD_TO_STORY`), share sheet nativo do Android, ou plugin `@capacitor/share` com MIME correto
+- [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
+- [ ] **Limpar resíduos da era AWS** — `install_server.sh` + `server.err` (tracked no git), `cert/`, `server.log` (gitignored) — remover do repo
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
 - [ ] **Permission intent Health Connect** — `PermissionController.createIntent()` não resolve no device do usuário. Próximo passo: depurar `health-connect://permissions` deep link ou tentar `Intent(ACTION_VIEW, Uri.parse(...))` alternativo
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
@@ -32,10 +31,14 @@
 ---
 
 ## ✅ Concluídos (Sessão 2026-07-31d — v3.4 sticker de verdade: PNG transparente + intent Instagram spec)
+- [x] **Retorno do usuário (feedback pós-release)**: Auto-update 3.2→3.4 de ponta a ponta ✅ · Overlay do mapa ✅ · Copiar PNG transparente ✅ (cola como texto no story) · Figurinha no Stories ❎ (dívida técnica)
+- [x] **Infra**: AWS/EC2/`correlogo.sytes.net` **desativados** pelo usuário — sistema roda 100% em Firebase (Hosting `correlogo.web.app` UP 200, `/api/health` → `{"status":"ok"}`, Firestore `correlogo-prod`, APK aponta `correlogo-prod`)
+- [x] **Docs rewrite (sessão docs)**: AGENTS.md (seção "Production & Deploy — Firebase Only"), README.md, `docs/todo.md` → redirect para TODO.md, wiki 7 páginas (web-deploy sem AWS/nginx/certbot, env-vars sem APP_URL morto, stack/overview atualizados, changelog wiki com v3.0→v3.4, ADR-010 AWS decommissioned), nota histórica no ui-audit-report
 - [x] Causa raiz (copy + sticker): véu `bg-black/30` no card variante Foto tornava o PNG "transparente" com cor
 - [x] `ShareCard.tsx`: véu removido — só o texto tem opacidade, resto opacidade 0
 - [x] `SocialSharePlugin.kt`: `setPackage` + `setDataAndType` no intent principal (primary = bg ?? sticker) + extras `background_image_uri`/`interactive_asset_uri` + `grantUriPermission`
 - [x] Builds ✅ `npm run build` + `npx cap sync android` + `gradlew assembleDebug` (APK debug com chunk novo verificado)
+- [x] Release 3.4 (135) validada via aapt: versionCode 135, `REQUEST_INSTALL_PACKAGES` ok, `bg-black/30` ausente, App ID ok
 
 ## ✅ Concluídos (Sessão 2026-07-31c — v3.3 fix overlay mapa/modal)
 - [x] Causa raiz: `MapComponent` raiz com `relative` sem z-index → z-index do Leaflet (400/1000) vencem o modal de compartilhamento `z-60` no stacking context da raiz do SessionSummary (`z-50`)

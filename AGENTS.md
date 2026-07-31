@@ -1,7 +1,7 @@
 # Agent Instructions
 
 ## Session Start
-- **Always** read `TODO.md` first thing — it's the persistent task list.
+- **Always** read `TODO.md` first thing — it's the persistent task list (single source of truth; `docs/todo.md` é apenas um redirect).
 - Add new tasks to `TODO.md` whenever the user asks. Never rely on in-memory only.
 
 ## Custom Commands
@@ -20,12 +20,12 @@
 
 ## Changeling & Handoff
 - Atualize proativamente `CHANGELOG.md` e `HANDOFF.md` após qualquer alteração, correção ou inclusão de funcionalidade, antes de encerrar o turno.
-- Adicione tarefas significativas ao `docs/todo.md` ao final de cada sessão, com referência ao commit.
+- Adicione tarefas significativas ao `TODO.md` ao final de cada sessão, com referência ao commit.
 - Descreva detalhadamente o que foi feito, o contexto técnico e o impacto na aplicação para garantir total controle evolutivo do projeto.
 
 ## Build Validation
 - Sempre execute `npm run build` para certificar-se de que correções e atualizações estão funcionando e isentas de erros de sintaxe ou de importação.
-- **Antes de qualquer build**, copie `.env.apk` → `.env` (`Copy-Item -Path ".env.apk" -Destination ".env" -Force`). O `.env.apk` é a única fonte de verdade para o Firebase **prod** (`correlogo-prod`). **Nunca** copie `.env.dev` para `.env` — isso quebra o APK e o servidor. `.env` nunca deve ser commitado.
+- **Antes de qualquer build**, copie `.env.apk` → `.env` (`Copy-Item -Path ".env.apk" -Destination ".env" -Force`). O `.env.apk` é a única fonte de verdade para o Firebase **prod** (`correlogo-prod`). **Nunca** copie `.env.dev` para `.env` — isso quebra o APK e o site em produção. `.env` nunca deve ser commitado.
 
 ## UI & Component Patterns
 - **Button component**: Use `<Button variant="primary|secondary|ghost|danger" size="sm|md|lg">` em vez de `<button>` raw.
@@ -64,11 +64,12 @@
 ## Dependencies
 - **Avoid `uuid`**: Use `crypto.randomUUID()` (nativo, disponível em todos os browsers modernos).
 - **No dead deps**: Não instalar `@google/genai`, `@vis.gl/react-google-maps`, `motion` — nunca importados no app.
+- **Capacitor**: deps `@capacitor/app`/`@capacitor/browser` (v8) exigem core 8, mas o projeto está no core 7.6.7 — não "corrigir" isso sem conversar antes (ver TODO.md).
 
 ## Firebase Projects
-- **Dev** (`.env.dev`): `correlogo-dev-9a96a` — Firestore em modo teste (expira 2026-07-25). Usado APENAS para desenvolvimento local web.
-- **Prod** para APK (`.env.apk`): `correlogo-prod` — **única fonte de verdade para builds de APK**. Sempre copiar `.env.apk` → `.env` antes de qualquer `npm run build` para APK.
-- **Prod** servidor AWS: `correlogo-prod` — credenciais no `.env` do servidor (não confundir com `.env.apk` local).
+- **Dev** (`.env.dev`): `correlogo-dev-9a96a` — Firestore em modo teste. Usado APENAS para desenvolvimento local web.
+- **Prod** (`.env.apk`): `correlogo-prod` — **única fonte de verdade** para builds de APK, deploy web e Cloud Functions. Sempre copiar `.env.apk` → `.env` antes de qualquer `npm run build`.
+- Não existe mais servidor próprio: **toda a infra é Firebase** (Hosting + Cloud Functions + Firestore). AWS/EC2/`correlogo.sytes.net` foram **desativados** (2026-07-31).
 - `firebase-applet-config.json` foi removido do git (projeto `zealous-arcanum-nwfkz` não é mais usado)
 - ⚠️ **Nunca** copiar `.env.dev` para `.env` — isso faz o APK apontar para o projeto dev, quebrando a autenticação em produção.
 
@@ -109,13 +110,16 @@ Estas regras garantem que qualquer alteração minha nunca quebre o build do APK
    $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"
    ```
 
-## Production Infrastructure — Read Before Touching Build, Env, or Server Config
+## Production & Deploy — Firebase Only
 
-This app runs in production on an AWS EC2 instance (Ubuntu), reachable at `https://correlogo.sytes.net`. The setup is intentional — do not "simplify" or "fix" any of the following without first checking with the user:
+**Não existe mais servidor próprio.** AWS EC2 / `correlogo.sytes.net` / PM2 / Nginx foram **desativados** (2026-07-31). Toda a infra roda no Firebase:
 
-- **`vite.config.ts` must keep `server.allowedHosts: ['correlogo.sytes.net']`.** Without it, Vite rejects requests with a "Blocked request... not allowed" error when accessed via the public domain. This still applies even though production runs `NODE_ENV=production` (no Vite dev server involved) — it protects local/dev usage against the same domain.
-- **Never assume editing `.env` on the server is enough.** This is a Vite app: `import.meta.env.VITE_*` variables (Firebase config, etc.) are baked into the JS bundle at `npm run build` time, not read at runtime. Editing `.env` and restarting the Node process (`pm2 restart`) does **nothing** — the old build still has the old (or missing) values compiled in. Any change to a `VITE_*` variable requires `npm run build` again before the change takes effect, followed by `pm2 restart correlogo`.
-- **The Node process must always run with `NODE_ENV=production`.** `server.ts` branches on this: without it, the server (even when started from the compiled `dist/server.cjs`) falls back to mounting a Vite dev middleware with HMR (opens an extra WebSocket on port 24678), which should never run in production. Always start/restart via: `sudo NODE_ENV=production pm2 restart correlogo` (or `pm2 start dist/server.cjs --name correlogo` with `NODE_ENV=production` set first).
-- **Do not add a hardcoded `PORT` other than `3000` to `server.ts`** without also updating the Nginx config on the server (`/etc/nginx/sites-available/correlogo`, not part of this repo) — Nginx proxies `correlogo.sytes.net` (port 80/443) to `127.0.0.1:3000`. Changing the app's internal port silently breaks the public site.
-- **`.gitignore` already correctly excludes `.env*` (with a `!.env.example` exception), `dist/`, `node_modules/`, logs, and `firebase-applet-config.json`.** Do not remove or weaken these entries — `.env` contains the Firebase API key and Gemini API key.
-- See `HANDOFF.md` for the full current production deployment state (PM2, Nginx, SSL, Security Group) before suggesting any infrastructure change.
+- **Web (PWA)**: Firebase Hosting site `correlogo` → `https://correlogo.web.app` (`firebase deploy --only hosting:correlogo`). O `dist/` (build do Vite) é o public dir.
+- **API dinâmica**: Cloud Functions v2 (Node 22, `functions/`) — `authCallback` (troca de código OAuth), `healthCheck`, `refreshAuthToken`. Deploy: `firebase deploy --only functions`.
+- **Dados**: Firestore `correlogo-prod` (rules em `firestore.rules`).
+- **CI/CD (auto-update do APK)**: push em `main` dispara `.github/workflows/firebase-deploy.yml` → build web + `assembleRelease` assinado → publica em **GitHub Release `latest`** junto com `update-manifest.json` (com `versionCode` = `GITHUB_RUN_NUMBER + 100`). O app verifica esse manifest (`releases/download/latest/update-manifest.json`) via `CapacitorHttp` e instala sozinho (a partir da 3.2).
+- **`VITE_*` são baked no build**: mudar variável exige `npm run build` de novo; `firebase deploy` serve o bundle já compilado.
+- **Versão atual**: checar `android/app/build.gradle` (`versionName`). Release `latest` sempre reflete o último push.
+- **Não usar portas hardcoded**: o Vite dev server usa porta 3000 (`vite.config.ts`, `host: 0.0.0.0`, `allowedHosts: true`). Não havia Nginx/PM2 — não há config de servidor para atualizar.
+- **`.gitignore`** já exclui `.env*` (com `!.env.example`), `dist/`, `node_modules/`, logs, `keystore.jks`, `firebase-key.json`, `android/app/google-services.json` e `gh_*_base64.txt`. Não remover — `.env` contém a Firebase API key e o `gh_*` contém credenciais de CI.
+- Ver `HANDOFF.md` e a wiki (`docs/wiki/`) antes de sugerir qualquer mudança de infra.

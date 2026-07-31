@@ -93,12 +93,15 @@
 
 | Arquivo | Variáveis | Origem |
 |---------|-----------|--------|
-| `.env.apk` | `VITE_FIREBASE_*`, `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_WEB_CLIENT_ID`, `GEMINI_API_KEY` | **APK build only** |
+| `.env.apk` | `VITE_FIREBASE_*`, `VITE_GOOGLE_WEB_CLIENT_ID`, `GEMINI_API_KEY` | **Build APK / deploy web (prod)** |
 | `.env.dev` | Firebase dev project (`correlogo-dev-9a96a`) | Local dev only |
 | `functions/.env` | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Cloud Functions |
-| Servidor AWS | `VITE_*` + `GOOGLE_*` | Produção web |
+
+> ⚠️ **Não existe mais servidor próprio** (AWS/EC2 desativado em 2026-07-31). O web em produção roda no **Firebase Hosting** (`correlogo.web.app`); as variáveis `VITE_*` são baked no build.
 
 > ⚠️ **NUNCA** commitar `.env*`. `.gitignore` já bloqueia.
+
+> ⚠️ **Landmine**: `@capacitor/app@8.x`/`@capacitor/browser@8.x` exigem core 8, mas o projeto está no core 7.6.7 (`npm ls` marca invalid). Não "corrigir" sem conversar antes (ver TODO.md).
 
 ---
 
@@ -113,4 +116,4 @@
 
 ---
 
-*Última revisão: 2026-07-29*
+*Última revisão: 2026-07-31*

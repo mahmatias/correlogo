@@ -1,5 +1,19 @@
 # Handoff
 
+## Session Context (2026-07-31e — Docs rewrite: Firebase-only)
+
+### O que aconteceu
+- Usuário **desativou toda a infra AWS** (EC2, PM2, Nginx, `correlogo.sytes.net`). Sistema agora é **100% Firebase** (Hosting `correlogo.web.app` + Cloud Functions `authCallback`/`healthCheck`/`refreshAuthToken` + Firestore `correlogo-prod`). Confirmado: hosting UP (200), `/api/health` → `{"status":"ok"}`.
+- Feedback do usuário sobre a 3.4: **auto-update 3.2→3.4 ✅**, **overlay do mapa ✅**, **copiar PNG transparente ✅**, **figurinha no Stories ❎** (dívida técnica — usuário estudando como outros apps fazem).
+- **Docs reescritos** (sessão docs, ainda não commitado): AGENTS.md ("Production & Deploy — Firebase Only"), README.md, `docs/todo.md` → redirect para `TODO.md`, wiki 7 páginas (web-deploy sem seção AWS/nginx/certbot, env-vars sem `APP_URL` morto, stack/overview atualizados com plugins novos, changelog wiki com v3.0→v3.4 + banner, **ADR-010 AWS Decommissioned**), nota histórica no `docs/ui-audit-report.md`.
+
+### Cuidados para a próxima sessão
+1. **Push de docs dispara o CI** → gera release nova (versionCode = run+100) com versionName inalterado. Decidir se faz docs-only push ou aguarda próxima mudança de código. Se push for feito, o app vai ver "3.4 (136+)" — inofensivo.
+2. `APP_URL` removido da documentação — confirmar que não há uso no código (grep retornou vazio).
+3. Sticker do Instagram = dívida técnica aberta (usuário estudando). Investigar: `MediaSharePlugin` do Capacitor, share sheet nativo, ou spec mais completa da Meta.
+
+---
+
 ## Session Context (2026-07-31d — v3.4: Sticker de verdade — PNG transparente + intent do Instagram conforme spec)
 
 ### Bugs reportados (device, na 3.2/3.3)
