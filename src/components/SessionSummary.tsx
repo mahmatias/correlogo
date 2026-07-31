@@ -422,8 +422,9 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
                       await copyCardToClipboard(blob);
                       showFeedback?.('success', 'Imagem copiada! Abra o Instagram e cole no story');
                       setShowShareModal(false);
-                    } catch {
-                      showFeedback?.('error', 'Erro ao copiar imagem');
+                    } catch (err) {
+                      console.error('[copy-card]', err);
+                      showFeedback?.('error', `Erro ao copiar imagem: ${(err as Error)?.message ?? err}`);
                     } finally {
                       setSharing(false);
                     }
@@ -444,7 +445,8 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
                     const blob = await captureCard(cardCaptureRef.current);
                     await shareImage(blob, 'corre-logo-card.png', shareTarget, cardVariant === 'd' ? 'sticker' : 'background');
                     setShowShareModal(false);
-                  } catch {
+                  } catch (err) {
+                    console.error('[share-card]', err);
                     showFeedback?.('error', 'Erro ao compartilhar');
                   } finally {
                     setSharing(false);

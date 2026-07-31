@@ -8,10 +8,10 @@
 ## Pendentes
 
 ### Alta (imediato)
-- [ ] **Testar 3.0.2 no device** — "Verificar atualizações" deve dar "versão mais recente" **sem erro** (CapacitorHttp). Provas de fogo: bump futuro deve oferecer update e instalar
+- [ ] **Instalar 3.1 e validar Instagram Stories** — (a) Compartilhar → Foto → Instagram Stories deve abrir o composer **direto** com o PNG como **sticker** (App ID agora baked no APK); (b) Copiar imagem deve funcionar (se falhar, toast mostra o motivo real); (c) Google Login continua ok
+- [ ] **Auto-update 3.0.2 → 3.1** — release nova (versionCode 131) deve aparecer como "Nova versão", baixar via CapacitorHttp e instalar via `ApkInstaller` (prova de fogo de ponta a ponta)
 - [ ] **`correlogo.sytes.net` FORA DO AR** — verificar `pm2`/Nginx/Security Group no EC2 (web app offline; app Android usa Firebase, ok)
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
-- [ ] **Testar v3.0 no device** — Instagram Stories direto (background/sticker), Copiar PNG modo Foto, Google Login (já validado funcionando)
 - [ ] **Permission intent Health Connect** — `PermissionController.createIntent()` não resolve no device do usuário. Próximo passo: depurar `health-connect://permissions` deep link ou tentar `Intent(ACTION_VIEW, Uri.parse(...))` alternativo
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
 - [ ] Foto do perfil — exibição com problemas (dívida técnica)

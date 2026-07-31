@@ -1,5 +1,32 @@
 # Handoff
 
+## Session Context (2026-07-31a — v3.1: Instagram Stories de verdade + copiar imagem diagnosticado)
+
+### Bug reportado (device, na 3.0.2)
+1. Compartilhar → Foto → Instagram Stories → **Copiar imagem** → toast "Erro ao copiar imagem"
+2. Compartilhar → abre o **share sheet do Android** (deveria abrir o deep link do Instagram Stories)
+3. Selecionar Instagram no share sheet → story abre mas o PNG entra como **imagem normal** (fica por baixo de fotos novas) — ou seja, nunca virou sticker
+
+### Causa raiz #2/#3 (confirmada com evidência)
+- O **secret `ENV_FILE` do GitHub Actions** não tinha `VITE_FACEBOOK_APP_ID`. O APK do CI era buildado com App ID vazio → `shareToInstagramStories()` cai no `'fallback'` (`if (!FACEBOOK_APP_ID) return 'fallback'`) → share sheet → imagem como fundo.
+- **Evidência**: extraí o `SessionSummary-BJzWAPCK.js` de dentro do `app-release.apk` (release 3.0.2) — **não contém** `1604373561408021`. O APK local debug (3.1) contém. (Nota: buscar string nos bytes crus do APK é **inconclusivo** — as entries ZIP estão comprimidas com deflate; é preciso extrair/descomprimir o chunk.)
+- **Fix**: `gh secret set ENV_FILE` com base64 do `.env.apk` completo (inclui `VITE_FACEBOOK_APP_ID=1604373561408021`). Próximo build CI bakeia o App ID. `VITE_*` é bake-time → só vale para a 3.1 em diante.
+
+### Fix #1 (diagnóstico instrumentado — erro real não reproduzido localmente)
+- `SocialSharePlugin.kt`: `sourceUriForPath()` aceita `file://`, caminho absoluto **e** `content://`; fallback `context.cacheDir`; `Log.e` nos rejects. Teoria descartada: arquivo não existe/uri não `file://` (o `nativeShare` usa o mesmo `saved.uri` e funciona — o arquivo existe).
+- `SessionSummary.tsx`: toast de copy mostra a **mensagem real** (temporário). `shareCard.ts`: `console.error('[instagram-stories]', e)`.
+- **Se o copy falhar de novo na 3.1, o toast agora mostra o motivo exato** (ex: `file not found: ...`, `CLIPBOARD_FAILED`, `not implemented on android`).
+
+### Teste do usuário na 3.1 (pending)
+1. Compartilhar → Foto → Instagram Stories → deve abrir o composer do Stories **direto**, PNG como sticker
+2. Copiar imagem → deve copiar (ou mostrar o erro real se falhar)
+3. Auto-update: release 3.1 (versionCode 131) deve aparecer como "Nova versão" e instalar via `ApkInstaller` — prova de fogo do auto-update
+
+### Infra (ALERTA — ainda pendente)
+- **`correlogo.sytes.net` fora do ar** — `sudo NODE_ENV=production pm2 status` / Nginx / Security Group no EC2.
+
+---
+
 ## Session Context (2026-07-30j — v3.0.2: Auto-update definitivo — CapacitorHttp nativo)
 
 ### Causa raiz encontrada (com evidência do device)
