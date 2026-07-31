@@ -8,6 +8,7 @@
 ## Pendentes
 
 ### Alta (imediato)
+- [ ] **Implementar Share Cards/Adesivos** conforme `docs/superpowers/specs/2026-07-31-share-cards-design.md` (após revisão do usuário → `writing-plans`): `splits.ts`, `card-map.ts`, `ShareScreen.tsx` (substitui modal em `SessionSummary.tsx:45/147`), `ShareCard.tsx` 4 variantes, `saveToGallery` + `shareToWhatsApp` no `SocialSharePlugin.kt`, `@capacitor/camera@^7`. Pipeline: `npm run build` → `cap sync android` → `gradlew assembleDebug`. (ref: commit spec `[skip ci]`)
 - [ ] **Figurinha no Stories — dívida técnica (nova abordagem)** — usuário estudando como outros apps fazem (a Meta parece exigir processo/asset específico além do PNG transparente). Investigar alternativas: `MediaSharePlugin` do Capacitor (intent nativo `com.instagram.share.ADD_TO_STORY`), share sheet nativo do Android, ou plugin `@capacitor/share` com MIME correto
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
@@ -28,6 +29,13 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+## ✅ Concluídos (Sessão 2026-07-31g — Share Cards/Adesivos: design fechado)
+- [x] **Mock v1→v6** (`mockups/share-cards.html`): 4 cards aprovados no celular (stats+pace / stats esquerda / stats embaixo / mapa real 816×816 tiles `dark_all`), logo uniforme 60px, 6 presets de gradiente, área útil y 350–1650. Fix colisão `.t.logo` (block flow puro).
+- [x] **Decisões de design**: edição inline (painel colapsável, não modal); Salvar Cartões → Galeria MediaStore; Adesivos → PNG transparente + Copiar; foto de fundo `@capacitor/camera@^7` (cards 1–3); `@capacitor/share` não tem `packageName` → `shareToWhatsApp` nativo + fallback.
+- [x] **Spike CORS tiles + dom-to-image passou** → card 4 sem Leaflet (tiles `<img>` + SVG).
+- [x] **Spec de design**: `docs/superpowers/specs/2026-07-31-share-cards-design.md`
+- [x] CHANGELOG/HANDOFF/TODO atualizados. Commit `[skip ci]`.
 
 ## ✅ Concluídos (Sessão 2026-07-31f — Housekeeping: auditoria de limpeza)
 - [x] **Auditoria** de arquivos/deps/scripts/docs mortos (5 grupos, aprovada pelo usuário: G1–G4 deletar, G5 arquivar)
