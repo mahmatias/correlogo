@@ -6,7 +6,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root { --s: 0.4375; }
   * { box-sizing: border-box; }
@@ -51,9 +50,10 @@
   .g4 { background: linear-gradient(160deg, #1c0303 0%, #4a0e0e 42%, #dc2626 78%, #fbbf24 100%); }
   .blob { position: absolute; border-radius: 50%; background: rgba(255,255,255,.05); pointer-events: none; }
 
-  /* logo block: app icon + CORRE/LOGO, all same width, smallest legible */
+  /* logo block: app icon (swoosh da Load screen) + CORRE/LOGO, all same width, smallest legible */
   .logo { position: absolute; top: 352px; right: 60px; width: 180px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; z-index: 20; }
-  .logo .chip { width: 100%; height: 56px; border-radius: 14px; background: rgba(255,255,255,.16); border: 2px solid rgba(255,255,255,.35); display: flex; align-items: center; justify-content: center; font-size: 30px; }
+  .logo .chip { width: 100%; height: 56px; border-radius: 14px; background: rgba(255,255,255,.16); border: 2px solid rgba(255,255,255,.35); display: flex; align-items: center; justify-content: center; }
+  .logo .chip svg { width: 44px; height: 44px; }
   .logo .t { width: 100%; text-align: center; font-size: 19px; font-weight: 600; letter-spacing: .22em; line-height: 1.15; text-indent: .22em; }
   .title { position: absolute; top: 352px; left: 60px; width: 720px; font-size: 56px; font-weight: 800; line-height: 1.05; z-index: 20; }
 
@@ -71,6 +71,9 @@
   .c1 .stats { position: absolute; top: 1235px; left: 60px; right: 60px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 28px; }
   .c1 .stat .v { font-size: 46px; font-weight: 800; line-height: 1.05; }
   .c1 .stat .k { font-size: 21px; font-weight: 300; opacity: .55; margin-top: 4px; }
+  .c1 .stat:nth-child(3n+1) { text-align: left; }
+  .c1 .stat:nth-child(3n+2) { text-align: center; }
+  .c1 .stat:nth-child(3n+3) { text-align: right; }
 
   /* card 2 */
   .c2 .route.big { position: absolute; left: 60px; right: 60px; top: 470px; bottom: 60px; }
@@ -80,7 +83,7 @@
   .c2 .statcol .k { font-size: 21px; font-weight: 300; opacity: .6; }
   .c2 .statcol .v { font-size: 44px; font-weight: 800; line-height: 1.1; }
 
-  /* cards 3 & 4: square map region 960x960 (max useful width), stats at bottom inside safe area */
+  /* cards 3 & 4: square map region 816x816 (-15%), stats at bottom inside safe area */
   .c3 .route.big { position: absolute; left: 60px; top: 470px; width: 960px; height: 960px; }
   .c3 .route.big svg { width: 100%; height: 100%; }
   .c3 .route.big svg path { fill: none; stroke: rgba(255,255,255,.8); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 3px 6px rgba(0,0,0,.4)); }
@@ -89,18 +92,18 @@
   .c3 .statrow .k, .c4 .statrow .k { font-size: 20px; font-weight: 300; opacity: .6; margin-bottom: 8px; }
   .c3 .statrow .v, .c4 .statrow .v { font-size: 42px; font-weight: 800; line-height: 1.1; }
 
-  #map4 { position: absolute; left: 60px; top: 470px; width: 960px; height: 960px; }
-  .c4 .route { position: absolute; left: 60px; top: 470px; width: 960px; height: 960px; z-index: 5; }
-  .c4 .route svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .c4 .route svg path { fill: none; stroke: #7c3aed; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 3px 8px rgba(0,0,0,.5)); }
-  .c4 .shade { position: absolute; left: 60px; top: 470px; width: 960px; height: 960px; background: linear-gradient(0deg, rgba(0,0,0,.6), transparent 42%); pointer-events: none; z-index: 6; }
+  #map4 { position: absolute; left: 132px; top: 540px; width: 816px; height: 816px; background: #15151f; }
+  #map4 .tile { position: absolute; width: 256px; height: 256px; }
+  #map4 svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; }
+  #map4 svg path { fill: none; stroke: #7c3aed; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 3px 8px rgba(0,0,0,.5)); }
+  .c4 .shade { position: absolute; left: 132px; top: 540px; width: 816px; height: 816px; background: linear-gradient(0deg, rgba(0,0,0,.6), transparent 42%); pointer-events: none; z-index: 6; }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Share Cards — mockup v2</h1>
-  <span>1080×1920 · área útil y 350–1650 · logo bloco 180px · card 4 mapa 960×960</span>
+  <h1>Share Cards — mockup v3</h1>
+  <span>1080×1920 · área útil y 350–1650 · logo swoosh (Load screen) · card 4 mapa 816×816</span>
   <button id="tgl">Ocultar guias de área útil</button>
 </header>
 
@@ -112,7 +115,7 @@
     <div class="card"><div class="canvas c1 g1">
       <div class="blob" style="width:520px;height:520px;top:-140px;right:-160px;"></div>
       <div class="blob" style="width:640px;height:640px;bottom:-260px;left:-120px;"></div>
-      <div class="logo"><div class="chip">🏃</div><div class="t">CORRE</div><div class="t">LOGO</div></div>
+      <div class="logo"><div class="chip"><svg viewBox="0 0 100 100"><path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="#FF006E"/><path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="#FF006E" opacity=".6"/></svg></div><div class="t">CORRE</div><div class="t">LOGO</div></div>
       <div class="title">Treino de 5&nbsp;km</div>
       <div class="route"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
         <path d="M12,78 C20,62 24,48 20,34 C26,40 40,44 52,40 C44,30 50,16 60,12 C66,22 76,26 86,22 C78,36 70,52 62,64 C56,74 52,82 46,88"></path>
@@ -146,7 +149,7 @@
     <label>Card 2 · Stats à esquerda</label>
     <div class="card"><div class="canvas c2 g2">
       <div class="blob" style="width:460px;height:460px;top:-120px;left:-140px;"></div>
-      <div class="logo"><div class="chip">🏃</div><div class="t">CORRE</div><div class="t">LOGO</div></div>
+      <div class="logo"><div class="chip"><svg viewBox="0 0 100 100"><path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="#FF006E"/><path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="#FF006E" opacity=".6"/></svg></div><div class="t">CORRE</div><div class="t">LOGO</div></div>
       <div class="title">Treino de 5&nbsp;km</div>
       <div class="route big"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
         <path d="M22,82 C30,64 34,48 30,34 C36,40 48,44 58,40 C50,30 56,18 66,14 C72,24 82,28 92,24"></path>
@@ -167,7 +170,7 @@
     <label>Card 3 · Stats embaixo</label>
     <div class="card"><div class="canvas c3 g3">
       <div class="blob" style="width:520px;height:520px;top:-160px;right:-120px;"></div>
-      <div class="logo"><div class="chip">🏃</div><div class="t">CORRE</div><div class="t">LOGO</div></div>
+      <div class="logo"><div class="chip"><svg viewBox="0 0 100 100"><path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="#FF006E"/><path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="#FF006E" opacity=".6"/></svg></div><div class="t">CORRE</div><div class="t">LOGO</div></div>
       <div class="title">Treino de 5&nbsp;km</div>
       <div class="route big"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
         <path d="M22,82 C30,64 34,48 30,34 C36,40 48,44 58,40 C50,30 56,18 66,14 C72,24 82,28 92,24"></path>
@@ -183,16 +186,13 @@
     </div></div>
   </div>
 
-  <!-- CARD 4: Map real (quadrado 960x960) -->
+  <!-- CARD 4: Map real (quadrado 816x816, -15%) -->
   <div class="stage">
     <label>Card 4 · Mapa real + traçado</label>
     <div class="card"><div class="canvas c4 g4">
-      <div class="logo"><div class="chip">🏃</div><div class="t">CORRE</div><div class="t">LOGO</div></div>
+      <div class="logo"><div class="chip"><svg viewBox="0 0 100 100"><path d="M20 65 C30 65, 45 55, 55 45 C40 48, 30 45, 25 38 C40 38, 55 30, 85 20 C75 38, 60 62, 50 75 C52 65, 48 58, 42 56 C35 64, 25 65, 20 65 Z" fill="#FF006E"/><path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="#FF006E" opacity=".6"/></svg></div><div class="t">CORRE</div><div class="t">LOGO</div></div>
       <div class="title">Treino de 5&nbsp;km</div>
       <div id="map4"></div>
-      <div class="route"><svg viewBox="0 0 100 100" preserveAspectRatio="none">
-        <path d="M22,82 C30,64 34,48 30,34 C36,40 48,44 58,40 C50,30 56,18 66,14 C72,24 82,28 92,24"></path>
-      </svg></div>
       <div class="shade"></div>
       <div class="statrow">
         <div class="cell"><div class="k">Distância</div><div class="v">5,00&nbsp;km</div></div>
@@ -205,7 +205,6 @@
 
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   function fit() {
     var s = Math.min(1, (window.innerHeight * 0.84) / 1920);
@@ -227,12 +226,55 @@
     [-23.5810,-46.6558],[-23.5819,-46.6550],[-23.5826,-46.6540],[-23.5832,-46.6528],
     [-23.5841,-46.6524],[-23.5846,-46.6536],[-23.5844,-46.6550],[-23.5839,-46.6562]
   ];
-  const map = L.map('map4', { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, touchZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false });
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 20 }).addTo(map);
-  const line = L.polyline(pts, { color: '#7c3aed', weight: 8, opacity: .95, lineCap: 'round', lineJoin: 'round' }).addTo(map);
-  L.circleMarker(pts[0], { radius: 12, color: '#22C55E', fillOpacity: 1 }).addTo(map);
-  L.circleMarker(pts[pts.length-1], { radius: 12, color: '#EF4444', fillOpacity: 1 }).addTo(map);
-  map.fitBounds(line.getBounds(), { padding: [90, 90] });
+
+  // Slippy map autônomo (sem lib): tiles CARTO + traçado geograficamente alinhado
+  const MAP = document.getElementById('map4');
+  const SIZE = 816, FIT = SIZE - 64;
+
+  function project(lat, lon) {
+    const r = lat * Math.PI / 180;
+    return {
+      x: (lon + 180) / 360,
+      y: (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2
+    };
+  }
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  const proj = pts.map(([lat, lon]) => {
+    const p = project(lat, lon);
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    return p;
+  });
+
+  const scale = 256 * Math.pow(2, Math.max(2, Math.min(18, Math.floor(Math.min(
+    Math.log2(FIT / ((maxX - minX) * 256)), Math.log2(FIT / ((maxY - minY) * 256))
+  )))));
+  const ox = (minX + maxX) / 2 * scale - SIZE / 2;
+  const oy = (minY + maxY) / 2 * scale - SIZE / 2;
+
+  for (let tx = Math.floor(ox / 256), tx2 = Math.floor((ox + SIZE) / 256); tx <= tx2; tx++) {
+    for (let ty = Math.floor(oy / 256), ty2 = Math.floor((oy + SIZE) / 256); ty <= ty2; ty++) {
+      const img = document.createElement('img');
+      img.className = 'tile';
+      img.alt = '';
+      img.src = 'https://' + 'abcd'[(tx + ty) & 3] + '.basemaps.cartocdn.com/light_all/' + Math.round(Math.log2(scale / 256)) + '/' + tx + '/' + ty + '.png';
+      img.style.left = (tx * 256 - ox) + 'px';
+      img.style.top = (ty * 256 - oy) + 'px';
+      MAP.appendChild(img);
+    }
+  }
+
+  const d = proj.map((p, i) => {
+    const sx = (p.x * scale - ox).toFixed(1), sy = (p.y * scale - oy).toFixed(1);
+    return (i === 0 ? 'M' : 'L') + sx + ',' + sy;
+  }).join('');
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 ' + SIZE + ' ' + SIZE);
+  const mk = (p, c) => '<circle cx="' + (p.x * scale - ox).toFixed(1) + '" cy="' + (p.y * scale - oy).toFixed(1) + '" r="14" fill="' + c + '" stroke="rgba(0,0,0,.5)" stroke-width="4"/>';
+  svg.innerHTML = '<path d="' + d + '"/>' + mk(proj[0], '#22C55E') + mk(proj[proj.length - 1], '#EF4444');
+  MAP.appendChild(svg);
 </script>
 </body>
 </html>
