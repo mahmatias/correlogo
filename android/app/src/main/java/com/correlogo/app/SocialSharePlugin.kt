@@ -2,11 +2,17 @@ package com.correlogo.app
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Environment
+import android.provider.MediaStore
+import android.util.Base64
 import android.util.Log
 import androidx.core.content.FileProvider
+import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -108,6 +114,69 @@ class SocialSharePlugin : Plugin() {
         } catch (e: Exception) {
             Log.e(TAG, "copyImageToClipboard failed", e)
             call.reject("CLIPBOARD_FAILED", e.message)
+        }
+    }
+
+    @PluginMethod
+    fun saveToGallery(call: PluginCall) {
+        val data = call.getString("data")
+        val filename = call.getString("filename") ?: "corre-logo-card.png"
+        val mimeType = call.getString("mimeType") ?: "image/png"
+        if (data.isNullOrBlank()) {
+            call.reject("data is required")
+            return
+        }
+        val bytes = try {
+            Base64.decode(data, Base64.DEFAULT)
+        } catch (e: Exception) {
+            call.reject("invalid base64 data")
+            return
+        }
+        val displayName = "${System.currentTimeMillis()}_${filename.replace(" ", "_")}"
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+            put(MediaStore.Images.Media.MIME_TYPE, mimeType)
+            put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/CorreLogo")
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+        }
+        try {
+            val collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            val uri = activity.contentResolver.insert(collection, values)
+                ?: return call.reject("gallery insert failed")
+            activity.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                ?: return call.reject("gallery stream failed")
+            values.clear()
+            values.put(MediaStore.Images.Media.IS_PENDING, 0)
+            activity.contentResolver.update(uri, values, null, null)
+            MediaScannerConnection.scanFile(activity, arrayOf(uri.toString()), arrayOf(mimeType), null)
+            call.resolve(JSObject().apply { put("uri", uri.toString()) })
+        } catch (e: Exception) {
+            Log.e(TAG, "saveToGallery failed", e)
+            call.reject("GALLERY_FAILED", e.message)
+        }
+    }
+
+    @PluginMethod
+    fun shareToWhatsApp(call: PluginCall) {
+        val imagePath = call.getString("imagePath")
+        if (imagePath.isNullOrBlank()) {
+            call.reject("imagePath is required")
+            return
+        }
+        val uri = sourceUriForPath(imagePath)
+            ?: return call.reject("file not found: $imagePath")
+        try {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                setPackage("com.whatsapp")
+                setType("image/png")
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            activity.startActivity(intent)
+            call.resolve()
+        } catch (e: Exception) {
+            Log.e(TAG, "WhatsApp intent failed", e)
+            call.reject("NO_RESOLVE", e.message)
         }
     }
 }
