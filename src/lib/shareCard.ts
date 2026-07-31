@@ -151,3 +151,40 @@ export async function copyCardToClipboard(blob: Blob): Promise<void> {
   const saved = await saveBlobToCache(blob, 'corre-logo-card.png');
   await SocialShare.copyImageToClipboard({ imagePath: saved.uri });
 }
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const reader = new FileReader();
+  return new Promise<string>((resolve, reject) => {
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function saveCardToGallery(blob: Blob, filename = 'corre-logo-card.png'): Promise<void> {
+  if (isNative()) {
+    const base64 = await blobToBase64(blob);
+    await SocialShare.saveToGallery({ data: base64, filename, mimeType: blob.type || 'image/png' });
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export async function shareToWhatsApp(blob: Blob): Promise<'ok' | 'fallback'> {
+  if (!isNative()) return 'fallback';
+  const saved = await saveBlobToCache(blob, 'corre-logo-whatsapp.png');
+  try {
+    await SocialShare.shareToWhatsApp({ imagePath: saved.uri });
+    return 'ok';
+  } catch (e) {
+    console.error('[whatsapp]', e);
+    return 'fallback';
+  }
+}
