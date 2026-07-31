@@ -1,8 +1,15 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { useMemo } from 'react';
 import { formatDistance, formatDuration } from '../types';
 import type { TrainingSession } from '../types';
+import { choosePaceBlocks, formatPaceShort } from '../lib/splits';
+import type { PaceBlock } from '../lib/splits';
+import { GRADIENT_PRESETS, LOGO_SWOOSH_PATHS, LOGO_COLOR } from '../lib/gradients';
+import type { GradientPreset } from '../lib/gradients';
+import { computeMapView, defaultView, tilesFor, tileUrl, routeShape } from '../lib/card-map';
+import type { GeoPoint } from '../lib/card-map';
 
-export type CardVariant = 'a' | 'b' | 'c' | 'd';
+export type CardVariant = 'pace' | 'left' | 'bottom' | 'map';
 
 export interface ShareCardData {
   distance: string;
@@ -14,13 +21,19 @@ export interface ShareCardData {
   name: string;
 }
 
+export interface StatValue {
+  key: string;
+  label: string;
+  value: string;
+}
+
 export function extractCardData(session: TrainingSession): ShareCardData {
   const avgPaceSeconds = session.totalDurationSeconds / (session.totalDistanceKm || 1);
   return {
     distance: formatDistance(session.totalDistanceKm),
     duration: formatDuration(session.totalDurationSeconds),
     pace: formatDuration(Math.round(avgPaceSeconds)) + ' /km',
-    speed: session.avgSpeedKmh.toFixed(1) + ' km/h',
+    speed: session.avgSpeedKmh.toFixed(1),
     date: session.date
       ? new Date(session.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
       : '',
@@ -29,16 +42,96 @@ export function extractCardData(session: TrainingSession): ShareCardData {
   };
 }
 
+export const STAT_ORDER = ['distance', 'pace', 'duration', 'speed', 'date', 'mode'] as const;
+
+export const STAT_LABELS: Record<string, string> = {
+  distance: 'Distância',
+  pace: 'Pace',
+  duration: 'Tempo total',
+  speed: 'km/h',
+  date: 'Data',
+  mode: 'Modo',
+};
+
+export const STAT_CHIP_LABELS: Record<string, string> = {
+  distance: 'Distância',
+  duration: 'Duração',
+  pace: 'Pace',
+  speed: 'Velocidade',
+  date: 'Data',
+  mode: 'Modo',
+  name: 'Treino',
+  logo: 'Logo',
+};
+
+export function gridCells(showStats: Record<string, boolean>): string[] {
+  return STAT_ORDER.filter(k => showStats[k]);
+}
+
+export function statFor(key: string, data: ShareCardData): StatValue {
+  const values: Record<string, string> = {
+    distance: data.distance,
+    pace: data.pace,
+    duration: data.duration,
+    speed: data.speed,
+    date: data.date,
+    mode: data.mode,
+  };
+  return { key, label: STAT_LABELS[key] ?? key, value: values[key] ?? '' };
+}
+
 interface ShareCardProps {
   data: ShareCardData;
   variant: CardVariant;
   showStats: Record<string, boolean>;
+  session: TrainingSession;
+  gradient?: GradientPreset;
+  photoUrl?: string | null;
+  transparent?: boolean;
   className?: string;
   style?: CSSProperties;
-  session: TrainingSession;
 }
 
-function RouteSVG({ session }: { session: TrainingSession }) {
+function Logo() {
+  return (
+    <div style={{ position: 'absolute', top: 352, right: 60, width: 60, zIndex: 20, textAlign: 'center' }}>
+      <svg viewBox="0 0 100 100" style={{ width: 60, height: 60, display: 'block', margin: '0 auto' }}>
+        <path d={LOGO_SWOOSH_PATHS[0]} fill={LOGO_COLOR} />
+        <path d={LOGO_SWOOSH_PATHS[1]} fill={LOGO_COLOR} opacity={0.6} />
+      </svg>
+      <div style={{ width: 60, margin: '6px auto 0', textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 600, lineHeight: 1.1 }}>
+        <div style={{ fontSize: 15, letterSpacing: '0.16em', textIndent: '0.16em' }}>CORRE</div>
+        <div style={{ fontSize: 16, letterSpacing: '0.30em', textIndent: '0.30em' }}>LOGO</div>
+      </div>
+    </div>
+  );
+}
+
+function Title({ children }: { children: ReactNode }) {
+  return (
+    <div style={{ position: 'absolute', top: 352, left: 60, width: 720, zIndex: 20, fontSize: 56, fontWeight: 800, lineHeight: 1.05 }}>
+      {children}
+    </div>
+  );
+}
+
+function Blobs() {
+  return (
+    <>
+      <div style={{ position: 'absolute', width: 520, height: 520, top: -140, right: -160, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+      <div style={{ position: 'absolute', width: 640, height: 640, bottom: -260, left: -120, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+    </>
+  );
+}
+
+interface RouteSVGProps {
+  session: TrainingSession;
+  stroke?: string;
+  strokeWidth?: number;
+  opacity?: number;
+}
+
+function RouteSVG({ session, stroke = 'rgba(255,255,255,0.6)', strokeWidth = 0.8, opacity = 0.6 }: RouteSVGProps) {
   const pts = (session.points || []).filter(p => p.lat !== undefined && p.lon !== undefined);
   if (pts.length < 2) return null;
 
@@ -57,203 +150,189 @@ function RouteSVG({ session }: { session: TrainingSession }) {
   const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('');
 
   return (
-    <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
-      <path d={d} fill="none" stroke="white" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
+    <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet" style={{ opacity }}>
+      <path d={d} fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.35))' }} />
       {points.length > 1 && (
         <>
-          <circle cx={points[0].x} cy={points[0].y} r="2" fill="#22C55E" />
-          <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2" fill="#EF4444" />
+          <circle cx={points[0].x} cy={points[0].y} r={2.6} fill="#22C55E" />
+          <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={2.6} fill="#EF4444" />
         </>
       )}
     </svg>
   );
 }
 
-export default function ShareCard({ data, variant, showStats, className, style, session }: ShareCardProps) {
-  const statLines: { key: string; value: string }[] = [];
-  if (showStats.distance) statLines.push({ key: 'Distância', value: data.distance });
-  if (showStats.duration) statLines.push({ key: 'Duração', value: data.duration });
-  if (showStats.pace) statLines.push({ key: 'Pace', value: data.pace });
-  if (showStats.speed) statLines.push({ key: 'Velocidade', value: data.speed });
-
-  const showLogo = showStats.logo !== false;
-  const showDate = showStats.date;
-  const showMode = showStats.mode;
-  const showName = showStats.name;
-
-  // Variant A: Gradient background, large centered stats
-  if (variant === 'a') {
-    return (
-      <div
-        className={`relative flex flex-col items-center justify-center text-white overflow-hidden ${className || ''}`}
-        style={{
-          width: '1080px',
-          height: '1920px',
-          background: 'linear-gradient(135deg, #1a0533 0%, #2d1b69 35%, #e8598b 70%, #ffb347 100%)',
-          ...style,
-        }}
-      >
-        <div className="absolute -top-[200px] -right-[200px] w-[600px] h-[600px] rounded-full bg-white/[0.04]" />
-        <div className="absolute -bottom-[300px] -left-[100px] w-[500px] h-[500px] rounded-full bg-white/[0.04]" />
-
-        {showLogo && (
-          <div className="absolute top-16 left-16 text-lg font-bold tracking-[0.3em] opacity-60" style={{ fontFamily: 'Geologica, sans-serif' }}>
-            CORRE LOGO
-          </div>
-        )}
-
-        <div className="flex flex-col items-center gap-6 px-12 text-center" style={{ fontFamily: 'Geologica, sans-serif' }}>
-          {statLines.map(s => (
-            <div key={s.key}>
-              <div className="text-6xl font-black tracking-tight leading-tight">{s.value}</div>
-              <div className="text-base font-light opacity-60 mt-2">{s.key}</div>
+function PaceBox({ splits }: { splits: PaceBlock[] }) {
+  const max = Math.max(...splits.map(s => s.paceSeconds ?? 0), 1);
+  return (
+    <div style={{ position: 'absolute', top: 948, left: 60, right: 60, height: 240 }}>
+      <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '0.22em', opacity: 0.55, marginBottom: 14 }}>PACE POR KM</div>
+      <div style={{ display: 'flex', gap: 26, height: 180, alignItems: 'flex-end' }}>
+        {splits.map(s => {
+          const pct = s.paceSeconds == null ? 20 : 20 + 80 * (s.paceSeconds / max);
+          return (
+            <div key={s.label} style={{ flex: '1 1 0', height: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 26, fontWeight: 700, whiteSpace: 'nowrap' }}>{s.paceSeconds == null ? '–' : formatPaceShort(s.paceSeconds)}</div>
+              <div style={{ width: '100%', maxWidth: 88, height: `${pct}%`, borderRadius: '14px 14px 6px 6px', background: 'linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.35))' }} />
+              <div style={{ fontSize: 20, opacity: 0.5 }}>{s.label}</div>
             </div>
-          ))}
-
-          {(showDate || showMode || showName) && (
-            <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 mt-8 text-sm opacity-50">
-              {showDate && <span>{data.date}</span>}
-              {showMode && <span>{data.mode}</span>}
-              {showName && <span>{data.name}</span>}
-            </div>
-          )}
-        </div>
+          );
+        })}
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  // Variant B: Glassmorphism card, centered
-  if (variant === 'b') {
-    return (
-      <div
-        className={`relative flex flex-col items-center justify-center overflow-hidden ${className || ''}`}
-        style={{
-          width: '1080px',
-          height: '1920px',
-          background: 'radial-gradient(ellipse at 50% 30%, #1a1040, #0a0a14 70%)',
-          ...style,
-        }}
-      >
-        <div className="w-[840px] rounded-3xl px-16 py-20 text-white text-center" style={{
-          background: 'rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255,255,255,0.10)',
-          fontFamily: 'Geologica, sans-serif',
-        }}>
-          {showLogo && (
-            <div className="text-[11px] tracking-[0.4em] opacity-30 mb-8">CORRE LOGO</div>
-          )}
-          {statLines.map(s => (
-            <div key={s.key} className="mb-8 last:mb-0">
-              <div className="text-base opacity-50 mb-2">{s.key}</div>
-              <div className="text-5xl font-bold tracking-tight">{s.value}</div>
-            </div>
-          ))}
-          {(showDate || showMode || showName) && (
-            <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 mt-10 text-[12px] opacity-40">
-              {showDate && <span>{data.date}</span>}
-              {showMode && <span>{data.mode}</span>}
-              {showName && <span>{data.name}</span>}
-            </div>
-          )}
+function StatsGrid({ cells }: { cells: StatValue[] }) {
+  return (
+    <div style={{ position: 'absolute', top: 1235, left: 60, right: 60, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '18px 28px' }}>
+      {cells.map((c, i) => (
+        <div key={c.key} style={{ textAlign: ['left', 'center', 'right'][i % 3] }}>
+          <div style={{ fontSize: 46, fontWeight: 800, lineHeight: 1.05 }}>{c.value}</div>
+          <div style={{ fontSize: 32, fontWeight: 300, opacity: 0.55, marginTop: 4 }}>{c.label}</div>
         </div>
-      </div>
-    );
-  }
+      ))}
+    </div>
+  );
+}
 
-  // Variant C: Map background with gradient overlay, stats at bottom
-  if (variant === 'c') {
-    return (
-      <div
-        className={`relative flex flex-col text-white overflow-hidden ${className || ''}`}
-        style={{
-          width: '1080px',
-          height: '1920px',
-          background: 'linear-gradient(180deg, #0a1628 0%, #0f2027 40%, #1a3a3a 70%, #0d2818 100%)',
-          ...style,
-        }}
-      >
-        {/* grid lines */}
-        <svg className="absolute inset-0 w-full h-full opacity-[0.04]" viewBox="0 0 100 100" preserveAspectRatio="none">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <line key={`v${i}`} x1={i * 5} y1="0" x2={i * 5} y2="100" stroke="white" strokeWidth="0.3" />
-          ))}
-          {Array.from({ length: 20 }).map((_, i) => (
-            <line key={`h${i}`} x1="0" y1={i * 5} x2="100" y2={i * 5} stroke="white" strokeWidth="0.3" />
-          ))}
+function StatCol({ cells }: { cells: StatValue[] }) {
+  return (
+    <div style={{ position: 'absolute', left: 60, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 34, width: 300, padding: '40px 34px', background: 'rgba(0,0,0,0.32)', borderRadius: 24 }}>
+      {cells.map(c => (
+        <div key={c.key}>
+          <div style={{ fontSize: 21, fontWeight: 300, opacity: 0.6 }}>{c.label}</div>
+          <div style={{ fontSize: 44, fontWeight: 800, lineHeight: 1.1 }}>{c.value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StatRow({ cells }: { cells: StatValue[] }) {
+  return (
+    <div style={{ position: 'absolute', left: 60, right: 60, bottom: 270, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, zIndex: 20 }}>
+      {cells.map(c => (
+        <div key={c.key} style={{ background: 'rgba(0,0,0,0.34)', borderRadius: 22, padding: '26px 22px', textAlign: 'center' }}>
+          <div style={{ fontSize: 20, fontWeight: 300, opacity: 0.6, marginBottom: 8 }}>{c.label}</div>
+          <div style={{ fontSize: 42, fontWeight: 800, lineHeight: 1.1 }}>{c.value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function CardMap({ session }: { session: TrainingSession }) {
+  const geo = useMemo<GeoPoint[]>(
+    () => (session.points || [])
+      .filter(p => p.lat !== undefined && p.lon !== undefined)
+      .map(p => ({ lat: p.lat!, lon: p.lon! })),
+    [session]
+  );
+  const view = useMemo(() => (geo.length >= 2 ? computeMapView(geo, 816, 752) : defaultView(816)), [geo]);
+  const tiles = useMemo(() => tilesFor(view), [view]);
+  const shape = useMemo(() => routeShape(geo, view), [geo, view]);
+
+  return (
+    <div style={{ position: 'absolute', left: 132, top: 540, width: 816, height: 816, background: '#15151f', overflow: 'hidden', zIndex: 1 }}>
+      {tiles.map(t => (
+        <img key={`${t.x}:${t.y}:${t.z}`} src={tileUrl(t)} alt="" style={{ position: 'absolute', left: t.left, top: t.top, width: 256, height: 256 }} />
+      ))}
+      {geo.length >= 2 && (
+        <svg viewBox={`0 0 ${view.size} ${view.size}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3 }}>
+          <path d={shape.d} fill="none" stroke="#7c3aed" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.5))' }} />
+          <circle cx={shape.start.x} cy={shape.start.y} r={14} fill="#22C55E" stroke="rgba(0,0,0,0.5)" strokeWidth={4} />
+          <circle cx={shape.end.x} cy={shape.end.y} r={14} fill="#EF4444" stroke="rgba(0,0,0,0.5)" strokeWidth={4} />
         </svg>
+      )}
+    </div>
+  );
+}
 
-        {/* Route map - behind gradient overlay and stats */}
-        <RouteSVG session={session} style={{ zIndex: 0 }} />
+function MapShade() {
+  return (
+    <div style={{ position: 'absolute', left: 132, top: 540, width: 816, height: 816, background: 'linear-gradient(0deg, rgba(0,0,0,0.6), transparent 42%)', pointerEvents: 'none', zIndex: 6 }} />
+  );
+}
 
-        {/* Gradient overlay */}
-        <div className="absolute inset-0" style={{
-          background: 'linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)',
-        }} />
+export default function ShareCard({ data, variant, showStats, session, gradient = GRADIENT_PRESETS[0], photoUrl, transparent = false, className, style }: ShareCardProps) {
+  const cells = gridCells(showStats).map(key => statFor(key, data));
+  const showLogo = showStats.logo !== false;
+  const splits = useMemo(() => choosePaceBlocks(session), [session]);
+  const background = transparent ? 'transparent' : (photoUrl || gradient.css);
+  const rootStyle: CSSProperties = { width: 1080, height: 1920, background, ...style };
 
-        {/* Stats container - above gradient overlay */}
-        <div className="absolute bottom-0 left-0 right-0 px-14 py-16 z-10" style={{
-          fontFamily: 'Geologica, sans-serif'
-        }}>
-          <div className="flex flex-col gap-6">
-            {statLines.map(s => (
-              <div key={s.key} className="flex items-baseline justify-between">
-                <span className="text-sm opacity-50">{s.key}</span>
-                <span className="text-4xl font-bold">{s.value}</span>
-              </div>
-            ))}
-          </div>
-          {(showDate || showMode || showName) && (
-            <div className="flex gap-4 mt-8 text-[11px] opacity-40">
-              {showDate && <span>{data.date}</span>}
-              {showMode && <span>{data.mode}</span>}
-              {showName && <span>{data.name}</span>}
-            </div>
-          )}
-          {showLogo && (
-            <div className="absolute top-8 left-14 text-[11px] tracking-[0.4em] opacity-30">CORRE LOGO</div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Variant D: Stats only, transparent background - for overlay on photos
-  if (variant === 'd') {
+  if (transparent) {
+    const stickerCells = cells.slice(0, 4);
     return (
-      <div
-        className={`relative flex flex-col items-center justify-center text-white overflow-hidden ${className || ''}`}
-        style={{
-          width: '1080px',
-          height: '1920px',
-          background: 'transparent',
-          ...style,
-        }}
-      >
-        <div className="flex flex-col items-center gap-8 px-16 text-center z-10" style={{ fontFamily: 'Geologica, sans-serif' }}>
-          {showLogo && (
-            <div className="text-lg tracking-[0.3em] opacity-80 mb-4">CORRE LOGO</div>
-          )}
-
-          {statLines.map(s => (
-            <div key={s.key} className="drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
-              <div className="text-7xl font-black tracking-tight leading-tight">{s.value}</div>
-              <div className="text-xl font-light opacity-80 mt-3">{s.key}</div>
+      <div className={`relative text-white overflow-hidden ${className || ''}`} style={rootStyle}>
+        {variant === 'map' && <CardMap session={session} />}
+        {variant === 'map' && <div style={{ position: 'absolute', left: 132, top: 540, width: 816, height: 816, background: 'linear-gradient(0deg, rgba(0,0,0,0.45), transparent 45%)', pointerEvents: 'none', zIndex: 6 }} />}
+        {showLogo && <Logo />}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 32, padding: '0 64px', textAlign: 'center', zIndex: 10 }}>
+          {stickerCells.map(c => (
+            <div key={c.key} style={{ textShadow: '0 4px 12px rgba(0,0,0,0.6)' }}>
+              <div style={{ fontSize: 96, fontWeight: 900, letterSpacing: -1, lineHeight: 1 }}>{c.value}</div>
+              <div style={{ fontSize: 28, fontWeight: 300, opacity: 0.85, marginTop: 10 }}>{c.label}</div>
             </div>
           ))}
-
-          {(showDate || showMode || showName) && (
-            <div className="flex flex-wrap justify-center gap-x-10 gap-y-3 mt-10 text-base opacity-70">
-              {showDate && <span>{data.date}</span>}
-              {showMode && <span>{data.mode}</span>}
-              {showName && <span>{data.name}</span>}
-            </div>
-          )}
+          {showStats.name && <div style={{ fontSize: 24, fontWeight: 600, opacity: 0.8, marginTop: 8 }}>{data.name}</div>}
         </div>
       </div>
     );
   }
 
-  return null;
+  if (variant === 'pace') {
+    return (
+      <div className={`relative text-white overflow-hidden ${className || ''}`} style={rootStyle}>
+        <Blobs />
+        {showLogo && <Logo />}
+        {showStats.name && <Title>{data.name}</Title>}
+        <div style={{ position: 'absolute', top: 470, left: 60, right: 60, height: 450 }}>
+          <RouteSVG session={session} stroke="rgba(255,255,255,0.75)" strokeWidth={5} />
+        </div>
+        {showStats.pace && splits.length > 0 && <PaceBox splits={splits} />}
+        <StatsGrid cells={cells.slice(0, 6)} />
+      </div>
+    );
+  }
+
+  if (variant === 'left') {
+    return (
+      <div className={`relative text-white overflow-hidden ${className || ''}`} style={rootStyle}>
+        <div style={{ position: 'absolute', width: 460, height: 460, top: -120, left: -140, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+        {showLogo && <Logo />}
+        {showStats.name && <Title>{data.name}</Title>}
+        <div style={{ position: 'absolute', left: 60, right: 60, top: 470, bottom: 60 }}>
+          <RouteSVG session={session} stroke="rgba(255,255,255,0.8)" strokeWidth={6} />
+        </div>
+        <StatCol cells={cells.slice(0, 3)} />
+      </div>
+    );
+  }
+
+  if (variant === 'bottom') {
+    return (
+      <div className={`relative text-white overflow-hidden ${className || ''}`} style={rootStyle}>
+        <div style={{ position: 'absolute', width: 520, height: 520, top: -160, right: -120, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+        {showLogo && <Logo />}
+        {showStats.name && <Title>{data.name}</Title>}
+        <div style={{ position: 'absolute', left: 60, top: 470, width: 960, height: 960 }}>
+          <RouteSVG session={session} stroke="rgba(255,255,255,0.8)" strokeWidth={6} />
+        </div>
+        <StatRow cells={cells.slice(0, 3)} />
+      </div>
+    );
+  }
+
+  // variant === 'map'
+  return (
+    <div className={`relative text-white overflow-hidden ${className || ''}`} style={rootStyle}>
+      {showLogo && <Logo />}
+      {showStats.name && <Title>{data.name}</Title>}
+      <CardMap session={session} />
+      <MapShade />
+      <StatRow cells={cells.slice(0, 3)} />
+    </div>
+  );
 }
