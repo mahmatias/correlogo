@@ -1,5 +1,27 @@
 # Changelog
 
+## [2026-07-30h] — v3.0: Instagram Stories Direto (native plugin) + Copiar PNG Modo Foto
+
+### Added
+- **`SocialSharePlugin.kt`** (Capacitor native plugin): `shareToInstagram()` usa o intent oficial `com.instagram.share.ADD_TO_STORY` — abre o composer de Stories do Instagram direto (sem passar pelo share sheet do Android)
+  - Card completo como **background asset** (modos Gradiente/Vidro/Mapa)
+  - PNG transparente como **sticker** (`interactive_asset_uri`) no modo Foto — usuário põe a própria foto como base no Instagram
+  - Extra `source_application` (Facebook App ID) obrigatório pela Meta desde jan/2023
+  - `copyImageToClipboard()` — copia o PNG transparente (modo Foto) para o clipboard via FileProvider + `ClipData.newUri`; usuário cola como adesivo em qualquer app
+- **Botão "Copiar imagem"** no `SessionSummary` — visível apenas no modo Foto (variante D), ação imediata sem abrir o modal de share
+- Fallback automático para share sheet genérica se a intent do Instagram falhar ou `VITE_FACEBOOK_APP_ID` vazio
+
+### Changed
+- `src/lib/shareCard.ts` — `shareImage(blob, filename, target, instagramMode)` com `instagramMode: 'background' | 'sticker'`; `copyCardToClipboard(blob)`; `VITE_FACEBOOK_APP_ID` lido do env
+- `android/app/build.gradle` — `versionName` "2.2" → **"3.0"**
+- `.env.apk` / `.env.dev` / `.env.example` — novo `VITE_FACEBOOK_APP_ID=1604373561408021`
+
+### Build
+- `npm run build` ✅ · `npx cap sync android` ✅ · `gradlew assembleDebug` ✅ (BUILD SUCCESSFUL in 33s)
+- Deploy via CI (push na main) — release `latest` com `app-release.apk` + `update-manifest.json`
+
+---
+
 ## [2026-07-30g] — ShareCard v2: Instagram Stories, Variant Foto, 2× DPI Capture
 
 ### Added

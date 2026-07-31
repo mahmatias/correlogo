@@ -8,6 +8,7 @@
 ## Pendentes
 
 ### Alta (imediato)
+- [ ] **Testar v3.0 no device** — Instagram Stories direto (background/sticker), Copiar PNG modo Foto, Google Login, auto-update (release `latest` do CI)
 - [ ] **Permission intent Health Connect** — `PermissionController.createIntent()` não resolve no device do usuário. Próximo passo: depurar `health-connect://permissions` deep link ou tentar `Intent(ACTION_VIEW, Uri.parse(...))` alternativo
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
 - [ ] Foto do perfil — exibição com problemas (dívida técnica)
@@ -25,6 +26,14 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+## ✅ Concluídos (Sessão 2026-07-30h — v3.0 Instagram Stories direto + Copiar PNG modo Foto)
+- [x] `SocialSharePlugin.kt` nativo — intent `com.instagram.share.ADD_TO_STORY` (background/sticker) + `copyImageToClipboard`
+- [x] Botão "Copiar imagem" no modo Foto (variante d) — `SessionSummary.tsx`
+- [x] `shareCard.ts` — `shareToInstagramStories` background/sticker com fallback; `copyCardToClipboard`
+- [x] `VITE_FACEBOOK_APP_ID=1604373561408021` no `.env.apk`
+- [x] `versionName` 2.2 → 3.0
+- [x] Builds ✅ `npm run build` + `npx cap sync android` + `gradlew assembleDebug` (33s)
 
 ## ✅ Concluídos (Sessão 2026-07-29c — Permission Flow Refactoring)
 - [x] Health ConnectPlugin refatorado: `startActivityForResult` → `activity.startActivity(intent)` direto
