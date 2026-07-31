@@ -10,7 +10,7 @@
 - **Spec escrito**: `docs/superpowers/specs/2026-07-31-share-cards-design.md` — arquitetura em camadas (libs puras `splits.ts`/`card-map.ts`, UI `ShareScreen.tsx`, nativo `saveToGallery`/`shareToWhatsApp`), workflow, testes, considerações.
 
 ### Cuidados para a próxima sessão
-1. **Espec não foi implementado ainda** — próximo passo: revisão do usuário → `writing-plans` (`docs/plans/`) → implementação + pipeline completo (`Copy-Item .env.apk .env -Force` → `npm run build` → `npx cap sync android` → `gradlew assembleDebug`, com `JAVA_HOME` em `C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot`).
+1. **Espec + plano prontos, nada implementado ainda** — próximo passo: executar `docs/superpowers/plans/2026-07-31-share-cards.md` (8 tasks, subagent-driven ou inline). Pipeline sempre: `Copy-Item .env.apk .env -Force` → `npm run build` → `npx cap sync android` → `gradlew assembleDebug` (com `JAVA_HOME` em `C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot`).
 2. Commit atual é **docs-only** (`[skip ci]`). Instalar `@capacitor/camera@^7` (compatível com core 7) no commit de implementação; **não** subir `@capacitor/app`/`@capacitor/browser` para 8.
 3. **Edições Android** restritas a `android/app/src/main/java/com/correlogo/app/` (regra 3 do AGENTS.md).
 4. Decisões de implementação ainda em aberto (não mockadas): tema dark dos cards, efeito do gradiente 4-cores cortado em IG story, paleta de widgets em tema light.
