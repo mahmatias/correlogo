@@ -260,7 +260,7 @@
       const img = document.createElement('img');
       img.className = 'tile';
       img.alt = '';
-      img.src = 'https://' + 'abcd'[(tx + ty) & 3] + '.basemaps.cartocdn.com/light_all/' + Math.round(Math.log2(scale / 256)) + '/' + tx + '/' + ty + '.png';
+      img.src = 'https://' + 'abcd'[(tx + ty) & 3] + '.basemaps.cartocdn.com/dark_all/' + Math.round(Math.log2(scale / 256)) + '/' + tx + '/' + ty + '.png';
       img.style.left = (tx * 256 - ox) + 'px';
       img.style.top = (ty * 256 - oy) + 'px';
       MAP.appendChild(img);
