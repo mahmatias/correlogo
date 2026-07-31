@@ -10,7 +10,6 @@
 ### Alta (imediato)
 - [ ] **Figurinha no Stories — dívida técnica (nova abordagem)** — usuário estudando como outros apps fazem (a Meta parece exigir processo/asset específico além do PNG transparente). Investigar alternativas: `MediaSharePlugin` do Capacitor (intent nativo `com.instagram.share.ADD_TO_STORY`), share sheet nativo do Android, ou plugin `@capacitor/share` com MIME correto
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
-- [ ] **Limpar resíduos da era AWS** — `install_server.sh` + `server.err` (tracked no git), `cert/`, `server.log` (gitignored) — remover do repo
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
 - [ ] **Permission intent Health Connect** — `PermissionController.createIntent()` não resolve no device do usuário. Próximo passo: depurar `health-connect://permissions` deep link ou tentar `Intent(ACTION_VIEW, Uri.parse(...))` alternativo
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
@@ -29,6 +28,17 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+## ✅ Concluídos (Sessão 2026-07-31f — Housekeeping: auditoria de limpeza)
+- [x] **Auditoria** de arquivos/deps/scripts/docs mortos (5 grupos, aprovada pelo usuário: G1–G4 deletar, G5 arquivar)
+- [x] **G5 arquivado** em `docs/archive/` (git mv): 13 docs históricas + `superpowers/` + `FTMS-Bluetooth-Esteiras/` (+zip) + `GitHub-Actions-Firebase-APK/` (+zip) + `.firecrawl/` → `firecrawl-research/`
+- [x] **G1 removido**: `install_server.sh`, `server.err`, `server.log`, `dist.tar.gz`, `cert/`, `Corre Logo v2.2.apk`, `metadata.json`
+- [x] **G2 removido**: segredos CI em disco (`gh_env_base64.txt`, `gh_firebase_cred_base64.txt`, `gh_keystore_base64.txt`)
+- [x] **G3 des-commitado**: `.firebase/hosting.ZGlzdA.cache` (cache commitado em `8de8624`) + `.firebase/` no `.gitignore`; `docs/Download/` (logcats) e `logs/` deletados
+- [x] **G4**: `autoprefixer` + `tsx` removidos do package.json (deps mortas). **`react-is` mantido** — recharts importa em runtime (build provou)
+- [x] **Validação**: `npm install --legacy-peer-deps` ✅ · `npm run build` ✅ (2381) · `npm test` ✅ (29/29) · `npx cap sync android` ✅ (android/ sem diff)
+- [x] **Links corrigidos**: `docs/wiki/tracking/ftms.md`, `docs/wiki/architecture/folder-structure.md`, `HANDOFF.md`, `TODO.md`
+- [ ] **Pendente**: commit + push da limpeza (65 mudanças staged) — decidir `[skip ci]` ou aguardar mudança de código
 
 ## ✅ Concluídos (Sessão 2026-07-31d — v3.4 sticker de verdade: PNG transparente + intent Instagram spec)
 - [x] **Retorno do usuário (feedback pós-release)**: Auto-update 3.2→3.4 de ponta a ponta ✅ · Overlay do mapa ✅ · Copiar PNG transparente ✅ (cola como texto no story) · Figurinha no Stories ❎ (dívida técnica)
@@ -88,8 +98,8 @@
 | **Bug #2: Distância pulando na troca de passo** | Acúmulo incremental via `prevElapsedRef` — `distRef.current += delta * dPerSec` |
 | **Bug #3: TTS metade não disparava** | `lapElapsed` local + refs em vez de `lapSeconds` estale do closure |
 | **Bug #4: Volume música não restaurava** | `setWillPauseWhenDucked(true)` removido do `AudioFocusPlugin.kt` |
-| **Samsung Health spec** | Aprovada: `docs/superpowers/specs/2026-07-29-samsung-health-integration-design.md` |
-| **Samsung Health plan** | Escrito: `docs/superpowers/plans/2026-07-29-samsung-health-sync.md` — 4 gaps corrigidos no pre-flight |
+| **Samsung Health spec** | Aprovada: `docs/archive/superpowers/specs/2026-07-29-samsung-health-integration-design.md` |
+| **Samsung Health plan** | Escrito: `docs/archive/superpowers/plans/2026-07-29-samsung-health-sync.md` — 4 gaps corrigidos no pre-flight |
 | **APK v1.1** | `Corre Logo v1.1.apk` gerado com sucesso |
 
 ## ✅ Concluídos (Sessão 2026-07-25 — TTS Metade + Audio Ducking + WakeLock)

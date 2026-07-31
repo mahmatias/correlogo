@@ -1,6 +1,23 @@
 # Changelog
 
-## [2026-07-31d] — v3.4: Sticker de verdade — PNG transparente (só texto) + intent do Instagram conforme spec
+## [2026-07-31e] — Housekeeping: auditoria de limpeza (docs archive + resíduos AWS + deps mortas)
+
+### Removed (repo hygiene)
+- **Resíduos da era AWS**: `install_server.sh`, `server.err`, `server.log`, `dist.tar.gz`, `cert/` (pasta vazia), `Corre Logo v2.2.apk` (10 MB), `metadata.json` (manifest AppX órfão, 0 referências).
+- **Segredos de CI em disco**: `gh_env_base64.txt`, `gh_firebase_cred_base64.txt`, `gh_keystore_base64.txt` (gitignored, agora apagados).
+- **Cache commitado por engano**: `.firebase/hosting.ZGlzdA.cache` removido do git + `.firebase/` adicionado ao `.gitignore`.
+- **Debug artifacts**: `docs/Download/` (7 exports de logcat 2026-07-30) + `docs/Download.zip` + `logs/`.
+- **Deps mortas**: `autoprefixer` (Tailwind v4 faz prefixing nativo) e `tsx` (transitiva do vite, 0 scripts usam) removidos do `package.json`. `react-is` foi **mantido** — o build provou que o `recharts` o importa em runtime.
+
+### Moved (arquivado)
+- Docs históricas da raiz `docs/` → **`docs/archive/`** (git mv preserva histórico): `analise-skills-para-apps.md`, `AUDITORIA-TECNICA-3-FEATURES.md`, `CORRECOES-PRONTAS.md`, `color-proposal.html`, `PROMPTS-PARA-AGENTE-IA.md`, `ui-audit-report.md`, `agent-reference-SHARE-FTMS-UPDATE.md`, `gerador-treinos-technical.md`, `registro-e-exportacao-atividades.md`, `samsung-health-setup.md`, `tcx.md`, `mockup-workout.html`, `superpowers/`, `FTMS-Bluetooth-Esteiras/` (+zip), `GitHub-Actions-Firebase-APK/` (+zip), `.firecrawl/` → `docs/archive/firecrawl-research/`.
+- Links atualizados: `docs/wiki/tracking/ftms.md`, `docs/wiki/architecture/folder-structure.md`, `HANDOFF.md`, `TODO.md`.
+
+### Build
+- `npm install --legacy-peer-deps` ✅ (conflito de peer `firebase@11 vs 12` pré-existente) · `npm run build` ✅ (2381 módulos) · `npm test` ✅ (29/29) · `npx cap sync android` ✅ (plugins intactos, `android/` sem diff)
+- Lint `tsc --noEmit` mantém 2 erros **pré-existentes** (não relacionados): `treadmill-machine.ts(85)` e `vite.config.ts(6)`.
+
+---
 
 ### Fixed
 - **Bug (Copiar imagem)**: a imagem copiada, "apesar de ter fundo transparente", tinha uma cor — o card variante **Foto (d)** renderizava um véu `bg-black/30` sobre o fundo `transparent` (linha 235 do `ShareCard.tsx`). O PNG capturado saía com uma camada preta a 30%. Removido o véu → **apenas o texto tem opacidade, todo o resto é opacidade 0**.

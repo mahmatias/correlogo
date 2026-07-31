@@ -17,3 +17,5 @@ keystore.jks
 firebase-key.json
 # Base64 temp (secrets)
 gh_*.txt
+# Firebase CLI cache
+.firebase/
