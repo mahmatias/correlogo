@@ -1,9 +1,37 @@
 package com.correlogo.app
 
+import android.util.Log
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.UUID
 
 class TreadmillFtmsManager {
+
+    companion object {
+        private const val TAG = "CorreLogo-FTMS"
+
+        init {
+            validateUUIDs()
+        }
+
+        private fun validateUUIDs() {
+            val uuids = mapOf(
+                "FTMS_SERVICE" to "00001826-0000-1000-8000-00805f9b34fb",
+                "TREADMILL_DATA" to "00002acd-0000-1000-8000-00805f9b34fb",
+                "CONTROL_POINT" to "00002ad9-0000-1000-8000-00805f9b34fb",
+                "CCCD" to "00002902-0000-1000-8000-00805f9b34fb",
+            )
+            uuids.forEach { (name, uuidStr) ->
+                try {
+                    UUID.fromString(uuidStr)
+                    Log.d(TAG, "UUID válido: $name = $uuidStr")
+                } catch (e: IllegalArgumentException) {
+                    Log.e(TAG, "UUID INVÁLIDO: $name = $uuidStr")
+                    throw IllegalStateException("Invalid UUID constant: $name")
+                }
+            }
+        }
+    }
 
     data class TreadmillMetrics(
         val instantSpeedKmh: Double = 0.0,

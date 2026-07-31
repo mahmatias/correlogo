@@ -55,8 +55,15 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
     logo: true,
   });
   const [shareTarget, setShareTarget] = useState<'native' | 'instagram-stories'>('native');
+  const [captureReady, setCaptureReady] = useState(true);
   const cardCaptureRef = useRef<HTMLDivElement>(null);
   const [sharing, setSharing] = useState(false);
+
+  useEffect(() => {
+    setCaptureReady(false);
+    const timer = setTimeout(() => setCaptureReady(true), 450);
+    return () => clearTimeout(timer);
+  }, [showStats, cardVariant, shareTarget]);
 
   // Basic stats
   const avgPace = session.totalDurationSeconds / (session.totalDistanceKm || 1); // seconds per km
@@ -320,8 +327,8 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
 
         {showShareModal && (
           <>
-            {/* Hidden full-size card for capture */}
-            <div ref={cardCaptureRef} style={{ position: 'fixed', left: '-9999px', top: 0, zIndex: -1 }}>
+            {/* Hidden full-size card for capture — key forces re-render on variant change */}
+            <div key={cardVariant} ref={cardCaptureRef} style={{ position: 'fixed', left: '-9999px', top: 0, zIndex: -1 }}>
               <ShareCard
                 data={extractCardData(session)}
                 variant={cardVariant}
@@ -419,10 +426,10 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
                     setSharing(false);
                   }
                 }}
-                disabled={sharing}
+                disabled={!captureReady || sharing}
                 className="w-full py-4 bg-accent text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <Share2 className="w-5 h-5" /> {sharing ? 'Compartilhando...' : 'Compartilhar'}
+                <Share2 className="w-5 h-5" /> {sharing ? 'Compartilhando...' : !captureReady ? 'Preparando...' : 'Compartilhar'}
               </button>
             </div>
           </>

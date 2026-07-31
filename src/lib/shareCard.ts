@@ -13,8 +13,14 @@ export const SHARE_TARGETS: ShareTarget[] = [
 ];
 
 export async function captureCard(element: HTMLElement): Promise<Blob> {
-  // Use fixed dimensions since the capture element is positioned off-screen
-  const scale = 2; // 2x for high DPI
+  if (typeof document !== 'undefined' && document.fonts) {
+    try {
+      await document.fonts.ready;
+    } catch {
+      // continue even if font check fails
+    }
+  }
+  const scale = 2;
   return domtoimage.toBlob(element, {
     width: 1080 * scale,
     height: 1920 * scale,

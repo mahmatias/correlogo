@@ -10,13 +10,14 @@ Wiki técnica completa do projeto Corre Logo — app de treinos de corrida com p
 - [Visão Geral da Arquitetura](architecture/overview.md)
 - [Stack Tecnológica](architecture/stack.md)
 - [Estrutura de Pastas](architecture/folder-structure.md)
-- [Decisões de Design (ADRs)](architecture/adrs.md)
+- [Code Splitting & Lazy Loading](architecture/code-splitting.md)
 
 ### 🔐 Autenticação & Autorização
 - [Firebase Auth](auth/firebase-auth.md)
 - [Google OAuth (Calendar + Gmail)](auth/google-oauth.md)
 - [Fluxos de Login (Web + APK)](auth/login-flows.md)
 - [Deep Links & Callbacks](auth/deep-links.md)
+- [Firebase Error Handling (PT-BR)](auth/firebase-errors.md)
 
 ### 🏃 Tracking de Treinos
 - [WorkoutTracker - Visão Geral](tracking/workout-tracker.md)
@@ -25,12 +26,7 @@ Wiki técnica completa do projeto Corre Logo — app de treinos de corrida com p
 - [GPS & Distance Calculation](tracking/gps.md)
 - [TTS & Audio Focus](tracking/tts.md)
 - [WakeLock & Foreground Service](tracking/wakelock.md)
-
-### 📊 Planos & Sessões
-- [Gerador de Treinos](plans/generator.md)
-- [Planos Manuais & Importados](plans/manual-import.md)
-- [Calendário & Agendamento](plans/calendar.md)
-- [Sessões & Histórico](plans/sessions.md)
+- [Bluetooth FTMS (Esteira)](tracking/ftms.md)
 
 ### 🔄 Sincronização & Exportação
 - [Health Connect (GymRats)](sync/health-connect.md)
@@ -44,30 +40,20 @@ Wiki técnica completa do projeto Corre Logo — app de treinos de corrida com p
 - [Permissions](android/permissions.md)
 - [Deep Links & Intents](android/deep-links.md)
 
-### 🌐 Web / Firebase
-- [Firebase Hosting](web/firebase-hosting.md)
-- [Cloud Functions](web/cloud-functions.md)
-- [Firestore Rules](web/firestore-rules.md)
-- [PWA & Offline](web/offline.md)
-
 ### 📦 Dados & Modelos
-- [TrainingSession](data/training-session.md)
-- [WorkoutPlan](data/workout-plan.md)
-- [TrainingProgram](data/training-program.md)
-- [Profile & Settings](data/profile-settings.md)
-- [ActivityPoint (Série Temporal)](data/activity-point.md)
+- [Modelos Consolidados](data/models.md)
+- [Offline Persistence & Sync](data/offline-sync.md)
 
 ### 🔧 Build, Deploy & CI/CD
 - [Scripts de Build](build/scripts.md)
 - [Pipeline APK](build/apk-pipeline.md)
 - [Deploy Web](build/web-deploy.md)
 - [Variáveis de Ambiente](build/env-vars.md)
+- [Auto-Update In-App](build/auto-update.md)
+- [Testing Strategy](build/testing.md)
 
-### 🐛 Troubleshooting & Known Issues
-- [OAuth Problems](troubleshooting/oauth.md)
-- [Health Connect Permissions](troubleshooting/health-connect.md)
-- [GPS & Tracking](troubleshooting/gps.md)
-- [Build Failures](troubleshooting/build.md)
+### 🐛 Troubleshooting
+- [Problemas Comuns](troubleshooting/common.md)
 
 ### 📈 Roadmap & Decisões
 - [Changelog](roadmap/changelog.md)
@@ -131,4 +117,4 @@ cd android && ./gradlew assembleDebug
 
 ---
 
-*Última atualização: 2026-07-29 | Versão wiki: 1.0*
+*Última atualização: 2026-07-30 | Versão wiki: 1.1*

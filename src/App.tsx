@@ -100,6 +100,7 @@ const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
   const [planToUncomplete, setPlanToUncomplete] = useState<WorkoutPlan | null>(null);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const getWeekStart = (d: Date) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -1612,11 +1613,13 @@ CapApp.addListener('backButton', () => {
           open={updateInfo !== null}
           update={updateInfo}
           downloading={updating}
+          downloadProgress={downloadProgress}
           onUpdate={async () => {
             if (!updateInfo) return;
             setUpdating(true);
+            setDownloadProgress(0);
             try {
-              await downloadApkAndInstall(updateInfo);
+              await downloadApkAndInstall(updateInfo, setDownloadProgress);
               setUpdateInfo(null);
             } catch (e) {
               showFeedback('error', `Erro ao atualizar: ${e instanceof Error ? e.message : String(e)}`);
