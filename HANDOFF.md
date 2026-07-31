@@ -1,6 +1,28 @@
 # Handoff
 
-## Session Context (2026-07-31b — v3.2: Auto-update bootstrap — permissão de instalação + progresso honesto)
+## Session Context (2026-07-31c — v3.3: Fix overlay — mapa não cobre modal de compartilhamento)
+
+### Bug reportado (device, na 3.2)
+- No relatório de treinos com mapa, ao clicar em **Compartilhar**, o **mapa (somente ele)** fica por cima do novo modal de compartilhamento.
+
+### Causa raiz (CSS stacking context — confirmada por inspeção do código)
+- `MapComponent.tsx` raiz: `w-full h-full rounded-xl overflow-hidden relative` — `relative` **sem z-index não cria stacking context**.
+- Leaflet (via `leaflet/dist/leaflet.css`) aplica `z-index: 400` nos `.leaflet-pane` e `1000` nos `.leaflet-top/.leaflet-bottom` (controles).
+- Sem stacking context no contêiner do mapa, esses z-index resolvem contra o **ancestral mais próximo que cria stacking context** = raiz do `SessionSummary` (`fixed inset-0 z-50`, SessionSummary.tsx:129).
+- O modal de compartilhamento (`fixed inset-0 z-[60]`, SessionSummary.tsx:341) é **irmão** do mapa nesse mesmo stacking context → Leaflet (400/1000) > modal (60) → **só o mapa** cobre o modal (o resto do relatório é z-auto e fica abaixo).
+- O `overflow-hidden` do contêiner não ajuda: clipe visual não afeta empilhamento.
+
+### Fix (commit a definir)
+- `MapComponent.tsx`: raiz `relative` → **`relative z-0`** (`z-index: 0` em elemento posicionado **cria** stacking context). Todos os z-index do Leaflet ficam confinados ao mapa; o modal `z-60` passa a renderizar acima. Vale também para o `WorkoutTracker` (mesmo componente, linha 824-825).
+- `build.gradle`: versionName **"3.3"**.
+
+### Pending / próximos passos
+1. **Instalar a 3.3 via auto-update (prova de fogo)** — usuário na 3.2, que já tem `REQUEST_INSTALL_PACKAGES`: o modal deve baixar e instalar **sozinho** (primeira vez de ponta a ponta)
+2. Validar o fix do overlay: relatório outdoor com mapa → Compartilhar → modal por cima do mapa (e botões Claro/Escuro/Satélite abaixo)
+3. (Alerta) `correlogo.sytes.net` fora do ar — verificar `pm2`/Nginx/Security Group no EC2
+
+---
+
 
 ### Teste do usuário na 3.1 (retorno — resultado do fluxo de update)
 - Usuário abriu o APK, o prompt da 3.1 apareceu, tocou **Baixar** → barra de progresso **não andou** → modal **fechou sem toast** → app **não atualizou**. Depois: botão "Verificar atualizações" no perfil "só roda" e não acha update.

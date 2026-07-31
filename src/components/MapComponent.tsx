@@ -60,7 +60,7 @@ export default function MapComponent({ coords, path }: { coords: { lat: number; 
     const layer = layers[layerType];
 
     return (
-        <div className="w-full h-full rounded-xl overflow-hidden relative">
+        <div className="w-full h-full rounded-xl overflow-hidden relative z-0">
             <div className="absolute top-2 right-2 z-[1000] flex flex-col gap-1">
                 <button onClick={() => setLayerType('light')} className="bg-bg-surface text-xs p-2 rounded shadow">Claro</button>
                 <button onClick={() => setLayerType('dark')} className="bg-bg-surface text-xs p-2 rounded shadow">Escuro</button>
