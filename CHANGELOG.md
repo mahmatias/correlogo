@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-07-31h] — Android minSdk bump to 29 (API 29 / Android 10)
+
+### Changed
+- **`android/variables.gradle`** — `minSdkVersion` **26 → 29** (drops Android 8.0/9.0 support). Decision made after Task 5 review found `saveToGallery` uses MediaStore APIs (`VOLUME_EXTERNAL_PRIMARY`, `RELATIVE_PATH`, `IS_PENDING`) only available on API 29+. The alternative (legacy path + WRITE_EXTERNAL_STORAGE runtime permission) was rejected in favor of a clean minSdk bump.
+
+### Build
+- `npm run build` ✅ · `npx cap sync android` ✅ · `gradlew assembleDebug` ✅ (full pipeline validated)
+
+---
+
 ## [2026-07-31g] — Share Cards/Adesivos: mock aprovado + spec de design (docs only, `[skip ci]`)
 
 ### Added
