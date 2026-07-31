@@ -1,5 +1,36 @@
 # Handoff
 
+## Session Context (2026-07-30i — v3.0.1: Fix auto-update não pegava 3.0)
+
+### Bug reportado
+- App instalado (versionName 2.2, versionCode 127 — release 8217ec1) não detectava o update 3.0 (versionCode 128): "Verificar atualizações" dizia "App já está na versão mais recente".
+
+### Investigação (systematic-debugging)
+Evidências coletadas:
+1. **Servidor correto**: `update-manifest.json` no release `latest` serve `{versionCode: 128, versionName: "3.0", ...}` — verificado via a mesma URL que o app usa.
+2. **VersionCode do APK anterior**: run CI 30593477240 log mostra `CI_VERSION_CODE: 127` para a release 2.2 → `128 > 127` deveria disparar o update.
+3. **`getInfo().build`** = versionCode como string (`PackageInfoCompat.getLongVersionCode`) → parseInt ok.
+4. **Causa raiz**: `checkForUpdate()` retornava `null` para **qualquer** falha (rede, timeout de 5s, resposta stale do GitHub CDN/WebView cache) e a UI mostrava "App já está na versão mais recente" — falha mascarada, impossível diagnosticar. Como o servidor está correto, a falha é no fetch/cache do device.
+5. Sem CSP nem config de rede bloqueando `github.com` no `capacitor.config.ts`/`index.html`.
+
+### Fix aplicado (commit a definir)
+- **`update-checker.ts`**: URL do manifest com cache-buster `?v=${Date.now()}` + `cache: 'no-store'` (mata manifest stale). Retorno agora é `UpdateCheckResult { update, error? }` — falha vira erro explícito em vez de `null` silencioso.
+- **`UserProfile.tsx`**: seção "Atualização do app" mostra **"Versão instalada: X (build Y)"** (diagnóstico); toast de **erro real** em falha ("Erro ao verificar atualização: ...") em vez de "up to date".
+- **`App.tsx`**: `console.warn('[update-check]', error)` no auto-check de login.
+- **`build.gradle`**: versionName 3.0 → **3.0.1**.
+
+### Achado paralelo (landmine, não o bug)
+- `@capacitor/app@8.1.0` e `@capacitor/browser@8.0.3` no package.json/lockfile exigem `@capacitor/core >=8.0.0`, mas o projeto está em `@capacitor/core@7.6.7` (invalid no `npm ls`). O app roda e o JS do app v8 usa só `registerPlugin` (existe no core v7), então não quebrou. **TODO**: alinhar deps para v7 (ou migrar tudo para v8).
+
+### Pending
+1. **Usuário instala 3.0.1 e testa** — agora a tela mostra "Versão instalada (build)" e o erro real se o fetch falhar:
+   - Se mostrar erro (ex.: "Failed to fetch") → problema é rede no device (github.com bloqueado/timeout) → investigar DNS/ISP
+   - Se mostrar "up to date" sem erro → fetch OK e `currentVersionCode >= 129` → o APK instalado tem versionCode inesperado
+   - Se oferecer o update 3.0.1 → cache stale era a causa, está resolvido
+2. Se confirmar que o device não alcança `github.com` no fetch, avaliar manifest em outro host (ex.: Firebase Hosting `correlogo.web.app`).
+
+---
+
 ## Session Context (2026-07-30h — v3.0: Instagram Stories direto + Copiar PNG modo Foto)
 
 ### What changed
