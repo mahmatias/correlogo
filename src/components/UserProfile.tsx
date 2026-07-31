@@ -10,7 +10,7 @@ import { isHealthConnectAvailable, checkHealthPermissions, requestHealthPermissi
 import { isNative } from '../lib/capacitor/platform';
 import { isGmailConnected, disconnectGmail, startGmailOAuth } from '../lib/gmailApi';
 import { App as CapApp } from '@capacitor/app';
-import { checkForUpdate, downloadApkAndInstall, type UpdateInfo } from '../lib/update-checker';
+import { checkForUpdate, type UpdateInfo } from '../lib/update-checker';
 
 interface UserProfileProps {
   open: boolean;
@@ -20,6 +20,7 @@ interface UserProfileProps {
   initialSettings: SettingsData | null;
   showFeedback: (type: 'success' | 'error', message: string) => void;
   onSaved: (profile: ProfileData, settings: SettingsData) => void;
+  onUpdateAvailable?: (update: UpdateInfo) => void;
 }
 
 export default function UserProfile({
@@ -30,6 +31,7 @@ export default function UserProfile({
   initialSettings,
   showFeedback,
   onSaved,
+  onUpdateAvailable,
 }: UserProfileProps) {
   const [displayName, setDisplayName] = useState('');
   const [day, setDay] = useState('');
@@ -379,7 +381,11 @@ export default function UserProfile({
               const versionCode = parseInt(info.build, 10);
               const result = await checkForUpdate(versionCode);
               if (result.update) {
-                await downloadApkAndInstall(result.update);
+                if (onUpdateAvailable) {
+                  onUpdateAvailable(result.update);
+                } else {
+                  showFeedback('success', `Versão ${result.update.versionName} disponível`);
+                }
               } else if (result.error) {
                 showFeedback('error', `Erro ao verificar atualização: ${result.error}`);
               } else {

@@ -1,7 +1,6 @@
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { ApkInstaller } from './capacitor/apk-installer';
-
 export interface UpdateInfo {
   versionCode: number;
   versionName: string;
@@ -84,10 +83,21 @@ export function getVersionStatus(current: number, manifest: number): VersionStat
   return 'prerelease';
 }
 
-export async function downloadApkAndInstall(
-  update: UpdateInfo,
-  _onProgress?: (percent: number) => void
-): Promise<void> {
+export async function canInstallApk(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  try {
+    const result = await ApkInstaller.canRequestPackageInstalls();
+    return result.canRequestPackageInstalls;
+  } catch {
+    return false;
+  }
+}
+
+export async function openInstallSettings(): Promise<void> {
+  await ApkInstaller.openInstallSettings();
+}
+
+export async function downloadApkAndInstall(update: UpdateInfo): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   const fileName = `correlogo-${update.versionCode}.apk`;
   const resp = await CapacitorHttp.get({
@@ -98,6 +108,9 @@ export async function downloadApkAndInstall(
   });
   if (resp.status < 200 || resp.status >= 300) throw new Error(`Erro ao baixar APK: ${resp.status}`);
   const base64 = resp.data as string;
+  if (typeof base64 !== 'string' || !base64.startsWith('UEsD')) {
+    throw new Error('Download do APK inválido (arquivo corrompido ou resposta inesperada)');
+  }
   await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
   const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
   await ApkInstaller.installApk({ filePath: uri });
