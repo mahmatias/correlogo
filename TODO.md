@@ -31,6 +31,17 @@
 
 ---
 
+## ✅ Concluídos (Sessão 2026-07-31n — APK 138 root cause + re-aplicação dos 4 fixes + guard)
+
+- [x] **Causa raiz do APK 138 (tela azul no boot)**: TDZ em `use-treadmill.ts` (a555426) — `clearScanTimeout` declarada depois do `useEffect(..., [clearScanTimeout])` → ReferenceError em todo render → app nunca montava. CI passou porque nenhum teste monta App/hook; tsc/vite não pegam TDZ.
+- [x] **Correções #1–3 re-aplicadas verbatim** (ShareScreen/ShareCard/shareCard.ts — byte-idênticos ao a555426, conferidos por hash)
+- [x] **Correção #4 re-aplicada corrigida** (ordem de hooks certa; scan indicator 11s; limpeza em connect/disconnect/catch/unmount)
+- [x] **Guard de regressão**: `use-treadmill-boot.test.tsx` (probe SSR — teria falhado no 138) + `ErrorBoundary.tsx` na raiz
+- [x] **Validação**: npm test 53/53 · lint 0 erros novos · build ✓ · cap sync ✓ · assembleDebug ✓
+- [ ] **Aguardando**: commit + push → CI → release `latest` → validar auto-update no device (tela azul não repetir) + teste na esteira pendente
+
+---
+
 ## ✅ Concluídos (Sessão 2026-07-31m — BLE: Set Speed/Incline não funcionavam + keep-alive real)
 
 - [x] **Bug 1** (commit `43517e1`, já publicado como APK 142): `processNextCommand()` lia `data` mas nunca setava `char.value = data` antes de `writeCharacteristic()` — write era no-op. Também: `enableNotifications()` encadeava 2 `writeDescriptor` sem chaining; `requestControlWithRetry()` era chamado em paralelo.

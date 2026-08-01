@@ -1,5 +1,23 @@
 # Handoff
 
+## Session Context (2026-07-31l — APK 138 root cause found + re-apply 4 fixes + boot guard)
+
+### What happened
+- **Root cause do APK 138 (tela azul no boot) identificada**: TDZ (temporal dead zone) em `src/lib/use-treadmill.ts` no commit a555426. A `const clearScanTimeout` era declarada **depois** do `useEffect(..., [clearScanTimeout])` — o deps array é avaliado durante o render, antes da const existir → `ReferenceError` em todo render → React nunca montava → body `#0A0A14` sem logo/spinner. Evidência: diff do commit, ordem dos hooks, repro Node da semântica TDZ, ausência de error boundary.
+- **Por que o CI passou**: nenhum teste monta App/`useTreadmill`; `tsc`/`vite` não detectam TDZ (runtime); `gradle` só empacota.
+- **4 fixes re-aplicados**: #1–3 verbatim do a555426 (`ShareScreen.tsx`, `ShareCard.tsx`, `shareCard.ts` — byte-idênticos, verificados por hash), #4 corrigido (ordem de hooks certa, mesmo comportamento de scan indicator). Os 3 primeiros eram inocentes; só o #4 quebrava o boot.
+- **Guard de regressão**: `use-treadmill-boot.test.tsx` (probe via `renderToStaticMarkup` — teria falhado no 138) + `ErrorBoundary.tsx` na raiz (`main.tsx`).
+- **Pipeline validado**: `npm test` ✅ 53/53 · `npm run lint` ✅ 0 erros novos · `npm run build` ✅ · `npx cap sync android` ✅ (9 plugins) · `gradlew assembleDebug` ✅ (22s).
+
+### Cautions for next session
+1. **Teste na esteira ainda pendente** no device — os fixes BLE nativos (142/144) não mudaram; o #4 re-aplicado é UI de scan (camada web), ortogonal ao keep-alive no Kotlin.
+2. Commit + push → CI → release `latest` novo. Validar que o APK sobe (não repete tela azul) e que o auto-update funciona.
+3. Figurinha no Stories segue em dívida (ver TODO alta).
+4. `@capacitor/app@8`/`browser@8` vs core 7.6.7 segue como landmine conhecida (não corrigir sem conversar).
+5. **Erros de lint pré-existentes**: `npm run lint` falha com ~21 erros em App.tsx, WorkoutTracker, SessionHistory, UserProfile, tracking.ts, ical.ts, treadmill-machine.ts, vite.config.ts (baseline aceito; não é do 138). Não há `@types/react` instalado — novo código React é implicit-any.
+
+---
+
 ## Session Context (2026-07-31i — Share Cards/Adesivos: implementation complete, all 8 tasks done)
 
 ### What happened
