@@ -1,4 +1,4 @@
-import type { ActivityPoint } from '../types';
+import type { ActivityPoint, TrainingSession } from '../types';
 
 export const PR_DISTANCES = [1, 2, 3, 4, 5, 10, 15, 21, 30, 35, 42];
 
@@ -80,4 +80,74 @@ export function computeCrossingTime(points: ActivityPoint[], distKm: number): nu
     }
   }
   return null;
+}
+
+export function emptyRecords(): Records {
+  return { prs: {}, longestDistance: null, totalVolumeKm: 0, badges: {}, backfilled: false };
+}
+
+export function applySessionToRecords(
+  session: TrainingSession,
+  current: Records,
+): { records: Records; newPrs: PrResult[]; newBadges: BadgeResult[] } {
+  const next: Records = {
+    prs: { ...current.prs },
+    longestDistance: current.longestDistance ? { ...current.longestDistance } : null,
+    totalVolumeKm: current.totalVolumeKm,
+    badges: { ...current.badges },
+    backfilled: current.backfilled,
+  };
+  const newPrs: PrResult[] = [];
+  const newBadges: BadgeResult[] = [];
+
+  for (const D of PR_DISTANCES) {
+    let crossing = computeCrossingTime(session.points, D);
+    if (crossing === null && session.totalDistanceKm >= D && session.totalDurationSeconds > 0) {
+      crossing = session.totalDurationSeconds * (D / session.totalDistanceKm);
+    }
+    if (crossing === null) continue;
+    const existing = next.prs[String(D)];
+    if (!existing || crossing < existing.timeSeconds) {
+      next.prs[String(D)] = { timeSeconds: crossing, sessionId: session.id, date: session.date, mode: session.mode };
+      newPrs.push({ distKm: D, timeSeconds: crossing });
+    }
+  }
+
+  const isLongest = !next.longestDistance || session.totalDistanceKm > next.longestDistance.km;
+  if (isLongest) {
+    next.longestDistance = {
+      km: session.totalDistanceKm,
+      timeSeconds: session.totalDurationSeconds,
+      sessionId: session.id,
+      date: session.date,
+      mode: session.mode,
+    };
+  }
+
+  next.totalVolumeKm = next.totalVolumeKm + session.totalDistanceKm;
+
+  const unlock = (id: string) => {
+    if (next.badges[id]) return;
+    next.badges[id] = { unlockedAt: session.date, sessionId: session.id };
+    newBadges.push({ id, label: BADGE_LABELS[id] });
+  };
+
+  if (!next.badges.firstRun) unlock('firstRun');
+  for (const t of [5, 10, 21, 42]) {
+    if (session.totalDistanceKm >= t) unlock(`complete${t}k`);
+  }
+  for (const t of [5, 10, 21, 42]) {
+    if (isLongest && next.longestDistance && next.longestDistance.km >= t) unlock(`longest${t}`);
+  }
+  for (const t of [10, 50, 100, 500, 1000]) {
+    if (next.totalVolumeKm >= t) unlock(`volume${t}`);
+  }
+  if (session.totalDistanceKm > 0) {
+    const avgPace = session.totalDurationSeconds / session.totalDistanceKm;
+    for (const p of [8, 7, 6, 5]) {
+      if (avgPace <= p * 60) unlock(`pace${p}`);
+    }
+  }
+
+  return { records: next, newPrs, newBadges };
 }
