@@ -24,6 +24,16 @@ class TreadmillBleService(private val context: Context) {
         val FTMS_CONTROL_POINT_CHAR: UUID = UUID.fromString("00002ad9-0000-1000-8000-00805f9b34fb")
         val CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         private const val KEEP_ALIVE_INTERVAL_MS = 3000L
+        private const val KEEP_ALIVE_INTERVAL_MS_FAST = 2000L
+
+        fun ftmsResultCodeToString(code: Int): String = when (code) {
+            0x00 -> "Success"
+            0x01 -> "Op Code Not Supported"
+            0x02 -> "Invalid Parameter"
+            0x03 -> "Operation Failed"
+            0x04 -> "Control Not Permitted"
+            else -> "Unknown (0x${code.toString(16)})"
+        }
     }
 
     sealed class BleState {
@@ -38,7 +48,8 @@ class TreadmillBleService(private val context: Context) {
     private var gatt: BluetoothGatt? = null
     private var ftmsMeasurementChar: BluetoothGattCharacteristic? = null
     private var ftmsControlPointChar: BluetoothGattCharacteristic? = null
-    private var state: BleState = BleState.Disconnected
+    private var _state: BleState = BleState.Disconnected
+    val state: BleState get() = _state
     private var keepAliveJob: Job? = null
     private var lastCommand: ByteArray? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -66,7 +77,7 @@ class TreadmillBleService(private val context: Context) {
                     connectionTimeoutRunnable?.let { handler.removeCallbacks(it) }
                     connectionTimeoutRunnable = null
 
-                    state = BleState.Discovering
+                    _state = BleState.Discovering
                     onStateChange?.invoke(state)
                     handler.post { gatt.discoverServices() }
 
@@ -115,7 +126,7 @@ class TreadmillBleService(private val context: Context) {
             }
 
             Log.d(TAG, "FTMS service and characteristics found")
-            state = BleState.Ready
+            _state = BleState.Ready
             onStateChange?.invoke(state)
 
             enableNotifications()
@@ -132,13 +143,22 @@ class TreadmillBleService(private val context: Context) {
                 }
                 FTMS_CONTROL_POINT_CHAR -> {
                     if (value.isNotEmpty() && value[0] == 0x80.toByte() && value.size > 1) {
+                        val requestedOpcode = if (value.size > 2) (value[2].toInt() and 0xFF) else -1
                         val resultCode = value[1].toInt() and 0xFF
+                        Log.d(TAG, "Control Point response: opcode=0x${requestedOpcode.toString(16)} resultCode=0x${resultCode.toString(16)} (${ftmsResultCodeToString(resultCode)})")
                         if (resultCode == 0x00) {
                             requestControlRetryRunnable?.let { handler.removeCallbacks(it) }
                             requestControlRetryRunnable = null
-                            state = BleState.Controlled
-                            onStateChange?.invoke(state)
+                            if (state !is BleState.Controlled) {
+                                _state = BleState.Controlled
+                                onStateChange?.invoke(state)
+                                startKeepAlive()
+                            }
+                        } else {
+                            Log.w(TAG, "Control Point command failed: resultCode=0x${resultCode.toString(16)} (${ftmsResultCodeToString(resultCode)})")
                         }
+                    } else {
+                        Log.d(TAG, "Control Point indication (non-response): ${value.joinToString(" ") { "%02x".format(it) }}")
                     }
                     onControlPointResponse?.invoke(value)
                 }
@@ -278,12 +298,12 @@ class TreadmillBleService(private val context: Context) {
             Log.w(TAG, "Already connecting/connected")
             return
         }
-        state = BleState.Connecting
+        _state = BleState.Connecting
         onStateChange?.invoke(state)
 
         val device = BluetoothAdapter.getDefaultAdapter()?.getRemoteDevice(address) ?: run {
             onError?.invoke("Device not found: $address")
-            state = BleState.Disconnected
+            _state = BleState.Disconnected
             onStateChange?.invoke(state)
             return
         }
@@ -312,7 +332,7 @@ class TreadmillBleService(private val context: Context) {
         gatt?.disconnect()
         gatt?.close()
         gatt = null
-        state = BleState.Disconnected
+        _state = BleState.Disconnected
         onStateChange?.invoke(state)
     }
 
@@ -345,10 +365,10 @@ class TreadmillBleService(private val context: Context) {
         keepAliveJob = scope.launch {
             while (isActive) {
                 try {
-                    delay(KEEP_ALIVE_INTERVAL_MS)
-                    val cmd = lastCommand ?: continue
+                    delay(KEEP_ALIVE_INTERVAL_MS_FAST)
                     if (state is BleState.Controlled) {
-                        sendCommand(cmd)
+                        Log.d(TAG, "Keep-alive: re-sending Request Control to renew lease")
+                        sendCommand(ftms.encodeRequestControl())
                     }
                 } catch (e: CancellationException) {
                     Log.d(TAG, "Keep-alive cancelled")
@@ -377,7 +397,7 @@ class TreadmillBleService(private val context: Context) {
         ftmsControlPointChar = null
         requestQueue.clear()
         isWriting = false
-        state = BleState.Disconnected
+        _state = BleState.Disconnected
         onStateChange?.invoke(state)
     }
 }
