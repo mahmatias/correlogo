@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-08-01a] — Milestones/Conquistas: camada de dados (records) completa (Tasks 1–6)
+
+### O que entrou
+- **`src/lib/records.ts`** (novo, TDD): camada de dados pura e testável do Milestones — `PR_DISTANCES` (1/2/3/4/5/10/15/21/30/35/42), `BADGE_LABELS`/`BADGE_GROUPS` (PT-BR, 4 grupos), `computeCrossingTime` (interpolação do tempo ao cruzar distância nos `points`), `applySessionToRecords` (PRs → longest → volume monotônico → badges, ordem do spec), `emptyRecords`, `recomputeRecords` (PRs + longest do zero em delete; **não toca** badges/volume), `backfillRecords` (ordem cronológica, `backfilled=true`), `readRecords`/`saveRecords` (localStorage `correlogo:records:{uid}` primeiro + Firestore `users/{uid}/data/records` sem merge, coberto por `firestore.rules`).
+- **`src/types.ts`**: `PrResults` + campo transitório `prResults?: PrResults` em `TrainingSession` (nunca persistido; só na sessão recém-completada em memória).
+- **`src/App.tsx`**: estado `records`; hook no `markAsCompleted` (anexa `prResults` ao `selectedSession` via `setSelectedSession({ ...newSession, prResults })`); backfill na 1ª execução (no `finally` do load, antes de `setIsLoading(false)`); recompute nos 3 caminhos de delete (`uncompletePlan`, `deletePlan` com `sessionsToKeep`, `onDeleteSession` do histórico).
+
+### Validação
+- `npm test` ✅ 76/76 (21 novos em `records.test.ts`; baseline era 55) · `npm run lint` ✅ 21 erros pré-existentes, **0 novos** (records.ts/types.ts sem erros; App.tsx só nas linhas 352/874–890 pré-existentes).
+
+### Build
+- `npm run build` **não** rodado ainda (pré-condição: `Copy-Item .env.apk → .env`; a feature ainda não é visível — Tasks 7–15 pendentes). `gradlew` idem.
+
+### Commits
+- `50a9067` core types/PR distances/crossing · `2445c5d` applySessionToRecords · `b897988` recomputeRecords · `7302f4c` backfill + persistência · `165a60f` PrResults no tipo · `0ae24e2` wiring no App.
+
+### Próximo
+- Tasks 7–15 do plano (`docs/superpowers/plans/2026-08-01-milestones.md`): TabBar, Achievements, abas Registros/Conquistas/Perfil, celebração no resumo, pill no ShareCard, fix clip RouteSVG, timeout BLE 15s. **Aguardando aprovação do usuário para continuar.**
+
+---
+
 ## [2026-07-31m] — APK 147 (148 na próxima) voltou a quebrar boot: ErrorBoundary renderizava `this.children` (undefined)
 
 ### Sintoma
