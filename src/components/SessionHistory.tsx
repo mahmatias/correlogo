@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, ClipboardList, Trash2, CheckCircle2, Mail, Play, AlertTriangle } from 'lucide-react';
+import { Calendar, ClipboardList, Trash2, CheckCircle2, Mail, Play, AlertTriangle } from 'lucide-react';
 import { TrainingSession, SyncStatus, formatDistance, formatDuration } from '../types';
 import { useState } from 'react';
 import Modal from './Modal';
@@ -6,7 +6,6 @@ import Button from './Button';
 
 interface Props {
   sessions: TrainingSession[];
-  onClose: () => void;
   onSelectSession: (session: TrainingSession) => void;
   onDeleteSession: (sessionId: string) => void;
   onExportSession?: (session: TrainingSession, target?: 'gmail' | 'hc') => void;
@@ -30,7 +29,7 @@ function PendingBadge({ status, label, icon, onClick, retrying }: { status: Sync
   );
 }
 
-export default function SessionHistory({ sessions, onClose, onSelectSession, onDeleteSession, onExportSession }: Props) {
+export default function SessionHistory({ sessions, onSelectSession, onDeleteSession, onExportSession }: Props) {
   const [sessionToDelete, setSessionToDelete] = useState<TrainingSession | null>(null);
   const [syncingTarget, setSyncingTarget] = useState<{ id: string; target: 'gmail' | 'hc' } | null>(null);
 
@@ -45,11 +44,8 @@ export default function SessionHistory({ sessions, onClose, onSelectSession, onD
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col p-6 overflow-y-auto bg-bg-deep text-text-primary" role="dialog" aria-modal="true" aria-label="Histórico de treinos">
-        <button onClick={onClose} className="mb-6 flex items-center gap-2">
-            <ArrowLeft /> Voltar
-        </button>
-        <h2 className="text-2xl font-bold mb-6 text-center">Histórico de Treinos</h2>
+    <div className="text-text-primary">
+        <h2 className="text-2xl font-bold mb-6 text-center">Registros</h2>
         
         {sessions.length === 0 ? (
             <div className="text-center text-text-muted py-16">
