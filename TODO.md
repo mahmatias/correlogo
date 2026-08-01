@@ -31,6 +31,17 @@
 
 ---
 
+## ✅ Concluídos (Sessão 2026-07-31o — APK 147 boot quebrado: ErrorBoundary renderizava undefined + fix + guard)
+
+- [x] **APK 147 quebrou o boot de novo** (mesmo sintoma do 138): splash some → tela azul, sem erro de console.
+- [x] **Causa raiz (provada por headless + teste)**: ErrorBoundary fazia `return (this as unknown as Props).children` → compila para `this.children` (undefined; React guarda em `this.props.children`) → App nunca montava, sem lançar erro.
+- [x] **Correção**: `return this.props.children;` + `props: Props;` (TS sem @types/react).
+- [x] **Guard**: `error-boundary.test.tsx` (renderiza children + fallback). Antes: `''` (boot morto); depois: passa.
+- [x] **Validação**: npm test 55/55 · lint 21 (baseline, 0 novos) · build ✓ · cap sync ✓ · gradle ✓ · boot headless root 862 chars ✓
+- [ ] **Aguardando**: commit + push → CI → release nova → validar no device
+
+---
+
 ## ✅ Concluídos (Sessão 2026-07-31n — APK 138 root cause + re-aplicação dos 4 fixes + guard)
 
 - [x] **Causa raiz do APK 138 (tela azul no boot)**: TDZ em `use-treadmill.ts` (a555426) — `clearScanTimeout` declarada depois do `useEffect(..., [clearScanTimeout])` → ReferenceError em todo render → app nunca montava. CI passou porque nenhum teste monta App/hook; tsc/vite não pegam TDZ.

@@ -1,5 +1,22 @@
 # Handoff
 
+## Session Context (2026-07-31m — APK 147 boot quebrado de novo: ErrorBoundary `this.children` → `undefined`)
+
+### What happened
+- O APK 147 (re-aplicação dos 4 fixes + ErrorBoundary) **quebrou o boot de novo**, mesmo sintoma do 138: splash some → tela azul vazia. **Sem erro de console** — o JS roda, `createRoot().render()` é chamado, mas o App nunca monta.
+- **Root cause (provada por reprodução headless + teste)**: o `ErrorBoundary` retornava `(this as unknown as Props).children`, que compila para **`this.children`** — `undefined` em runtime (React guarda children em `this.props.children`). O boundary renderizava `undefined` → App nunca montava. Retornar `undefined` de um boundary não lança erro, por isso não havia stack trace.
+- **Reprodução**: Chrome headless + harness (`window.onerror`/`unhandledrejection`/override `console.error`) sobre o `dist/` do 147 → `#root` vazio (0 bytes), sem erro; com o fix → `#root` 862 chars (logo + spinner) + log `"[CorreLogo-JS] App componente renderizado"`.
+- **Correção**: `return this.props.children;` + `props: Props;` na classe (TS sem `@types/react`).
+
+### Cautions for next session
+1. **Aprender importante**: código TS com cast de tipo não muda o acesso de propriedade no runtime. `(this as unknown as Props).children` virou `this.children` (undefined) em vez de `this.props.children`. Qualquer accessor de class component precisa ser escrito no formato correto **desde o início**.
+2. **O CI não testa boot em browser** — `npm run build` + `gradle` não pegariam esse tipo de bug (render que devolve vazio sem throw). O guard agora existe (`error-boundary.test.tsx`). Considerar adicionar um smoke test de boot com headless no futuro.
+3. Próximo passo: commit + push → CI → release nova (~148). Validar no device que o app sobe (logo + spinner → home).
+4. `debug.html` foi adicionado a `dist/` (gitignored) — é o harness de debug, pode ser reutilizado.
+5. Teste na esteira ainda pendente (BLE/scan indicator). Figurinha no Stories em dívida (TODO). `@capacitor/app@8`/`browser@8` vs core 7.6.7 segue como landmine.
+
+---
+
 ## Session Context (2026-07-31l — APK 138 root cause found + re-apply 4 fixes + boot guard)
 
 ### What happened
