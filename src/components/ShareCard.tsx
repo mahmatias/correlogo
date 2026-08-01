@@ -273,8 +273,13 @@ export default function ShareCard({ data, variant, showStats, session, gradient 
   const cells = gridCells(showStats).map(key => statFor(key, data));
   const showLogo = showStats.logo !== false;
   const splits = useMemo(() => choosePaceBlocks(session), [session]);
-  const background = transparent ? 'transparent' : (photoUrl || gradient.css);
-  const rootStyle: CSSProperties = { width: 1080, height: 1920, background, ...style };
+  const isPhoto = photoUrl && photoUrl.startsWith('data:');
+  const backgroundStyle: CSSProperties = transparent
+    ? { background: 'transparent' }
+    : isPhoto
+      ? { backgroundImage: `url(${photoUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
+      : { background: gradient.css };
+  const rootStyle: CSSProperties = { width: 1080, height: 1920, ...backgroundStyle, ...style };
 
   if (transparent) {
     const stickerCells = cells.slice(0, 4);
