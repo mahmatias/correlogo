@@ -1,5 +1,28 @@
 # Changelog
 
+## [2026-07-31l] — Causa raiz do APK 138 encontrada + re-aplicação dos 4 fixes + guard de regressão
+
+### Root cause (fecha o TBD da entrada 2026-07-31k)
+- **APK 138 (a555426) não subia por TDZ (temporal dead zone)** em `src/lib/use-treadmill.ts`: a `const clearScanTimeout = useCallback(...)` era declarada **depois** do `useEffect(..., [clearScanTimeout])` que a referencia no deps array. O deps array é avaliado durante o render, antes da const ser inicializada → `ReferenceError: Cannot access 'clearScanTimeout' before initialization` em **todo** render do App.
+- `useTreadmill()` é chamado incondicionalmente no topo do `App.tsx` → React nunca montava → `#root` vazio → só o `body` com `background-color: var(--bg-deep)` (#0A0A14). Sintoma no device: splash → fundo azul → sem logo/spinner. Determinístico em qualquer device.
+- **Por que o CI não pegou**: nenhum teste monta o App ou o hook; `tsc`/`vite` não detectam TDZ (erro de runtime); `gradlew` só empacota o web build.
+- **Correções #1–3 eram inocentes** (ShareScreen/ShareCard/shareCard.ts são lazy via `SessionSummary`). O revert `a57d42b` (APK 139) descartou 3 fixes bons junto com o #4 quebrado.
+
+### Re-aplicado
+1. **#1 GPS-aware filter** (`ShareScreen.tsx`) — verbatim do a555426
+2. **#2 sticker PNG 3×** (`shareCard.ts` + `ShareScreen.tsx`) — verbatim
+3. **#3 map clipping 60→132px** (`ShareCard.tsx`) — verbatim
+4. **#4 BLE scan indicator** (`use-treadmill.ts`) — **corrigido**: `scanTimeoutRef`/`clearScanTimeout` agora declarados **antes** do `useEffect` que os usa (fim do TDZ); timeout 11s (= nativo 10s + margem); limpeza em connect/disconnect/catch/unmount
+
+### Guard de regressão
+- **`src/lib/__tests__/use-treadmill-boot.test.tsx`** — renderiza um probe com `useTreadmill()` via `renderToStaticMarkup` (react-dom/server, zero deps novas). No código do 138 **estoura**; agora passa.
+- **`src/components/ErrorBoundary.tsx`** — error boundary na raiz (`main.tsx`) com fallback visível (logo + mensagem + botão "Recarregar") em vez de fundo azul silencioso em futuros erros de boot.
+
+### Build
+- `npm test` ✅ (53/53, +1 guard) · `npm run lint` ✅ (0 erros novos; baseline pré-existente intacto) · `npm run build` ✅ · `npx cap sync android` ✅ (9 plugins) · `gradlew assembleDebug` ✅ (22s)
+
+---
+
 ## [2026-07-31k] — Revert: APK 138 quebrou no device (tela branca/loading)
 
 ### Reverted

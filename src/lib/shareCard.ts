@@ -28,7 +28,7 @@ const SocialShare = registerPlugin<SocialSharePluginInterface>('SocialShare');
 
 const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID || '';
 
-export async function captureCard(element: HTMLElement): Promise<Blob> {
+export async function captureCard(element: HTMLElement, scale = 2): Promise<Blob> {
   if (typeof document !== 'undefined' && document.fonts) {
     try {
       await document.fonts.ready;
@@ -36,7 +36,6 @@ export async function captureCard(element: HTMLElement): Promise<Blob> {
       // continue even if font check fails
     }
   }
-  const scale = 2;
   return domtoimage.toBlob(element, {
     width: 1080 * scale,
     height: 1920 * scale,
@@ -49,6 +48,10 @@ export async function captureCard(element: HTMLElement): Promise<Blob> {
     cacheBust: true,
     quality: 1.0,
   });
+}
+
+export async function captureSticker(element: HTMLElement): Promise<Blob> {
+  return captureCard(element, 3);
 }
 
 async function saveBlobToCache(blob: Blob, filename: string): Promise<{ uri: string }> {
