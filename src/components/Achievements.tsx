@@ -18,6 +18,22 @@ export default function Achievements({ records, sessions, onOpenSession }: Achie
     <div className="text-text-primary">
       <h2 className="text-2xl font-bold mb-6 text-center">Conquistas</h2>
 
+      <h3 className="font-bold mb-3">Estatísticas</h3>
+      <div className="grid grid-cols-3 gap-2 mb-6">
+        <div className="p-3 rounded-xl bg-bg-surface border border-border text-center">
+          <div className="text-2xl font-bold text-accent">{prCount}</div>
+          <div className="text-xs text-text-muted">Recordes</div>
+        </div>
+        <div className="p-3 rounded-xl bg-bg-surface border border-border text-center">
+          <div className="text-2xl font-bold text-accent">{badgeCount}</div>
+          <div className="text-xs text-text-muted">Conquistas</div>
+        </div>
+        <div className="p-3 rounded-xl bg-bg-surface border border-border text-center">
+          <div className="text-2xl font-bold text-accent">{totalKm.toFixed(1)}</div>
+          <div className="text-xs text-text-muted">Km totais</div>
+        </div>
+      </div>
+
       <h3 className="font-bold mb-3">Conquistas</h3>
       <div className="space-y-4 mb-6">
         {BADGE_GROUPS.map((group) => (
@@ -49,22 +65,6 @@ export default function Achievements({ records, sessions, onOpenSession }: Achie
         ))}
       </div>
 
-      <h3 className="font-bold mb-3">Estatísticas</h3>
-      <div className="grid grid-cols-3 gap-2 mb-6">
-        <div className="p-3 rounded-xl bg-bg-surface border border-border text-center">
-          <div className="text-2xl font-bold text-accent">{prCount}</div>
-          <div className="text-xs text-text-muted">Recordes</div>
-        </div>
-        <div className="p-3 rounded-xl bg-bg-surface border border-border text-center">
-          <div className="text-2xl font-bold text-accent">{badgeCount}</div>
-          <div className="text-xs text-text-muted">Conquistas</div>
-        </div>
-        <div className="p-3 rounded-xl bg-bg-surface border border-border text-center">
-          <div className="text-2xl font-bold text-accent">{totalKm.toFixed(1)}</div>
-          <div className="text-xs text-text-muted">Km totais</div>
-        </div>
-      </div>
-
       <h3 className="font-bold mb-3">Recordes</h3>
       <div className="space-y-2 mb-6">
         {PR_DISTANCES.map((D) => {
@@ -88,28 +88,6 @@ export default function Achievements({ records, sessions, onOpenSession }: Achie
               ) : (
                 <Lock size={16} className="text-text-muted" />
               )}
-            </button>
-          );
-        })}
-      </div>
-
-      <h3 className="font-bold mb-3">Como os recordes funcionam</h3>
-      <div className="flex flex-wrap gap-2">
-        {PR_DISTANCES.map((D) => {
-          const pr = records?.prs?.[String(D)];
-          return (
-            <button
-              key={D}
-              type="button"
-              disabled={!pr}
-              onClick={() => pr && onOpenSession(pr.sessionId)}
-              className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
-                pr
-                  ? 'bg-bg-surface border-border text-text-secondary hover:bg-bg-elevated'
-                  : 'bg-bg-elevated border-transparent text-text-muted opacity-60 cursor-default'
-              }`}
-            >
-              {formatDistance(D)}
             </button>
           );
         })}
