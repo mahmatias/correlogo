@@ -284,7 +284,7 @@ class TreadmillBleService(private val context: Context) {
 
                 leScanner.startScan(listOf(scanFilter), scanSettings, scanCallback)
 
-                delay(10000)
+                delay(15000)
                 leScanner.stopScan(scanCallback)
             } catch (e: Exception) {
                 Log.e(TAG, "Scan error", e)
