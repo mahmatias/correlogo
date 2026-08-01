@@ -31,22 +31,23 @@
 
 ---
 
-## ✅ Concluídos (Sessão 2026-07-31l — BLE fix: "Falha ao assumir controle da esteira")
+## ✅ Concluídos (Sessão 2026-07-31m — BLE: Set Speed/Incline não funcionavam + keep-alive real)
 
-- [x] **Bug encontrado** (não relacionado aos 4 fixes do APK 138): `TreadmillBleService.processNextCommand()` lia `data` da fila mas nunca setava `char.value = data` antes do `writeCharacteristic()` — write era no-op/silencioso.
-- [x] **Bug 2**: `enableNotifications()` encadeava 2 `writeDescriptor` (CCCD measurement + CCCD control point) sem chaining — Android BLE permite 1 write pendente por vez; segundo write era rejeitado e Request Control competia pelo GATT.
-- [x] **Bug 3**: `requestControlWithRetry()` chamado em paralelo com `enableNotifications()`, antes do CCCD terminar.
-- [x] **Fixes aplicados** (`android/app/src/main/java/com/correlogo/app/TreadmillBleService.kt`):
-  1. `char.value = data` em `processNextCommand()`
-  2. `pendingDescriptorWrite: Runnable?` + `onDescriptorWrite` chaining os 2 CCCD writes
-  3. `requestControlWithRetry()` agora dispara **só** depois do segundo CCCD confirmado (flag `controlPointNotificationsEnabled`)
-  4. `cleanup()` zera `pendingDescriptorWrite` + `controlPointNotificationsEnabled` pra próxima reconexão
-- [x] **Build**: `gradlew compileDebugKotlin` ✅ · `gradlew assembleDebug` ✅ (23s) · `gradlew assembleRelease` ✅ (1m36s)
-- [x] **CI run `30673149958`** succeeded; release `latest` → **versionCode 142** (3.4), APK 22 MB, auto-update disponível
-- [x] **Commit `43517e1`** com descrição detalhada das 3 causas raízes
-- [x] **Próximo passo (user)**: testar esteira no device; se ainda falhar, capturar logcat filtrando `CorreLogo-BLE` + `CorreLogo-FTMS` no Logcat Reader
-- [x] **Não relacionados**: APK 138 white-screen ainda sem causa raiz TBD — investigar antes de re-aplicar os 4 fixes (GPS filter, sticker 3x, map clipping, BLE scan indicator)
+- [x] **Bug 1** (commit `43517e1`, já publicado como APK 142): `processNextCommand()` lia `data` mas nunca setava `char.value = data` antes de `writeCharacteristic()` — write era no-op. Também: `enableNotifications()` encadeava 2 `writeDescriptor` sem chaining; `requestControlWithRetry()` era chamado em paralelo.
+- [x] **Bug 2** (commit `904e32d`, k publicado como APK 144): `setTreadmillSpeed/Incline` não verificavam `state == Controlled` — comandos eram enviados antes do Request Control success. **Fix**: agora rejeita com mensagem clara se não está controlado.
+- [x] **Bug 3** (commit `904e32d`): **Control lease expiry**. Sem reenvio de Request Control, esteiras podem revogar controle após ~5-30s de silêncio. **Fix**: `startKeepAlive()` agora reenvia Request Control a cada **2s** enquanto `state == Controlled`. O método existia mas era dead code (nunca chamado, `lastCommand` nunca setado).
+- [x] **Logs diagnósticos**: `onCharacteristicChanged` agora loga **opcode + resultCode** de cada Control Point response (Success / Op Code Not Supported / Invalid Parameter / Operation Failed / Control Not Permitted). Crucial para a próxima sessão na academia.
+- [x] **State exposto**: `TreadmillBleService.state` agora é propriedade pública read-only (plugin precisa checar).
+- [x] **Build**: `gradlew compileDebugKotlin` ✅ · `gradlew assembleRelease` ✅ (37s)
+- [x] **CI run `30677054250`** succeeded; release `latest` → **versionCode 144** (3.4), APK 22 MB, auto-update disponível
+- [x] **Próximo passo (user)**: testar esteira no device. **Se ainda falhar**:
+  1. Instalar Logcat Reader (Play Store)
+  2. Filtrar por `CorreLogo-BLE`
+  3. Reproduzir problema (conectar + mudar velocidade/inclinação)
+  4. Enviar log para mim — vai dizer qual `resultCode` esteira está retornando
+- [x] **Simulador FTMS**: pesquisei — existe `swiftcheetah` (iOS) e `Simcline-V2/V3` (Arduino/ESP32) mas nenhum Android central. Criar simulador Android BLE peripheral — trabalho grande, não compensa vs logcat + retry.
 
+---
 ## ✅ Concluídos (Sessão 2026-07-31i — Share Cards/Adesivos: implementation complete)
 
 - [x] **Task 1**: `splits.ts` — pace por km/bloco 5km + fallback (`choosePaceBlocks`, `formatPaceShort`) — 9 testes
