@@ -201,7 +201,13 @@ class TreadmillBlePlugin : Plugin() {
         val speed = call.getDouble("speed")
         if (speed == null) { call.reject("speed required"); return }
         val service = bleService ?: run { call.reject("Not connected"); return }
+        if (service.state !is TreadmillBleService.BleState.Controlled) {
+            android.util.Log.w("CorreLogo-BLE", "setTreadmillSpeed ignored: state=${service.state}, awaiting Controlled")
+            call.reject("Esteira não está em modo controlado. Aguarde a conexão estabilizar.")
+            return
+        }
         val ftms = TreadmillFtmsManager()
+        android.util.Log.d("CorreLogo-BLE", "setTreadmillSpeed: ${speed} km/h")
         service.sendCommand(ftms.encodeSetSpeed(speed))
         call.resolve()
     }
@@ -211,7 +217,13 @@ class TreadmillBlePlugin : Plugin() {
         val incline = call.getDouble("incline")
         if (incline == null) { call.reject("incline required"); return }
         val service = bleService ?: run { call.reject("Not connected"); return }
+        if (service.state !is TreadmillBleService.BleState.Controlled) {
+            android.util.Log.w("CorreLogo-BLE", "setTreadmillIncline ignored: state=${service.state}, awaiting Controlled")
+            call.reject("Esteira não está em modo controlado. Aguarde a conexão estabilizar.")
+            return
+        }
         val ftms = TreadmillFtmsManager()
+        android.util.Log.d("CorreLogo-BLE", "setTreadmillIncline: ${incline}%")
         service.sendCommand(ftms.encodeSetIncline(incline))
         call.resolve()
     }
