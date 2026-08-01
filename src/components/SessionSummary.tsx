@@ -1,4 +1,4 @@
-import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X } from 'lucide-react';
+import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X, Trophy, Medal } from 'lucide-react';
 import { formatDistance, formatDuration, TrainingSession, WorkoutPlan, getStepTypeLabel } from '../types';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
@@ -153,6 +153,43 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
                 <div className="text-xl font-bold">{formatDuration(Math.round(bestPace))} /km</div>
             </div>
         </div>
+
+        {session.prResults && (session.prResults.newPrs.length > 0 || session.prResults.newBadges.length > 0) && (
+          <div className="p-4 rounded-xl mb-6 bg-bg-surface">
+            {session.prResults.newPrs.length > 0 && (
+              <div className="mb-3">
+                <h3 className="font-bold mb-2 flex items-center gap-2">
+                  <Trophy className="text-amber-400" size={18} />
+                  Novos recordes
+                </h3>
+                <div className="space-y-1">
+                  {session.prResults.newPrs.map((pr) => (
+                    <div key={pr.distKm} className="flex items-center justify-between text-sm">
+                      <span className="font-semibold">{formatDistance(pr.distKm)}</span>
+                      <span className="text-text-secondary">{formatDuration(Math.round(pr.timeSeconds))}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {session.prResults.newBadges.length > 0 && (
+              <div>
+                <h3 className="font-bold mb-2 flex items-center gap-2">
+                  <Medal className="text-amber-400" size={18} />
+                  Conquistas desbloqueadas
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {session.prResults.newBadges.map((b) => (
+                    <span key={b.id} className="px-3 py-1 rounded-full text-xs font-medium"
+                      style={{ background: '#241b0e', border: '1px solid #7a5610', color: '#f5b942' }}>
+                      {b.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         
         {evaluation && (
           <div className="p-4 rounded-xl mb-6 bg-bg-surface">
