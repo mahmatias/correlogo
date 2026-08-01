@@ -124,6 +124,20 @@ function Blobs() {
   );
 }
 
+function NewPrPill({ session }: { session: TrainingSession }) {
+  const prs = session.prResults?.newPrs;
+  if (!prs || prs.length === 0) return null;
+  const [first] = prs;
+  const extra = prs.length > 1 ? ` · +${prs.length - 1}` : '';
+  return (
+    <div style={{ position: 'absolute', top: 200, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 30, pointerEvents: 'none' }}>
+      <div style={{ background: '#241b0e', border: '1px solid #7a5610', color: '#f5b942', borderRadius: 999, padding: '10px 22px', fontSize: 24, fontWeight: 700, whiteSpace: 'nowrap' }}>
+        ★ Novo recorde: {formatDistance(first.distKm)} · {formatDuration(Math.round(first.timeSeconds))}{extra}
+      </div>
+    </div>
+  );
+}
+
 interface RouteSVGProps {
   session: TrainingSession;
   stroke?: string;
@@ -143,8 +157,8 @@ function RouteSVG({ session, stroke = 'rgba(255,255,255,0.6)', strokeWidth = 0.8
   const h = maxLat - minLat || 1;
 
   const points = pts.map(p => ({
-    x: ((p.lon! - minLon) / w) * 100,
-    y: ((maxLat - p.lat!) / h) * 100,
+    x: 10 + ((p.lon! - minLon) / w) * 80,
+    y: 10 + ((maxLat - p.lat!) / h) * 80,
   }));
 
   const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('');
@@ -285,6 +299,7 @@ export default function ShareCard({ data, variant, showStats, session, gradient 
   if (variant === 'pace') {
     return (
       <div className={`relative text-white overflow-hidden ${className || ''}`} style={rootStyle}>
+        <NewPrPill session={session} />
         <Blobs />
         {showLogo && <Logo />}
         {showStats.name && <Title>{data.name}</Title>}
@@ -300,6 +315,7 @@ export default function ShareCard({ data, variant, showStats, session, gradient 
   if (variant === 'left') {
     return (
       <div className={`relative text-white overflow-hidden ${className || ''}`} style={rootStyle}>
+        <NewPrPill session={session} />
         <div style={{ position: 'absolute', width: 460, height: 460, top: -120, left: -140, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
         {showLogo && <Logo />}
         {showStats.name && <Title>{data.name}</Title>}
@@ -314,6 +330,7 @@ export default function ShareCard({ data, variant, showStats, session, gradient 
   if (variant === 'bottom') {
     return (
       <div className={`relative text-white overflow-hidden ${className || ''}`} style={rootStyle}>
+        <NewPrPill session={session} />
         <div style={{ position: 'absolute', width: 520, height: 520, top: -160, right: -120, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
         {showLogo && <Logo />}
         {showStats.name && <Title>{data.name}</Title>}
@@ -328,6 +345,7 @@ export default function ShareCard({ data, variant, showStats, session, gradient 
   // variant === 'map'
   return (
     <div className={`relative text-white overflow-hidden ${className || ''}`} style={rootStyle}>
+      <NewPrPill session={session} />
       {showLogo && <Logo />}
       {showStats.name && <Title>{data.name}</Title>}
       <CardMap session={session} />
