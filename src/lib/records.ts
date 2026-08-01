@@ -55,10 +55,10 @@ export const BADGE_LABELS: Record<string, string> = {
   volume100: 'Acumulei 100 km',
   volume500: 'Acumulei 500 km',
   volume1000: 'Acumulei 1000 km',
-  pace8: 'Ritmo ≤ 8:00',
-  pace7: 'Ritmo ≤ 7:00',
-  pace6: 'Ritmo ≤ 6:00',
-  pace5: 'Ritmo ≤ 5:00',
+  pace8: 'Completou um treino com Ritmo ≤ 8:00',
+  pace7: 'Completou um treino com Ritmo ≤ 7:00',
+  pace6: 'Completou um treino com Ritmo ≤ 6:00',
+  pace5: 'Completou um treino com Ritmo ≤ 5:00',
 };
 
 export const BADGE_GROUPS: { id: string; label: string; ids: string[] }[] = [

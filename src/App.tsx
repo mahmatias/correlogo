@@ -978,7 +978,7 @@ CapApp.addListener('backButton', () => {
           </div>
         </div>
       )}
-      <main className={`flex-1 w-full max-w-xl mx-auto ${activePlan ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      <main className={`flex-1 w-full max-w-xl mx-auto ${activePlan ? 'overflow-hidden' : 'overflow-y-auto pb-24'}`}>
         {checkingAuth || !user ? (
           checkingAuth ? (
             <div className="flex flex-col items-center justify-center min-h-screen bg-bg-deep p-4">
@@ -1386,7 +1386,7 @@ CapApp.addListener('backButton', () => {
                           </div>
                       </div>
                       )}
-                      <div className={`overflow-y-auto transition-all duration-300 ${expandedPlanId === plan.id ? 'max-h-[80vh] opacity-100' : 'max-h-0 opacity-0'}`}>
+                      <div className={`overflow-y-auto transition-all duration-300 ${expandedPlanId === plan.id ? 'max-h-[calc(80vh-96px)] opacity-100' : 'max-h-0 opacity-0'}`}>
                         <div className="p-4 border-t border-border text-text-secondary text-sm">
                           <div className="flex justify-end mb-3">
                             <button

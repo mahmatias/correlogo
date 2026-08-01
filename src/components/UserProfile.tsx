@@ -280,14 +280,14 @@ export default function UserProfile({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => { if (!isLightMode) onToggleTheme(); }}
+              onClick={() => { if (isLightMode) onToggleTheme(); }}
               className={`p-2 rounded-lg text-sm font-medium ${!isLightMode ? 'bg-accent text-white' : 'bg-bg-elevated text-text-secondary'}`}
             >
               Escuro
             </button>
             <button
               type="button"
-              onClick={() => { if (isLightMode) onToggleTheme(); }}
+              onClick={() => { if (!isLightMode) onToggleTheme(); }}
               className={`p-2 rounded-lg text-sm font-medium ${isLightMode ? 'bg-accent text-white' : 'bg-bg-elevated text-text-secondary'}`}
             >
               Claro
