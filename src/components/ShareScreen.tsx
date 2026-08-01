@@ -3,11 +3,12 @@ import { ArrowLeft, ArrowRight, Camera, ClipboardCopy, Download, Instagram, Map 
 import { Camera as CameraPlugin, CameraResultType, CameraSource } from '@capacitor/camera';
 import ShareCard, { extractCardData, gridCells, STAT_CHIP_LABELS } from './ShareCard';
 import type { CardVariant } from './ShareCard';
-import { captureCard, captureSticker, shareImage, copyCardToClipboard, saveCardToGallery } from '../lib/shareCard';
+import { captureCard, captureSticker, shareImage, copyCardToClipboard, saveCardToGallery, shareToWhatsApp } from '../lib/shareCard';
 import { GRADIENT_PRESETS } from '../lib/gradients';
 import type { GradientPreset } from '../lib/gradients';
 import Button from './Button';
-import type { TrainingSession } from '../types';
+import type { TrainingSession, ProfileData } from '../types';
+import { usePhotoPersistence } from '../lib/hooks/usePhotoPersistence';
 
 const ALL_VARIANTS: CardVariant[] = ['pace', 'left', 'bottom', 'map'];
 const PREVIEW_W = 324;
@@ -19,6 +20,7 @@ function sessionHasMap(session: TrainingSession): boolean {
 
 interface Props {
   session: TrainingSession;
+  profile?: ProfileData | null;
   onClose: () => void;
   showFeedback?: (type: 'success' | 'error', message: string) => void;
 }
@@ -36,20 +38,47 @@ const DEFAULT_STATS: Record<string, boolean> = {
 
 type BusyState = 'idle' | 'sharing' | 'saving' | 'copying';
 
-export default function ShareScreen({ session, onClose, showFeedback }: Props) {
+export default function ShareScreen({ session, profile, onClose, showFeedback }: Props) {
   const hasMap = useMemo(() => sessionHasMap(session), [session]);
   const variants = useMemo(() => hasMap ? ALL_VARIANTS : ALL_VARIANTS.filter(v => v !== 'map'), [hasMap]);
+  const weightKg = profile?.weightInKg ?? 70;
+
+  const { savePhoto, getPhoto, clearPhoto, saveState, getState, clearState, clearAll } = usePhotoPersistence(session.id);
 
   const [tab, setTab] = useState<'cards' | 'stickers'>('cards');
   const [cardIndex, setCardIndex] = useState(0);
-  const [showStats, setShowStats] = useState(DEFAULT_STATS);
-  const [gradient, setGradient] = useState<GradientPreset>(GRADIENT_PRESETS[0]);
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [showStats, setShowStats] = useState<Record<string, boolean>>(() => {
+    const saved = getState();
+    return saved?.showStats ?? DEFAULT_STATS;
+  });
+  const [gradient, setGradient] = useState<GradientPreset>(() => {
+    const saved = getState();
+    return saved?.gradientId ? GRADIENT_PRESETS.find(g => g.id === saved.gradientId) ?? GRADIENT_PRESETS[0] : GRADIENT_PRESETS[0];
+  });
+  const [photoUrl, setPhotoUrl] = useState<string | null>(() => getPhoto());
   const [editing, setEditing] = useState(false);
-  const [stickerMap, setStickerMap] = useState(false);
+  const [stickerMap, setStickerMap] = useState(() => {
+    const saved = getState();
+    return saved?.stickerMap ?? false;
+  });
   const [busy, setBusy] = useState<BusyState>('idle');
+  const [photoSource, setPhotoSource] = useState<'camera' | 'gallery' | null>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   const captureRef = useRef<HTMLDivElement>(null);
+
+  // Restaurar cardIndex e tab do sessionStorage
+  useEffect(() => {
+    const saved = getState();
+    if (saved) {
+      setCardIndex(Math.min(saved.cardIndex, variants.length - 1));
+      setTab(saved.tab);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persistir estado sempre que mudar
+  useEffect(() => {
+    saveState({ cardIndex, showStats, gradientId: gradient.id, tab, stickerMap });
+  }, [cardIndex, showStats, gradient.id, tab, stickerMap, saveState]);
 
   // Ajustar cardIndex se ficou fora dos limites (ex.: map desabilitado após seleção anterior)
   useEffect(() => {
@@ -58,17 +87,13 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
   }, [variants.length, cardIndex, hasMap, stickerMap]);
 
   const variant = variants[cardIndex];
-  const data = useMemo(() => extractCardData(session), [session]);
+  const data = useMemo(() => extractCardData(session, weightKg), [session, weightKg]);
   const activeCells = useMemo(() => gridCells(showStats), [showStats]);
   const canSave = activeCells.length >= 2;
   const captureKey = useMemo(
     () => `${variant}-${gradient.id}-${photoUrl ?? 'none'}-${JSON.stringify(showStats)}-${tab}-${stickerMap ? 'map' : 'nomap'}`,
     [variant, gradient.id, photoUrl, showStats, tab, stickerMap]
   );
-
-  useEffect(() => {
-    carouselRef.current?.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
-  }, [variants.length]);
 
   const scrollToIndex = (i: number) => {
     const el = carouselRef.current;
@@ -88,17 +113,19 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
     setShowStats(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const [photoSource, setPhotoSource] = useState<'camera' | 'gallery' | null>(null);
-
   const pickPhoto = async (source: CameraSource) => {
+    // Salvar estado atual antes de abrir câmera (app pode ser morto pelo SO)
+    saveState({ cardIndex, showStats, gradientId: gradient.id, tab, stickerMap });
     try {
       const photo = await CameraPlugin.getPhoto({
-        resultType: CameraResultType.Base64,
+        resultType: CameraResultType.DataUrl,
         source,
-        quality: 90,
-        width: 1080,
+        quality: 70,
+        width: 800,
       });
-      setPhotoUrl(photo.dataUrl ?? null);
+      const url = photo.dataUrl ?? null;
+      setPhotoUrl(url);
+      savePhoto(url);
       showFeedback?.('success', 'Foto aplicada ao fundo');
     } catch (err) {
       console.error('[pick-photo]', err);
@@ -116,6 +143,7 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
       await new Promise(r => setTimeout(r, 400));
       const blob = mode === 'sticker' ? await captureSticker(el) : await captureCard(el);
       await fn(blob);
+      clearAll(); // Limpar foto e estado após compartilhar/salvar com sucesso
     } catch (err) {
       console.error('[share-action]', err);
       showFeedback?.('error', 'Erro ao processar imagem');
@@ -201,27 +229,25 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
             className="overflow-x-auto snap-x snap-mandatory no-scrollbar mb-2"
             style={{
               scrollSnapType: 'x mandatory',
-              scrollPadding: '0 calc(50% - 162px)', // center snap points (half container - half item)
+              scrollPadding: `0 calc(50% - ${PREVIEW_W / 2}px)`,
               width: '100%',
             }}
           >
             <div style={{ display: 'flex', gap: 8, padding: '0 4px' }}>
               {variants.map((v, i) => (
                 <div key={v} className="snap-center" style={{ width: PREVIEW_W, flexShrink: 0, scrollSnapAlign: 'center' }}>
-                  {i === cardIndex && (
-                    <div style={{ aspectRatio: '9/16', overflow: 'hidden', borderRadius: 12 }}>
-                      <div style={{ width: 1080, height: 1920, transform: `scale(${CARD_SCALE})`, transformOrigin: 'top left' }}>
-                        <ShareCard
-                          data={data}
-                          variant={v}
-                          showStats={showStats}
-                          session={session}
-                          gradient={gradient}
-                          photoUrl={photoUrl}
-                        />
-                      </div>
+                  <div style={{ aspectRatio: '9/16', overflow: 'hidden', borderRadius: 12 }}>
+                    <div style={{ width: 1080, height: 1920, transform: `scale(${CARD_SCALE})`, transformOrigin: 'top left' }}>
+                      <ShareCard
+                        data={data}
+                        variant={v}
+                        showStats={showStats}
+                        session={session}
+                        gradient={gradient}
+                        photoUrl={photoUrl}
+                      />
                     </div>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -289,7 +315,7 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
                     <Camera className="w-4 h-4" /> Foto de fundo
                   </Button>
                   {photoUrl && (
-                    <Button variant="ghost" size="md" onClick={() => setPhotoUrl(null)}>
+                    <Button variant="ghost" size="md" onClick={() => { setPhotoUrl(null); clearPhoto(); }}>
                       Remover foto
                     </Button>
                   )}

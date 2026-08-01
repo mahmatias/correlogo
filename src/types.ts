@@ -151,6 +151,7 @@ export interface SettingsData {
   distanceUnit: 'km' | 'mi';
   paceUnit: 'per_km' | 'per_mi';
   weightUnit: 'kg' | 'lb';
+  workoutRemindersEnabled: boolean;
 }
 
 export const BRAZILIAN_STATES = [

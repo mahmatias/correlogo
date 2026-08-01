@@ -1,5 +1,5 @@
-import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X, Trophy, Medal } from 'lucide-react';
-import { formatDistance, formatDuration, TrainingSession, WorkoutPlan, getStepTypeLabel } from '../types';
+import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X, Trophy, Medal, Flame } from 'lucide-react';
+import { formatDistance, formatDuration, TrainingSession, WorkoutPlan, getStepTypeLabel, ProfileData } from '../types';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 
@@ -9,10 +9,12 @@ import { evaluateSessionPerformance, suggestAdjustment } from '../lib/evaluatePe
 import { isNative } from '../lib/capacitor/platform';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import ShareScreen from './ShareScreen';
+import { calculateKcal, formatKcal } from '../lib/calories';
 
 interface Props {
   session: TrainingSession;
   plan?: WorkoutPlan;
+  profile?: ProfileData | null;
   onClose: () => void;
   onSuggestAdjustment?: (adjustedPlan: WorkoutPlan) => void;
   showFeedback?: (type: 'success' | 'error', message: string) => void;
@@ -39,13 +41,15 @@ function ScrollHint({ visible }: { visible: boolean }) {
   );
 }
 
-export default function SessionSummary({ session, plan, onClose, onSuggestAdjustment, showFeedback }: Props) {
+export default function SessionSummary({ session, plan, profile, onClose, onSuggestAdjustment, showFeedback }: Props) {
   const [viewMode, setViewMode] = useState<'km' | 'lap'>('km');
   const [showShareModal, setShowShareModal] = useState(false);
 
   // Basic stats
   const avgPace = session.totalDurationSeconds / (session.totalDistanceKm || 1); // seconds per km
-  
+  const weightKg = profile?.weightInKg ?? 70;
+  const estimatedKcal = calculateKcal(session, weightKg);
+
   // Pace data for graph
   const pacePoints = (session.points || []).map(p => ({
     timeSeconds: p.timestampSeconds,
@@ -151,6 +155,13 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
             <div className="p-4 rounded-xl bg-bg-surface">
                 <div className="text-sm text-text-secondary">Melhor Pace</div>
                 <div className="text-xl font-bold">{formatDuration(Math.round(bestPace))} /km</div>
+            </div>
+            <div className="p-4 rounded-xl bg-bg-surface flex items-center gap-2">
+                <Flame className="text-amber-400" size={24} />
+                <div>
+                    <div className="text-sm text-text-secondary">Gasto estimado</div>
+                    <div className="text-xl font-bold text-amber-400">{formatKcal(estimatedKcal)}</div>
+                </div>
             </div>
         </div>
 
@@ -343,6 +354,7 @@ export default function SessionSummary({ session, plan, onClose, onSuggestAdjust
 {showShareModal && (
   <ShareScreen
     session={session}
+    profile={profile}
     onClose={() => setShowShareModal(false)}
     showFeedback={showFeedback}
   />

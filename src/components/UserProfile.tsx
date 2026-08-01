@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
 import { User, updateProfile, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { ShieldCheck, ShieldOff, RefreshCw, Mail, Download } from 'lucide-react';
+import { ShieldCheck, ShieldOff, RefreshCw, Mail, Download, Bell, BellOff } from 'lucide-react';
 import Button from './Button';
-import { ProfileData, SettingsData, BRAZILIAN_STATES, GENDER_OPTIONS } from '../types';
+import { ProfileData, SettingsData, BRAZILIAN_STATES, GENDER_OPTIONS, WorkoutPlan } from '../types';
 import { getAuth, getDb } from '../lib/firebase';
 import { isHealthConnectAvailable, checkHealthPermissions, requestHealthPermission } from '../lib/capacitor/health-connect';
 import { isNative } from '../lib/capacitor/platform';
 import { isGmailConnected, disconnectGmail, startGmailOAuth } from '../lib/gmailApi';
 import { App as CapApp } from '@capacitor/app';
 import { checkForUpdate, type UpdateInfo } from '../lib/update-checker';
+import { requestNotificationPermission, rescheduleAllReminders, cancelAllWorkoutReminders } from '../lib/notifications';
 
 interface UserProfileProps {
   user: User;
   initialProfile: ProfileData | null;
   initialSettings: SettingsData | null;
+  plans: WorkoutPlan[];
   isLightMode: boolean;
   onToggleTheme: () => void;
   showFeedback: (type: 'success' | 'error', message: string) => void;
@@ -26,6 +28,7 @@ export default function UserProfile({
   user,
   initialProfile,
   initialSettings,
+  plans,
   isLightMode,
   onToggleTheme,
   showFeedback,
@@ -50,6 +53,7 @@ export default function UserProfile({
   const [gmailLoading, setGmailLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [appInfo, setAppInfo] = useState<{ version: string; build: string } | null>(null);
+  const [remindersEnabled, setRemindersEnabled] = useState(initialSettings?.workoutRemindersEnabled ?? false);
 
   useEffect(() => {
     // mount: carrega estado inicial do perfil
@@ -137,6 +141,7 @@ export default function UserProfile({
         distanceUnit,
         paceUnit,
         weightUnit,
+        workoutRemindersEnabled: remindersEnabled,
       };
 
       const db = getDb();
@@ -291,6 +296,48 @@ export default function UserProfile({
               className={`p-2 rounded-lg text-sm font-medium ${isLightMode ? 'bg-accent text-white' : 'bg-bg-elevated text-text-secondary'}`}
             >
               Claro
+            </button>
+          </div>
+        </div>
+        <div className="p-3 rounded-lg border border-border mt-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bell className={remindersEnabled ? 'text-accent' : 'text-text-muted'} size={20} />
+              <span className="text-sm text-text-primary">Lembretes de treino</span>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                const newValue = !remindersEnabled;
+                setRemindersEnabled(newValue);
+                if (user) {
+                  try {
+                    const db = getDb();
+                    const newSettings: SettingsData = {
+                      ...initialSettings,
+                      workoutRemindersEnabled: newValue,
+                    } as SettingsData;
+                    await setDoc(doc(db, 'users', user.uid, 'data', 'settings'), newSettings, { merge: true });
+                    localStorage.setItem(`correlogo:settings:${user.uid}`, JSON.stringify(newSettings));
+                    if (newValue) {
+                      const { rescheduleAllReminders } = await import('../lib/notifications');
+                      await rescheduleAllReminders(plans);
+                      showFeedback('success', 'Lembretes ativados para 07:00');
+                    } else {
+                      const { cancelAllWorkoutReminders } = await import('../lib/notifications');
+                      await cancelAllWorkoutReminders();
+                      showFeedback('success', 'Lembretes desativados');
+                    }
+                  } catch (e) {
+                    console.error('[UserProfile] Erro ao alterar lembretes:', e);
+                    showFeedback('error', 'Erro ao salvar preferência');
+                    setRemindersEnabled(!newValue); // reverter
+                  }
+                }
+              }}
+              className={`relative w-12 h-7 rounded-full transition-colors ${remindersEnabled ? 'bg-accent' : 'bg-bg-elevated border border-border'}`}
+            >
+              <span className={`absolute top-0.5 transition-transform duration-200 ${remindersEnabled ? 'translate-x-6' : 'translate-x-0.5'} w-5 h-5 rounded-full bg-white shadow-sm`} />
             </button>
           </div>
         </div>
