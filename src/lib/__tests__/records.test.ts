@@ -186,3 +186,40 @@ describe('applySessionToRecords', () => {
     expect(r2.records.longestDistance?.km).toBe(5);
   });
 });
+
+import { recomputeRecords } from '../records';
+
+describe('recomputeRecords', () => {
+  it('após delete do melhor, o PR cai para o próximo', () => {
+    const s1 = session({ id: 'a', points: pts([0, 5], [0, 1500]) });
+    const s2 = session({ id: 'b', points: pts([0, 5], [0, 1800]) });
+    const r = applySessionToRecords(s1, applySessionToRecords(s2, emptyRecords()).records).records;
+    expect(r.prs['5'].timeSeconds).toBe(1500);
+
+    const next = recomputeRecords([s2], r);
+    expect(next.prs['5']).toMatchObject({ timeSeconds: 1800, sessionId: 'b' });
+  });
+
+  it('longestDistance recua após delete do recorde', () => {
+    const s10 = session({ id: 'a', points: pts([0, 10], [0, 3600]), totalDistanceKm: 10 });
+    const s6 = session({ id: 'b', points: pts([0, 6], [0, 2100]), totalDistanceKm: 6 });
+    const base = applySessionToRecords(s6, applySessionToRecords(s10, emptyRecords()).records).records;
+
+    const next = recomputeRecords([s6], base);
+    expect(next.longestDistance?.km).toBeCloseTo(6, 6);
+    expect(next.longestDistance?.sessionId).toBe('b');
+  });
+
+  it('badges e totalVolumeKm permanecem intactos', () => {
+    const s1 = session({ id: 'a', points: pts([0, 5], [0, 1500]) });
+    const s2 = session({ id: 'b', points: pts([0, 5], [0, 1800]) });
+    const base = applySessionToRecords(s2, applySessionToRecords(s1, emptyRecords()).records).records;
+    const badgesBefore = { ...base.badges };
+    const volumeBefore = base.totalVolumeKm;
+
+    const next = recomputeRecords([s2], base);
+    expect(next.badges).toEqual(badgesBefore);
+    expect(next.totalVolumeKm).toBe(volumeBefore);
+    expect(next.backfilled).toBe(base.backfilled);
+  });
+});

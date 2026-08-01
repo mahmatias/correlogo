@@ -151,3 +151,35 @@ export function applySessionToRecords(
 
   return { records: next, newPrs, newBadges };
 }
+
+export function recomputeRecords(sessions: TrainingSession[], current: Records): Records {
+  const sorted = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
+  let prs: Records['prs'] = {};
+  let longestDistance: Records['longestDistance'] = null;
+
+  for (const s of sorted) {
+    for (const D of PR_DISTANCES) {
+      let crossing = computeCrossingTime(s.points, D);
+      if (crossing === null && s.totalDistanceKm >= D && s.totalDurationSeconds > 0) {
+        crossing = s.totalDurationSeconds * (D / s.totalDistanceKm);
+      }
+      if (crossing !== null) {
+        const existing = prs[String(D)];
+        if (!existing || crossing < existing.timeSeconds) {
+          prs[String(D)] = { timeSeconds: crossing, sessionId: s.id, date: s.date, mode: s.mode };
+        }
+      }
+    }
+    if (!longestDistance || s.totalDistanceKm > longestDistance.km) {
+      longestDistance = { km: s.totalDistanceKm, timeSeconds: s.totalDurationSeconds, sessionId: s.id, date: s.date, mode: s.mode };
+    }
+  }
+
+  return {
+    prs,
+    longestDistance,
+    totalVolumeKm: current.totalVolumeKm,
+    badges: current.badges,
+    backfilled: current.backfilled,
+  };
+}
