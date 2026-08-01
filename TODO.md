@@ -8,6 +8,9 @@
 ## Pendentes
 
 ### Alta (imediato)
+- [ ] **Milestones/Conquistas (em design — brainstorm 2026-08-01)** — PRs por distância (1/2/3/4/5/10/15/21/30/35/42km, interpolação, ranking único esteira+rua) + badges (firstRun, complete*, longest*, volume*, pace*). Abordagem: doc `users/{uid}/data/records` + backfill 1ª execução; valores recomputam em delete, badges permanentes, volume monotônico; tap em recorde/badge abre o resumo da atividade. Tab bar inferior 4 abas (Treinos/Registros/Conquistas/Perfil, ícone corredor Tabler). Mocks no browser: Conquistas layout C aprovado; pendentes: celebração no resumo + pill ShareCard + Perfil/Registros. Depois: spec → plan
+- [ ] **Fix clip do traçado no ShareCard (aceito, pausado p/ brainstorm)** — RouteSVG normaliza p/ [0..100] sem padding (ShareCard.tsx:145-148) → stroke/círculos cortados nas variantes pace/left/bottom. Fix: pad=10 interno na normalização
+- [ ] **BLE scan timeout 15s (aceito, pausado p/ brainstorm)** — `TreadmillBleService.kt:287` delay(10000)→15000 + `use-treadmill.ts:108` setTimeout 11000→16000. Staging local, sem push
 - [ ] **Figurinha no Stories — dívida técnica (nova abordagem)** — usuário estudando como outros apps fazem (a Meta parece exigir processo/asset específico além do PNG transparente). Investigar alternativas: `MediaSharePlugin` do Capacitor (intent nativo `com.instagram.share.ADD_TO_STORY`), share sheet nativo do Android, ou plugin `@capacitor/share` com MIME correto
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
@@ -38,7 +41,8 @@
 - [x] **Correção**: `return this.props.children;` + `props: Props;` (TS sem @types/react).
 - [x] **Guard**: `error-boundary.test.tsx` (renderiza children + fallback). Antes: `''` (boot morto); depois: passa.
 - [x] **Validação**: npm test 55/55 · lint 21 (baseline, 0 novos) · build ✓ · cap sync ✓ · gradle ✓ · boot headless root 862 chars ✓
-- [ ] **Aguardando**: commit + push → CI → release nova → validar no device
+- [x] **Release 148 publicada** (CI run #48, versionCode 148 > 147 quebrado) — auto-update no device deve puxar e o app subir normalmente
+- [ ] **Aguardando**: validar no device que o app sobe (logo + spinner → home) + teste na esteira
 
 ---
 
