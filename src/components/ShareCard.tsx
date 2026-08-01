@@ -8,6 +8,7 @@ import { GRADIENT_PRESETS, LOGO_SWOOSH_PATHS, LOGO_COLOR } from '../lib/gradient
 import type { GradientPreset } from '../lib/gradients';
 import { computeMapView, defaultView, tilesFor, tileUrl, routeShape } from '../lib/card-map';
 import type { GeoPoint } from '../lib/card-map';
+import { calculateKcal, formatKcal } from '../lib/calories';
 
 export type CardVariant = 'pace' | 'left' | 'bottom' | 'map';
 
@@ -19,6 +20,7 @@ export interface ShareCardData {
   date: string;
   mode: string;
   name: string;
+  calories?: string;
 }
 
 export interface StatValue {
@@ -27,8 +29,9 @@ export interface StatValue {
   value: string;
 }
 
-export function extractCardData(session: TrainingSession): ShareCardData {
+export function extractCardData(session: TrainingSession, weightKg?: number): ShareCardData {
   const avgPaceSeconds = session.totalDurationSeconds / (session.totalDistanceKm || 1);
+  const kcal = weightKg ? calculateKcal(session, weightKg) : undefined;
   return {
     distance: formatDistance(session.totalDistanceKm),
     duration: formatDuration(session.totalDurationSeconds),
@@ -39,10 +42,11 @@ export function extractCardData(session: TrainingSession): ShareCardData {
       : '',
     mode: session.mode === 'treadmill' ? 'Esteira' : 'Rua',
     name: session.planName || 'Corrida',
+    calories: kcal ? formatKcal(kcal) : undefined,
   };
 }
 
-export const STAT_ORDER = ['distance', 'pace', 'duration', 'speed', 'date', 'mode'] as const;
+export const STAT_ORDER = ['distance', 'pace', 'duration', 'speed', 'date', 'mode', 'calories'] as const;
 
 export const STAT_LABELS: Record<string, string> = {
   distance: 'Distância',
@@ -51,6 +55,7 @@ export const STAT_LABELS: Record<string, string> = {
   speed: 'km/h',
   date: 'Data',
   mode: 'Modo',
+  calories: 'Calorias',
 };
 
 export const STAT_CHIP_LABELS: Record<string, string> = {
@@ -62,6 +67,7 @@ export const STAT_CHIP_LABELS: Record<string, string> = {
   mode: 'Modo',
   name: 'Treino',
   logo: 'Logo',
+  calories: 'Calorias',
 };
 
 export function gridCells(showStats: Record<string, boolean>): string[] {
@@ -76,6 +82,7 @@ export function statFor(key: string, data: ShareCardData): StatValue {
     speed: data.speed,
     date: data.date,
     mode: data.mode,
+    calories: data.calories ?? '',
   };
   return { key, label: STAT_LABELS[key] ?? key, value: values[key] ?? '' };
 }
@@ -277,7 +284,7 @@ export default function ShareCard({ data, variant, showStats, session, gradient 
   const backgroundStyle: CSSProperties = transparent
     ? { background: 'transparent' }
     : isPhoto
-      ? { backgroundImage: `url(${photoUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
+      ? { background: `url(${photoUrl}) center / cover no-repeat` }
       : { background: gradient.css };
   const rootStyle: CSSProperties = { width: 1080, height: 1920, ...backgroundStyle, ...style };
 

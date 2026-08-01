@@ -26,6 +26,7 @@ import MonthCalendar from './components/MonthCalendar';
 import BottomSheet from './components/BottomSheet';
 import GoogleCalendarModal from './components/GoogleCalendarModal';
 import { useTreadmill, type TreadmillConnection } from './lib/use-treadmill';
+import { useBackHandler } from './lib/hooks/useBackHandler';
 import { getAuth, getDb } from './lib/firebase';
 import { applySessionToRecords, emptyRecords, readRecords, saveRecords, recomputeRecords, backfillRecords, type Records } from './lib/records';
 import { downloadIcal } from './lib/ical';
@@ -37,6 +38,7 @@ import { exportWorkoutToHealthConnect } from './lib/capacitor/health-connect';
 import type { WorkoutExport, SyncStatus } from './lib/capacitor/health-connect';
 import { sendWorkoutToStravaViaEmail, handleGmailWebCallback } from './lib/gmailApi';
 import { checkForUpdate, downloadApkAndInstall, canInstallApk, openInstallSettings, type UpdateInfo } from './lib/update-checker';
+import { initNotificationChannel, requestNotificationPermission, scheduleWorkoutReminder, cancelWorkoutReminder, rescheduleWorkoutReminder, rescheduleAllReminders } from './lib/notifications';
 import UpdatePrompt from './components/UpdatePrompt';
 import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
@@ -84,7 +86,7 @@ export default function App() {
   const [programToReview, setProgramToReview] = useState<TrainingProgram | null>(null);
   const [planToDelete, setPlanToDelete] = useState<WorkoutPlan | null>(null);
   const [reschedulePlanId, setReschedulePlanId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>('treinos');
+const [activeTab, setActiveTab] = useState<TabId>('treinos');
   const [isLoading, setIsLoading] = useState(true);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [saveFeedback, setSaveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -98,7 +100,6 @@ export default function App() {
   const [pendingOAuthToken, setPendingOAuthToken] = useState<string | null>(null);
   const [showBackgroundPrompt, setShowBackgroundPrompt] = useState(false);
   const [appCameFromSettings, setAppCameFromSettings] = useState(false);
-const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
   const [planToUncomplete, setPlanToUncomplete] = useState<WorkoutPlan | null>(null);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updateInstallBlocked, setUpdateInstallBlocked] = useState(false);
@@ -118,29 +119,7 @@ const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
     setTimeout(() => setSaveFeedback(null), 3000);
   };
 
-  // Define a ação do botão back baseada no estado atual
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform() || activePlan) {
-      setBackActionStack([]);
-      return;
-    }
-
-    const actions: Array<() => void> = [];
-
-    // Ordem de prioridade (último = topo da pilha = executa primeiro)
-    if (activeTab !== 'treinos') actions.push(() => setActiveTab('treinos'));
-    if (showGoogleCalendarModal) actions.push(() => setShowGoogleCalendarModal(false));
-    if (reschedulePlanId) actions.push(() => setReschedulePlanId(null));
-    if (planToDelete) actions.push(() => setPlanToDelete(null));
-    if (planToUncomplete) actions.push(() => setPlanToUncomplete(null));
-    if (workoutToStart) actions.push(() => setWorkoutToStart(null));
-    if (programToReview) actions.push(() => setProgramToReview(null));
-    if (showGenerator) actions.push(() => setShowGenerator(false));
-    if (showSignup) actions.push(() => setShowSignup(false));
-    if (showBackgroundPrompt) actions.push(() => setShowBackgroundPrompt(false));
-
-    setBackActionStack(actions);
-  }, [showSignup, activeTab, showGenerator, programToReview, workoutToStart, planToDelete, reschedulePlanId, planToUncomplete, showGoogleCalendarModal, showBackgroundPrompt, activePlan]);
+  
 
   const applyThemeClass = (light?: boolean) => {
     const isLight = light ?? !window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -440,31 +419,56 @@ const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
     }
   }, []);
 
-  // Back button: double-press to exit (only on main screen, not during workout)
+// Back button handler centralizado via hook
+  const { register } = useBackHandler();
+
+  // Registrar contexts de back button por prioridade
   useEffect(() => {
-    if (!Capacitor.isNativePlatform() || activePlan) return;
+    const unregisters: (() => void)[] = [];
 
-    let lastBack = 0;
-    let handler: { remove: () => void };
+    // Prioridade 100: Modais
+    if (showSignup) unregisters.push(register('signup-modal', 100, () => setShowSignup(false), () => showSignup));
+    if (showGoogleCalendarModal) unregisters.push(register('gcal-modal', 100, () => setShowGoogleCalendarModal(false), () => showGoogleCalendarModal));
+    if (showBackgroundPrompt) unregisters.push(register('bg-prompt', 100, () => setShowBackgroundPrompt(false), () => showBackgroundPrompt));
+    if (showPlanSheet) unregisters.push(register('plan-sheet', 100, () => setShowPlanSheet(false), () => showPlanSheet));
+    if (updateInfo) unregisters.push(register('update-prompt', 100, () => setUpdateInfo(null), () => updateInfo));
+    if (planToDelete) unregisters.push(register('delete-plan', 100, () => setPlanToDelete(null), () => planToDelete));
+    if (planToUncomplete) unregisters.push(register('uncomplete-plan', 100, () => setPlanToUncomplete(null), () => planToUncomplete));
+    if (reschedulePlanId) unregisters.push(register('reschedule-plan', 100, () => setReschedulePlanId(null), () => reschedulePlanId));
+    if (programToReview) unregisters.push(register('program-review', 100, () => setProgramToReview(null), () => programToReview));
+    if (showSignup) unregisters.push(register('signup-modal', 100, () => setShowSignup(false), () => showSignup));
 
-CapApp.addListener('backButton', () => {
-      if (backActionStack.length > 0) {
-        const action = backActionStack[backActionStack.length - 1];
-        action();
-        setBackActionStack(prev => prev.slice(0, -1));
-        return;
-      }
-      const now = Date.now();
-      if (now - lastBack < 2000) {
-        CapApp.exitApp();
-      } else {
-        lastBack = now;
-        showFeedback('success', 'Pressione VOLTAR novamente para fechar o app');
-      }
-    }).then((h) => { handler = h; });
+    // Prioridade 80: Painéis/estados expansíveis
+    if (selectedSession) unregisters.push(register('session-summary', 80, () => setSelectedSession(null), () => selectedSession));
+    if (expandedPlanId) unregisters.push(register('expanded-plan', 80, () => setExpandedPlanId(null), () => expandedPlanId));
+    if (workoutToStart) unregisters.push(register('workout-start', 80, () => setWorkoutToStart(null), () => workoutToStart));
+    if (isEditing) unregisters.push(register('editing', 80, () => setIsEditing(false), () => isEditing));
+    if (showGenerator) unregisters.push(register('generator', 80, () => setShowGenerator(false), () => showGenerator));
+    if (programToReview) unregisters.push(register('program-review', 80, () => setProgramToReview(null), () => programToReview));
+    if (activeTab !== 'treinos') unregisters.push(register('tab-nav', 80, () => setActiveTab('treinos'), () => activeTab !== 'treinos'));
 
-    return () => { handler?.remove(); };
-  }, [activePlan, backActionStack, showFeedback]);
+    // Prioridade 10: Exit app (double-tap)
+    // O hook já trata o double-tap para exit quando não há contexts ativos
+
+    return () => { unregisters.forEach(u => u()); };
+  }, [
+    register,
+    showSignup,
+    showGoogleCalendarModal,
+    showBackgroundPrompt,
+    showPlanSheet,
+    updateInfo,
+    planToDelete,
+    planToUncomplete,
+    reschedulePlanId,
+    programToReview,
+    selectedSession,
+    expandedPlanId,
+    workoutToStart,
+    isEditing,
+    showGenerator,
+    activeTab,
+  ]);
 
   const doGpsWarmup = async () => {
     try {
@@ -546,6 +550,8 @@ CapApp.addListener('backButton', () => {
       try {
         await requestAllPermissions();
         await checkRunWarmup();
+        // Inicializar canal de notificações
+        await initNotificationChannel();
       } catch (e: any) {
         console.warn('[App.tsx] requestAllPermissions falhou:', e?.message);
       }
@@ -633,6 +639,11 @@ CapApp.addListener('backButton', () => {
         if (plan) plansToDelete.push(plan);
     }
     
+    // Cancelar notificações dos planos deletados
+    for (const plan of plansToDelete) {
+      await cancelWorkoutReminder(plan.id);
+    }
+    
     updatePlansState(updatedPlans);
     setPlanToDelete(null);
     showFeedback('success', 'Plano removido com sucesso!');
@@ -672,12 +683,19 @@ CapApp.addListener('backButton', () => {
     } else {
         const updatedPlans = plans.map(p => p.id === plan.id ? {...p, isCompleted: true} : p);
         updatePlansState(updatedPlans, 'Atividade concluída!');
+        await cancelWorkoutReminder(plan.id);
     }
   }
 
   const uncompletePlan = async (plan: WorkoutPlan) => {
     const updatedPlans = plans.map(p => p.id === plan.id ? {...p, isCompleted: false} : p);
     updatePlansState(updatedPlans);
+    
+    // Reagendar lembrete se o treino foi desmarcado como concluído
+    const planToReschedule = plans.find(p => p.id === plan.id);
+    if (planToReschedule) {
+      await scheduleWorkoutReminder(planToReschedule);
+    }
     
     // Find and delete session
     if (user) {
@@ -856,11 +874,15 @@ CapApp.addListener('backButton', () => {
     if (!targetPlan || !targetPlan.scheduledDate) {
       const updated = plans.map(p => p.id === planId ? { ...p, scheduledDate: newDate } : p);
       updatePlansState(updated);
+      const newPlan = updated.find(p => p.id === planId);
+      if (newPlan) scheduleWorkoutReminder(newPlan);
       return;
     }
     if (mode === 'single') {
       const updated = plans.map(p => p.id === planId ? { ...p, scheduledDate: newDate } : p);
       updatePlansState(updated);
+      const newPlan = updated.find(p => p.id === planId);
+      if (newPlan) scheduleWorkoutReminder(newPlan);
       return;
     }
     const programId = targetPlan.generatedFromProgramId;
@@ -899,6 +921,13 @@ CapApp.addListener('backButton', () => {
       return p;
     });
     updatePlansState(updated);
+    // Reagendar notificações para todos os planos afetados
+    updated.forEach(p => {
+      if (p.id === planId || rescheduleMap.has(p.id)) {
+        const rescheduledPlan = updated.find(x => x.id === p.id);
+        if (rescheduledPlan) scheduleWorkoutReminder(rescheduledPlan);
+      }
+    });
   };
 
   const calculateTotalDuration = (plan: WorkoutPlan) => {
@@ -1006,6 +1035,7 @@ CapApp.addListener('backButton', () => {
               <SessionSummary 
                 session={selectedSession} 
                 plan={plans.find(p => p.id === selectedSession.planId)}
+                profile={profile}
                 showFeedback={showFeedback}
                 onClose={() => setSelectedSession(null)} 
                 onSuggestAdjustment={(adjustedPlan) => {
@@ -1512,6 +1542,7 @@ CapApp.addListener('backButton', () => {
                     user={user!}
                     initialProfile={profile}
                     initialSettings={settings}
+                    plans={plans}
                     isLightMode={isLightMode}
                     onToggleTheme={toggleDarkMode}
                     showFeedback={showFeedback}
