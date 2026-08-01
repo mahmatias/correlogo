@@ -9,6 +9,7 @@ interface State {
 }
 
 export default class ErrorBoundary extends Component<Props, State> {
+  props: Props;
   state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
@@ -38,6 +39,6 @@ export default class ErrorBoundary extends Component<Props, State> {
         </div>
       );
     }
-    return (this as unknown as Props).children;
+    return this.props.children;
   }
 }

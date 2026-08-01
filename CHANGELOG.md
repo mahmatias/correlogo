@@ -1,5 +1,28 @@
 # Changelog
 
+## [2026-07-31m] — APK 147 (148 na próxima) voltou a quebrar boot: ErrorBoundary renderizava `this.children` (undefined)
+
+### Sintoma
+- Após auto-update para o 147, splash some e a tela fica azul vazia (mesmo sintoma do 138). Root do React vazio, **sem erro de console** (o boot JavaScript roda, mas o App nunca monta).
+
+### Root cause
+- O `ErrorBoundary` novo (sessão anterior) fazia `return (this as unknown as Props).children;`. Sem `@types/react`, o `Component` é `any`, e o cast TS é removido no runtime → o código compila para **`this.children`**, que **não existe** no React (class components guardam children em **`this.props.children`**). Resultado: o boundary renderiza `undefined` → o `<App/>` nunca monta → root vazio. Retornar `undefined` de um boundary **não lança erro** — por isso o boot roda, o render é chamado, e nada aparece, sem nada no console.
+- **Por que passou no CI/validação da sessão anterior**: nenhum teste montava o ErrorBoundary; o headless do CI só roda `npm run build` (não testa boot em browser).
+
+### Correção
+- `src/components/ErrorBoundary.tsx`: `return this.props.children;` (e declaração `props: Props;` para o TS sem `@types/react`).
+
+### Guard de regressão
+- **`src/lib/__tests__/error-boundary.test.tsx`** (novo, 2 testes):
+  1. renderiza children (falhava com `''` — é exatamente o boot morto);
+  2. renderiza o fallback quando há erro no state.
+- Validação headless (Chrome headless + harness com `window.onerror`/`unhandledrejection`): **antes** root vazio 0 bytes; **depois** root 862 chars com logo + spinner e log `"[CorreLogo-JS] App componente renderizado"`.
+
+### Build
+- `npm test` ✅ 55/55 (+2 guard) · `npm run lint` ✅ 21 erros (baseline pré-existente, **0 novos**) · `npm run build` ✅ · `npx cap sync android` ✅ (9 plugins) · `gradlew assembleDebug` ✅ (4s) · boot headless ✅
+
+---
+
 ## [2026-07-31l] — Causa raiz do APK 138 encontrada + re-aplicação dos 4 fixes + guard de regressão
 
 ### Root cause (fecha o TBD da entrada 2026-07-31k)
