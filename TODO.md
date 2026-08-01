@@ -8,9 +8,6 @@
 ## Pendentes
 
 ### Alta (imediato)
-- [ ] **Milestones/Conquistas (EM EXECUÇÃO — Tasks 1–6 feitas; faltam 7–15)** — PRs por distância (1/2/3/4/5/10/15/21/30/35/42km, interpolação, ranking único esteira+rua) + badges (firstRun, complete*, longest*, volume*, pace*). Abordagem: doc `users/{uid}/data/records` + backfill 1ª execução; valores recomputam em delete, badges permanentes, volume monotônico; tap em recorde/badge abre o resumo da atividade. Tab bar inferior 4 abas (Treinos/Registros/Conquistas/Perfil, ícone corredor Tabler). **Status**: spec aprovado (`1b42783`), plano escrito (`docs/superpowers/plans/2026-08-01-milestones.md`), data layer commitada (`50a9067`→`0ae24e2`: records.ts + types + wiring App, 21 testes novos, 76/76). **Faltam**: Task 7 TabBar, 8 SessionHistory→aba, 9 UserProfile→aba, 11 Achievements (antes da 10), 10 abas no App, 12 celebração, 13 pill+clip, 14 BLE 15s, 15 validação. Usuário aprovou executar até Task 6 — pedir aprovação para o resto.
-- [ ] **Fix clip do traçado no ShareCard (no plano — Task 13)** — RouteSVG normaliza p/ [0..100] sem padding (ShareCard.tsx:145-148) → stroke/círculos cortados nas variantes pace/left/bottom. Fix: pad=10 interno na normalização. Entra nesta build do Milestones (emenda aprovada)
-- [ ] **BLE scan timeout 15s (no plano — Task 14)** — `TreadmillBleService.kt:287` delay(10000)→15000 + `use-treadmill.ts:108` setTimeout 11000→16000. Entra nesta build do Milestones (emenda aprovada)
 - [ ] **Figurinha no Stories — dívida técnica (nova abordagem)** — usuário estudando como outros apps fazem (a Meta parece exigir processo/asset específico além do PNG transparente). Investigar alternativas: `MediaSharePlugin` do Capacitor (intent nativo `com.instagram.share.ADD_TO_STORY`), share sheet nativo do Android, ou plugin `@capacitor/share` com MIME correto
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
@@ -34,11 +31,27 @@
 
 ---
 
+## ✅ Concluídos (Sessão 2026-08-01b — Milestones/Conquistas COMPLETA: Tasks 7–15 + build)
+
+- [x] **Plano completo aprovado** pelo usuário (após revisão dos testes Tasks 1–6)
+- [x] **Task 7** `e8a8485` — TabBar.tsx (4 abas, ícone Tabler `run`; `ReactNode` importado de `'react'` — sem `@types/react`)
+- [x] **Task 8** `533b9d4` — SessionHistory → aba Registros (remove onClose/overlay)
+- [x] **Task 9** `fc2902b` — UserProfile → aba Perfil + Preferências → Tema (Escuro/Claro)
+- [x] **Task 11** `25e458d` — Achievements.tsx (layout C) — antes da Task 10 (dependência)
+- [x] **Task 10** `c0b8b80` — App.tsx: `activeTab`, back handler, header só logo, abas por condicional, `onExportSession`/`onDeleteSession` movidos (fonte única), TabBar no rodapé com guard de estados transientes
+- [x] **Task 12** `af33509` — SessionSummary: celebração (🏆/🎖️ âmbar) após a grade 2×2
+- [x] **Task 13** `fb3e4fa` — ShareCard: pill `★ Novo recorde` (4 variantes) + fix clip RouteSVG (pad 10)
+- [x] **Task 14** `45ddc6b` — BLE: TreadmillBleService delay 15s + use-treadmill timeout 16s
+- [x] **Task 15** — validação completa: npm test 76/76 · lint 21 (0 novos) · `Copy-Item .env.apk→.env` · `npm run build` ✓ · `cap sync android` ✓ (9 plugins) · `gradlew.bat assembleDebug` ✓ BUILD SUCCESSFUL · docs (CHANGELOG `[2026-08-01b]`, HANDOFF, TODO, spec emenda)
+- [ ] **Aguardando**: push `main` → CI → release assinada → validar no device (abas, conquistas, celebração, pill, BLE 15s)
+
+---
+
 ## ✅ Concluídos (Sessão 2026-08-01a — Milestones: spec + plano + data layer Tasks 1–6)
 
 - [x] **Spec de Milestones/Conquistas + Tab Bar aprovado** e commitado (`1b42783`, junto com `TODO.md`)
 - [x] **Decisões finais do usuário**: cor da aba ativa = accent; `prResults` transitório (só no `selectedSession` em memória); clip RouteSVG + BLE 15s **entram nesta build**
-- [x] **Plano de implementação escrito** em `docs/superpowers/plans/2026-08-01-milestones.md` (15 tasks, código inline, self-review sem placeholders) — ainda untracked
+- [x] **Plano de implementação escrito** em `docs/superpowers/plans/2026-08-01-milestones.md` (15 tasks, código inline, self-review sem placeholders) — commitado em `084fc7e`
 - [x] **Task 1** `50a9067` — records.ts: tipos, PR_DISTANCES, BADGE_LABELS/GROUPS, computeCrossingTime (TDD, 5 testes)
 - [x] **Task 2** `2445c5d` — applySessionToRecords (PRs → longest → volume → badges; 12 testes)
 - [x] **Task 3** `b897988` — recomputeRecords (delete: PRs+longest recuam; badges/volume intactos; 3 testes)
@@ -46,7 +59,7 @@
 - [x] **Task 5** `165a60f` — PrResults + `prResults?: PrResults` em types.ts
 - [x] **Task 6** `0ae24e2` — wiring no App: estado records, hook markAsCompleted, backfill no init, recompute nos 3 deletes
 - [x] **Validação**: npm test 76/76 (21 novos) · lint 21 (baseline, 0 novos)
-- [ ] **Pendente (aprovado só até Task 6)**: Tasks 7–15 (TabBar, abas, Achievements, celebração, pill+clip, BLE, build final)
+- [x] **Tasks 7–15 concluídas** em seguida (Sessão 2026-08-01b — ver seção acima)
 
 ---
 

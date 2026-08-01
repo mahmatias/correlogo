@@ -1,5 +1,29 @@
 # Changelog
 
+## [2026-08-01b] — Milestones/Conquistas completa: tab bar 4 abas, Conquistas, celebração, pill/clip e BLE 15s (Tasks 7–15)
+
+### O que entrou
+- **`src/components/TabBar.tsx`** (novo): tab bar inferior fixa (4 abas Treinos/Registros/Conquistas/Perfil, ícone corredor Tabler `run` inline, acento ativo, escondida em fluxos transientes via condição no App).
+- **`src/components/Achievements.tsx`** (novo): aba Conquistas layout C — destaques (recordes · conquistas · km totais), lista RECORDES (11 distâncias, `—` para ausentes, link para o resumo), grade de BADGES (medalha/lock, data de desbloqueio), "Como os recordes funcionam".
+- **`src/App.tsx`**: navegação por `activeTab` (`TabId`); back handler prioriza modais e depois volta para `treinos`; header só logo + saudação; abas Registros/Conquistas/Perfil renderizadas por condicional; `SessionHistory`/`UserProfile` agora são abas (removidos overlays `showHistory`/`showUserProfile`); `onExportSession`/`onDeleteSession` movidos para a aba Registros (fonte única).
+- **`src/components/SessionHistory.tsx`**: vira aba **Registros** (remove `onClose`/invólucro modal; cabeçalho "Registros").
+- **`src/components/UserProfile.tsx`**: vira aba **Perfil** (remove `open`/`onClose`; effect roda no mount; salvar não fecha) + nova seção **Preferências → Tema** (Escuro/Claro via `onToggleTheme`).
+- **`src/components/SessionSummary.tsx`**: bloco de celebração após a grade 2×2 — "Novos recordes" (🏆) + "Conquistas desbloqueadas" (🎖️, pills âmbar), só quando há novidade (`session.prResults`).
+- **`src/components/ShareCard.tsx`**: pill âmbar `★ Novo recorde: X km · tempo [+N]` (top:200, zIndex 30, pointer-events none) nas 4 variantes não-transparentes; **fix do clip**: RouteSVG normaliza com pad interno de 10 (traçado/círculos não tocam mais as bordas).
+- **`TreadmillBleService.kt`** (delay 10s→**15s**) + **`use-treadmill.ts`** (setTimeout 11s→**16s**): scan BLE com mais folga para esteiras demoradas.
+
+### Validação
+- `npm test` ✅ **76/76** (10 arquivos) · `npm run lint` ✅ **21 erros pré-existentes, 0 novos** (TabBar/Achievements/App/ShareCard/UserProfile/SessionSummary/use-treadmill limpos).
+- Build: `.env.apk`→`.env` ✅ · `npm run build` ✅ (Vite 6.34s) · `npx cap sync android` ✅ (9 plugins) · `gradlew assembleDebug` ✅ **BUILD SUCCESSFUL** (28s, JAVA_HOME 21).
+
+### Commits (`[skip ci]`)
+- `e8a8485` TabBar · `533b9d4` SessionHistory→Registros · `fc2902b` UserProfile→Perfil+Tema · `25e458d` Achievements · `c0b8b80` App tabs · `af33509` celebração Summary · `fb3e4fa` pill+clip · `45ddc6b` BLE 15s.
+
+### Próximo
+- Push para `main` → CI (build + release assinada) → validar no device: abas, conquistas, celebração no resumo, pill no ShareCard, scan BLE com 15s. Figurinha Stories e demais pendências seguem no TODO.md.
+
+---
+
 ## [2026-08-01a] — Milestones/Conquistas: camada de dados (records) completa (Tasks 1–6)
 
 ### O que entrou

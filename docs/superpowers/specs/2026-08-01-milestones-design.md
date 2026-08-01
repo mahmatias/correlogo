@@ -6,6 +6,8 @@ Adicionar **recordes pessoais (PRs) por distância** e **badges de conquista**, 
 
 ## Decisões aprovadas (mocks `brain-20260801-111031`)
 
+- **Emenda 2026-08-01**: **Fix do clip do traçado no ShareCard** (RouteSVG normaliza com **pad interno de 10**, `x = 10 + ((lon-minLon)/w)*80`, `y = 10 + ((maxLat-lat)/h)*80`, `viewBox="0 0 100 100"` mantido — o traçado não toca mais as bordas) e **timeout BLE 15s** (`TreadmillBleService.kt` `delay(10000)`→`delay(15000)`; `use-treadmill.ts` `setTimeout 11000`→`16000`) **entram nesta build** (decidido pelo usuário).
+
 - **PR = tempo ao cruzar a distância via interpolação** nos `points` (estilo Strava). Distâncias: **1, 2, 3, 4, 5, 10, 15, 21, 30, 35, 42 km**. **Ranking único** esteira + rua.
 - **Badges** (IDs + rótulos PT-BR), agrupadas em 4 grupos:
   - **Corridas**: `firstRun` "1ª corrida"; `complete5k/10k/21k/42k` "Completei 5/10/21/42 km".
@@ -151,4 +153,3 @@ Se `session.prResults?.newPrs.length > 0`: pill âmbar (`bg #241b0e`, borda `#7a
 ## Fora de escopo (não fazer agora)
 
 - Figurinha Stories, Health Connect permission intent, alinhamento de deps Capacitor (TODO.md — outras frentes).
-- Fix do clip do traçado no ShareCard e timeout BLE 15s (pausados; devem ir em batch própria, não neste spec).
