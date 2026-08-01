@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { User, updateProfile, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { ShieldCheck, ShieldOff, RefreshCw, Mail, Download } from 'lucide-react';
-import Modal from './Modal';
 import Button from './Button';
 import { ProfileData, SettingsData, BRAZILIAN_STATES, GENDER_OPTIONS } from '../types';
 import { getAuth, getDb } from '../lib/firebase';
@@ -13,22 +12,22 @@ import { App as CapApp } from '@capacitor/app';
 import { checkForUpdate, type UpdateInfo } from '../lib/update-checker';
 
 interface UserProfileProps {
-  open: boolean;
-  onClose: () => void;
   user: User;
   initialProfile: ProfileData | null;
   initialSettings: SettingsData | null;
+  isLightMode: boolean;
+  onToggleTheme: () => void;
   showFeedback: (type: 'success' | 'error', message: string) => void;
   onSaved: (profile: ProfileData, settings: SettingsData) => void;
   onUpdateAvailable?: (update: UpdateInfo) => void;
 }
 
 export default function UserProfile({
-  open,
-  onClose,
   user,
   initialProfile,
   initialSettings,
+  isLightMode,
+  onToggleTheme,
   showFeedback,
   onSaved,
   onUpdateAvailable,
@@ -53,7 +52,7 @@ export default function UserProfile({
   const [appInfo, setAppInfo] = useState<{ version: string; build: string } | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    // mount: carrega estado inicial do perfil
 
     setGmailConnected(isGmailConnected());
 
@@ -96,7 +95,7 @@ export default function UserProfile({
         .then(info => setAppInfo({ version: info.version, build: info.build }))
         .catch(() => {});
     }
-  }, [open]);
+  }, []);
 
   const handleWeightUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newUnit = e.target.value as 'kg' | 'lb';
@@ -151,7 +150,6 @@ export default function UserProfile({
 
       showFeedback('success', 'Perfil salvo');
       onSaved(profile, settings);
-      onClose();
     } catch (err) {
       console.error(err);
       showFeedback('error', 'Erro ao salvar perfil');
@@ -161,7 +159,8 @@ export default function UserProfile({
   const initial = displayName ? displayName[0] : (user.email?.[0] ?? '?');
 
   return (
-    <Modal open={open} onClose={onClose} title="Perfil">
+    <div className="text-text-primary">
+      <h2 className="text-2xl font-bold mb-6 text-center">Perfil</h2>
       <div className="flex justify-center mb-4">
         {user.photoURL ? (
           <img
@@ -271,6 +270,29 @@ export default function UserProfile({
             <option value="kg">kg</option>
             <option value="lb">lb</option>
           </select>
+        </div>
+      </div>
+
+      <div className="mb-3">
+        <h3 className="text-sm font-semibold text-text-secondary mb-2">Preferências</h3>
+        <div className="p-3 rounded-lg border border-border">
+          <div className="text-sm text-text-primary mb-2">Tema</div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => { if (!isLightMode) onToggleTheme(); }}
+              className={`p-2 rounded-lg text-sm font-medium ${!isLightMode ? 'bg-accent text-white' : 'bg-bg-elevated text-text-secondary'}`}
+            >
+              Escuro
+            </button>
+            <button
+              type="button"
+              onClick={() => { if (isLightMode) onToggleTheme(); }}
+              className={`p-2 rounded-lg text-sm font-medium ${isLightMode ? 'bg-accent text-white' : 'bg-bg-elevated text-text-secondary'}`}
+            >
+              Claro
+            </button>
+          </div>
         </div>
       </div>
 
@@ -407,6 +429,6 @@ export default function UserProfile({
 
       <Button variant="primary" className="w-full mt-4" onClick={handleSave}>Salvar</Button>
       <Button variant="danger" className="w-full mt-4" onClick={() => { signOut(getAuth()); }}>Sair da conta</Button>
-    </Modal>
+    </div>
   );
 }
