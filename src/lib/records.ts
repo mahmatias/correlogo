@@ -1,4 +1,6 @@
 import type { ActivityPoint, TrainingSession } from '../types';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getDb } from './firebase';
 
 export const PR_DISTANCES = [1, 2, 3, 4, 5, 10, 15, 21, 30, 35, 42];
 
@@ -182,4 +184,36 @@ export function recomputeRecords(sessions: TrainingSession[], current: Records):
     badges: current.badges,
     backfilled: current.backfilled,
   };
+}
+
+export function backfillRecords(sessions: TrainingSession[]): Records {
+  const sorted = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
+  let records = emptyRecords();
+  for (const s of sorted) {
+    records = applySessionToRecords(s, records).records;
+  }
+  return { ...records, backfilled: true };
+}
+
+export async function readRecords(uid: string): Promise<Records | null> {
+  const cached = localStorage.getItem(`correlogo:records:${uid}`);
+  if (cached) {
+    try {
+      return JSON.parse(cached) as Records;
+    } catch { /* cache corrompido */ }
+  }
+  try {
+    const snap = await getDoc(doc(getDb(), 'users', uid, 'data', 'records'));
+    if (snap.exists()) return snap.data() as Records;
+  } catch { /* offline */ }
+  return null;
+}
+
+export async function saveRecords(uid: string, records: Records): Promise<void> {
+  localStorage.setItem(`correlogo:records:${uid}`, JSON.stringify(records));
+  try {
+    await setDoc(doc(getDb(), 'users', uid, 'data', 'records'), records);
+  } catch (e) {
+    console.warn('Falha ao salvar records no Firestore (mantido apenas localmente):', e);
+  }
 }

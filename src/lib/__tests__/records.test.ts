@@ -223,3 +223,19 @@ describe('recomputeRecords', () => {
     expect(next.backfilled).toBe(base.backfilled);
   });
 });
+
+import { backfillRecords } from '../records';
+
+describe('backfillRecords', () => {
+  it('aplica em ordem cronológica mesmo com lista fora de ordem', () => {
+    const older = session({ id: 'old', date: '2026-06-01T10:00:00.000Z', points: pts([0, 10], [0, 3600]), totalDistanceKm: 10 });
+    const newer = session({ id: 'new', date: '2026-07-01T10:00:00.000Z', points: pts([0, 5], [0, 1500]), totalDistanceKm: 5 });
+    const records = backfillRecords([newer, older]);
+
+    expect(records.backfilled).toBe(true);
+    expect(records.totalVolumeKm).toBeCloseTo(15, 6);
+    expect(records.longestDistance?.km).toBeCloseTo(10, 6);
+    expect(records.longestDistance?.sessionId).toBe('old');
+    expect(records.badges.firstRun).toBeDefined();
+  });
+});
