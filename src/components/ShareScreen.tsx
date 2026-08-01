@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Camera, ClipboardCopy, Download, Instagram, Map as MapIcon, MessageCircle, Share2, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, ClipboardCopy, Download, Instagram, Map as MapIcon, MessageCircle, Share2, SlidersHorizontal, X, Image, Aperture } from 'lucide-react';
 import { Camera as CameraPlugin, CameraResultType, CameraSource } from '@capacitor/camera';
 import ShareCard, { extractCardData, gridCells, STAT_CHIP_LABELS } from './ShareCard';
 import type { CardVariant } from './ShareCard';
-import { captureCard, captureSticker, shareImage, copyCardToClipboard, saveCardToGallery, shareToWhatsApp } from '../lib/shareCard';
+import { captureCard, captureSticker, shareImage, copyCardToClipboard, saveCardToGallery } from '../lib/shareCard';
 import { GRADIENT_PRESETS } from '../lib/gradients';
 import type { GradientPreset } from '../lib/gradients';
 import Button from './Button';
@@ -88,11 +88,13 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
     setShowStats(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const pickPhoto = async () => {
+  const [photoSource, setPhotoSource] = useState<'camera' | 'gallery' | null>(null);
+
+  const pickPhoto = async (source: CameraSource) => {
     try {
       const photo = await CameraPlugin.getPhoto({
         resultType: CameraResultType.Base64,
-        source: CameraSource.Photos,
+        source,
         quality: 90,
         width: 1080,
       });
@@ -101,6 +103,8 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
     } catch (err) {
       console.error('[pick-photo]', err);
       showFeedback?.('error', 'Não foi possível carregar a foto');
+    } finally {
+      setPhotoSource(null);
     }
   };
 
@@ -195,11 +199,15 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
             ref={carouselRef}
             onScroll={onCarouselScroll}
             className="overflow-x-auto snap-x snap-mandatory no-scrollbar mb-2"
-            style={{ scrollSnapType: 'x mandatory' }}
+            style={{
+              scrollSnapType: 'x mandatory',
+              scrollPadding: '0 calc(50% - 162px)', // center snap points (half container - half item)
+              width: '100%',
+            }}
           >
-            <div style={{ display: 'flex', width: PREVIEW_W * variants.length }}>
+            <div style={{ display: 'flex', gap: 8, padding: '0 4px' }}>
               {variants.map((v, i) => (
-                <div key={v} className="snap-center" style={{ width: PREVIEW_W, flexShrink: 0, padding: '0 4px' }}>
+                <div key={v} className="snap-center" style={{ width: PREVIEW_W, flexShrink: 0, scrollSnapAlign: 'center' }}>
                   {i === cardIndex && (
                     <div style={{ aspectRatio: '9/16', overflow: 'hidden', borderRadius: 12 }}>
                       <div style={{ width: 1080, height: 1920, transform: `scale(${CARD_SCALE})`, transformOrigin: 'top left' }}>
@@ -277,7 +285,7 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
 
               {variant !== 'map' && (
                 <div className="flex gap-2">
-                  <Button variant="secondary" size="md" onClick={pickPhoto} className="flex items-center gap-2 flex-1">
+                  <Button variant="secondary" size="md" onClick={() => setPhotoSource('camera')} className="flex items-center gap-2 flex-1">
                     <Camera className="w-4 h-4" /> Foto de fundo
                   </Button>
                   {photoUrl && (
@@ -285,6 +293,36 @@ export default function ShareScreen({ session, onClose, showFeedback }: Props) {
                       Remover foto
                     </Button>
                   )}
+                </div>
+              )}
+
+              {photoSource && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setPhotoSource(null)}>
+                  <div className="bg-bg-surface rounded-xl p-4 w-full max-w-sm mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+                    <div className="text-sm font-semibold text-text-primary mb-3">Escolher foto de fundo</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => pickPhoto(CameraSource.Camera)}
+                        className="flex flex-col items-center gap-2 p-4 rounded-lg bg-bg-elevated border border-border"
+                      >
+                        <Aperture className="w-8 h-8 text-accent" />
+                        <span className="text-sm font-medium">Câmera</span>
+                      </button>
+                      <button
+                        onClick={() => pickPhoto(CameraSource.Photos)}
+                        className="flex flex-col items-center gap-2 p-4 rounded-lg bg-bg-elevated border border-border"
+                      >
+                        <Image className="w-8 h-8 text-accent" />
+                        <span className="text-sm font-medium">Galeria</span>
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setPhotoSource(null)}
+                      className="w-full mt-3 py-2 rounded-lg text-text-secondary"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
