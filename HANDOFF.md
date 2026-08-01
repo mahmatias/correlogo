@@ -1,5 +1,25 @@
 # Handoff
 
+## Session Context (2026-08-01a — Milestones/Conquistas: data layer completa (Tasks 1–6), UI pendente)
+
+### What happened
+- **Spec aprovado** (`docs/superpowers/specs/2026-08-01-milestones-design.md`, commit `1b42783`) e **plano escrito** (`docs/superpowers/plans/2026-08-01-milestones.md`, 15 tasks, código inline, TDD). Usuário decidiu **incluir nesta build** os 2 itens fora de escopo: fix clip RouteSVG + timeout BLE 15s.
+- **Tasks 1–6 executadas** (TDD estrito) — camada de dados Milestones completa:
+  - `src/lib/records.ts` (novo): `PR_DISTANCES`, `BADGE_LABELS`/`BADGE_GROUPS`, `computeCrossingTime` (interpolação), `applySessionToRecords`, `emptyRecords`, `recomputeRecords` (PRs+longest, não toca badges/volume), `backfillRecords`, `readRecords`/`saveRecords` (localStorage `correlogo:records:{uid}` + Firestore `users/{uid}/data/records` sem merge).
+  - `src/types.ts`: `PrResults` + `prResults?: PrResults` transitório em `TrainingSession`.
+  - `src/App.tsx`: estado `records`, hook no `markAsCompleted` (`setSelectedSession({ ...newSession, prResults })`), backfill no `finally` do load, recompute nos 3 deletes.
+- **Validação**: `npm test` 76/76 (21 novos) · `npm run lint` 21 (baseline, 0 novos). **`npm run build`/`gradle` NÃO rodados** — feature ainda não é visível (Tasks 7–15 pendentes).
+- **Commits** (`[skip ci]`): `50a9067`, `2445c5d`, `b897988`, `7302f4c`, `165a60f`, `0ae24e2`. Plano ainda **untracked** (não commitado).
+
+### Cautions for next session
+1. **Continuar do Task 7** (TabBar) — respeitar a ordem **Task 11 (Achievements) antes da Task 10** (wiring das abas no App). Usuário aprovou executar **até a Task 6**; para as demais, pedir aprovação.
+2. **Antes de `npm run build`**: `Copy-Item -Path ".env.apk" -Destination ".env" -Force` (nunca `.env.dev`). Antes de `gradlew`: `$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"`.
+3. **Não commitar** `app-release-v139.apk` (untracked na raiz) nem `.env`. O plano `docs/superpowers/plans/2026-08-01-milestones.md` está untracked — decidir se commitá-lo.
+4. `onDeleteSession` da Task 6 será **movido** para a aba Registros na Task 10 (Step 5 substitui; a nota do plano diz para ignorar a Task 6 Step 7 se o callback for movido inteiro).
+5. Baseline: 21 erros de lint pré-existentes (App.tsx 352/874–890, WorkoutTracker, SessionHistory, UserProfile, tracking.ts, ical.ts, treadmill-machine.ts, vite.config.ts) — não aumentar. Sem `@types/react` (React novo é implicit-any).
+
+---
+
 ## Session Context (2026-07-31m — APK 147 boot quebrado de novo: ErrorBoundary `this.children` → `undefined`)
 
 ### What happened
