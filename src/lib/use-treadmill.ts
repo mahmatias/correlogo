@@ -100,12 +100,12 @@ export function useTreadmill(simulateBle?: boolean): TreadmillConnection {
     setState('SCANNING');
     clearScanTimeout();
     // Caso o plugin nativo não emita um evento "scan finished", manter o estado SCANNING visível
-    // até o timeout nativo (10s em TreadmillBleService.startScan) + pequena margem.
+    // até o timeout nativo (15s em TreadmillBleService.startScan) + pequena margem.
     scanTimeoutRef.current = setTimeout(() => {
       if (transportTypeRef.current) {
         setState('DISCONNECTED');
       }
-    }, 11000);
+    }, 16000);
     try {
       const transport = ensureTransport();
       await transport.scan((device) => {
