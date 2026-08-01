@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar, Bluetooth, BluetoothSearching, BluetoothConnected, X, Check } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
-import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData } from './types';
+import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData, PrResults } from './types';
 import WorkoutTracker from './components/WorkoutTracker';
 import ImportPlan from './components/ImportPlan';
 import WorkoutEditor from './components/WorkoutEditor';
@@ -25,6 +25,7 @@ import BottomSheet from './components/BottomSheet';
 import GoogleCalendarModal from './components/GoogleCalendarModal';
 import { useTreadmill, type TreadmillConnection } from './lib/use-treadmill';
 import { getAuth, getDb } from './lib/firebase';
+import { applySessionToRecords, emptyRecords, readRecords, saveRecords, recomputeRecords, backfillRecords, type Records } from './lib/records';
 import { downloadIcal } from './lib/ical';
 import { keepAwake, allowSleep } from './lib/capacitor/wakeLock';
 import { requestAllPermissions } from './lib/capacitor/permissions';
@@ -86,6 +87,7 @@ export default function App() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [saveFeedback, setSaveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
+  const [records, setRecords] = useState<Records | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [showPlanSheet, setShowPlanSheet] = useState(false);
@@ -312,6 +314,15 @@ const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
               localStorage.setItem(localSessionsKey, JSON.stringify(updated));
               setSessions(updated);
             } catch { /* tenta na próxima inicialização */ }
+          }
+          try {
+            const allSessions: TrainingSession[] = JSON.parse(localStorage.getItem(localSessionsKey) || '[]');
+            const existing = await readRecords(user.uid);
+            const recs = existing ?? backfillRecords(allSessions);
+            if (!existing) await saveRecords(user.uid, recs);
+            setRecords(recs);
+          } catch (e) {
+            console.error('Erro ao carregar recordes:', e);
           }
           setIsLoading(false);
           setInitialized(true);
@@ -643,6 +654,13 @@ CapApp.addListener('backButton', () => {
             
             setSessions(sessionsToKeep);
             localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(sessionsToKeep));
+
+            const recs = await readRecords(user.uid);
+            if (recs) {
+                const next = recomputeRecords(sessionsToKeep, recs);
+                await saveRecords(user.uid, next);
+                setRecords(next);
+            }
         } catch (e) {
             console.error("Erro ao deletar sessões do Firestore:", e);
         }
@@ -668,11 +686,15 @@ CapApp.addListener('backButton', () => {
             const sessionToDelete = sessions.find(s => s.planId === plan.id);
             if (sessionToDelete) {
                 await deleteDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionToDelete.id));
-                setSessions(s => {
-                  const updated = s.filter(si => si.id !== sessionToDelete.id);
-                  localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
-                  return updated;
-                });
+                const updatedSessions = sessions.filter(si => si.id !== sessionToDelete.id);
+                setSessions(updatedSessions);
+                localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updatedSessions));
+                const recs = await readRecords(user.uid);
+                if (recs) {
+                    const next = recomputeRecords(updatedSessions, recs);
+                    await saveRecords(user.uid, next);
+                    setRecords(next);
+                }
             }
         } catch (e) {
             console.error("Erro ao deletar sessão do Firestore:", e);
@@ -715,31 +737,37 @@ CapApp.addListener('backButton', () => {
             gmailSyncStatus: undefined,
         };
         
+        let newSession: TrainingSession;
         try {
             console.log("Salvando sessão no Firestore:", { planId: id, ...sessionStats });
             const docRef = await addDoc(collection(getDb(), 'users', user.uid, 'sessions'), stripUndefined(sessionData));
             showFeedback('success', 'Treino salvo com sucesso!');
-            const newSession: TrainingSession = { id: docRef.id, ...sessionData };
-            setSessions(s => {
-              const updated = [newSession, ...s];
-              localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
-              return updated;
-            });
-            setSelectedSession(newSession);
-            latestSessionIdRef.current = newSession.id;
+            newSession = { id: docRef.id, ...sessionData };
         } catch (e) {
             console.error("Erro ao salvar sessão no Firestore (mantida apenas localmente):", e);
             showFeedback('error', 'Falha ao salvar treino no servidor. Dados mantidos localmente.');
             const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-            const newSession: TrainingSession = { id: localId, ...sessionData };
-            setSessions(s => {
-              const updated = [newSession, ...s];
-              localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
-              return updated;
-            });
-            setSelectedSession(newSession);
-            latestSessionIdRef.current = newSession.id;
+            newSession = { id: localId, ...sessionData };
         }
+
+        let prResults: PrResults = { newPrs: [], newBadges: [] };
+        try {
+            const base = (await readRecords(user.uid)) ?? emptyRecords();
+            const { records: next, newPrs, newBadges } = applySessionToRecords(newSession, base);
+            await saveRecords(user.uid, next);
+            setRecords(next);
+            prResults = { newPrs, newBadges };
+        } catch (e) {
+            console.error("Erro ao atualizar recordes:", e);
+        }
+
+        setSessions(s => {
+          const updated = [newSession, ...s];
+          localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+          return updated;
+        });
+        setSelectedSession({ ...newSession, prResults });
+        latestSessionIdRef.current = newSession.id;
 
         const sid = latestSessionIdRef.current;
         const hcPending = pendingHcSyncRef.current;
@@ -980,13 +1008,20 @@ CapApp.addListener('backButton', () => {
                 onClose={() => setShowHistory(false)} 
                 onSelectSession={(s) => {setSelectedSession(s); setShowHistory(false);}} 
                 onDeleteSession={(sessionId) => {
-                  setSessions(s => {
-                    const updated = s.filter(si => si.id !== sessionId);
-                    if (user) localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
-                    return updated;
-                  });
-                  if (user && !sessionId.startsWith('local-')) {
-                    deleteDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionId)).catch(() => {});
+                  const updated = sessions.filter(si => si.id !== sessionId);
+                  setSessions(updated);
+                  if (user) {
+                    localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                    if (!sessionId.startsWith('local-')) {
+                      deleteDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionId)).catch(() => {});
+                    }
+                    readRecords(user.uid)
+                      .then(recs => {
+                        if (!recs) return;
+                        const next = recomputeRecords(updated, recs);
+                        return saveRecords(user.uid, next).then(() => setRecords(next));
+                      })
+                      .catch(e => console.error("Erro ao recomputar recordes:", e));
                   }
                   showFeedback('success', 'Sessão removida do histórico.');
                 }}
