@@ -14,6 +14,8 @@ import WorkoutEditor from './components/WorkoutEditor';
 import TrainingGenerator from './components/TrainingGenerator';
 import ProgramReview from './components/ProgramReview';
 import SessionHistory from './components/SessionHistory';
+import Achievements from './components/Achievements';
+import TabBar, { type TabId } from './components/TabBar';
 import Signup from './components/Signup';
 import Login from './components/Login';
 import Modal from './components/Modal';
@@ -82,11 +84,10 @@ export default function App() {
   const [programToReview, setProgramToReview] = useState<TrainingProgram | null>(null);
   const [planToDelete, setPlanToDelete] = useState<WorkoutPlan | null>(null);
   const [reschedulePlanId, setReschedulePlanId] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabId>('treinos');
   const [isLoading, setIsLoading] = useState(true);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [saveFeedback, setSaveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [showUserProfile, setShowUserProfile] = useState(false);
   const [records, setRecords] = useState<Records | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [settings, setSettings] = useState<SettingsData | null>(null);
@@ -127,6 +128,7 @@ const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
     const actions: Array<() => void> = [];
 
     // Ordem de prioridade (último = topo da pilha = executa primeiro)
+    if (activeTab !== 'treinos') actions.push(() => setActiveTab('treinos'));
     if (showGoogleCalendarModal) actions.push(() => setShowGoogleCalendarModal(false));
     if (reschedulePlanId) actions.push(() => setReschedulePlanId(null));
     if (planToDelete) actions.push(() => setPlanToDelete(null));
@@ -134,13 +136,11 @@ const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
     if (workoutToStart) actions.push(() => setWorkoutToStart(null));
     if (programToReview) actions.push(() => setProgramToReview(null));
     if (showGenerator) actions.push(() => setShowGenerator(false));
-    if (showHistory) actions.push(() => setShowHistory(false));
-    if (showUserProfile) actions.push(() => setShowUserProfile(false));
     if (showSignup) actions.push(() => setShowSignup(false));
     if (showBackgroundPrompt) actions.push(() => setShowBackgroundPrompt(false));
 
     setBackActionStack(actions);
-  }, [showSignup, showUserProfile, showHistory, showGenerator, programToReview, workoutToStart, planToDelete, reschedulePlanId, planToUncomplete, showGoogleCalendarModal, showBackgroundPrompt, activePlan]);
+  }, [showSignup, activeTab, showGenerator, programToReview, workoutToStart, planToDelete, reschedulePlanId, planToUncomplete, showGoogleCalendarModal, showBackgroundPrompt, activePlan]);
 
   const applyThemeClass = (light?: boolean) => {
     const isLight = light ?? !window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -334,7 +334,6 @@ const [backActionStack, setBackActionStack] = useState<(() => void)[]>([]);
         applyThemeClass();
         setInitialized(true);
         setIsLoading(false);
-        setShowUserProfile(false);
         finalizeAuth();
       }
     });
@@ -1002,85 +1001,6 @@ CapApp.addListener('backButton', () => {
           </div>
         ) : (
           <>
-            {showHistory && (
-              <SessionHistory 
-                sessions={sessions} 
-                onClose={() => setShowHistory(false)} 
-                onSelectSession={(s) => {setSelectedSession(s); setShowHistory(false);}} 
-                onDeleteSession={(sessionId) => {
-                  const updated = sessions.filter(si => si.id !== sessionId);
-                  setSessions(updated);
-                  if (user) {
-                    localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
-                    if (!sessionId.startsWith('local-')) {
-                      deleteDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionId)).catch(() => {});
-                    }
-                    readRecords(user.uid)
-                      .then(recs => {
-                        if (!recs) return;
-                        const next = recomputeRecords(updated, recs);
-                        return saveRecords(user.uid, next).then(() => setRecords(next));
-                      })
-                      .catch(e => console.error("Erro ao recomputar recordes:", e));
-                  }
-                  showFeedback('success', 'Sessão removida do histórico.');
-                }}
-                onExportSession={async (session, target) => {
-                    const retryHc = !target || target === 'hc';
-                    const retryGmail = !target || target === 'gmail';
-                    const hcNeeded = retryHc && (!session.hcSyncStatus || session.hcSyncStatus !== 'synced');
-                    const gmailNeeded = retryGmail && (!session.gmailSyncStatus || session.gmailSyncStatus !== 'synced');
-                    let hcResult: { success: boolean; status: SyncStatus; error?: string } | null = null;
-                    let gmailResult: { success: boolean; error?: string } | null = null;
-                    if (hcNeeded) {
-                        const exportData: WorkoutExport = {
-                            startTime: new Date(session.date).getTime(),
-                            endTime: new Date(session.date).getTime() + session.totalDurationSeconds * 1000,
-                            durationSeconds: session.totalDurationSeconds,
-                            distanceKm: session.totalDistanceKm,
-                            exerciseType: session.mode === 'treadmill' ? 'treadmill' : 'running',
-                            avgSpeedKmh: session.avgSpeedKmh,
-                            route: session.mode === 'outdoor' ? session.points
-                                .filter(p => p.lat && p.lon)
-                                .map(p => ({
-                                    lat: p.lat!,
-                                    lng: p.lon!,
-                                    altitude: p.altitude,
-                                    timestamp: new Date(session.date).getTime() + (p.timestampSeconds || 0) * 1000,
-                                }))
-                                : undefined,
-                        };
-                        hcResult = await exportWorkoutToHealthConnect(exportData);
-                    }
-                    if (gmailNeeded) {
-                        gmailResult = await sendWorkoutToStravaViaEmail(session);
-                    }
-                    if (user) {
-                        setSessions(prev => {
-                            let updated = [...prev];
-                            if (hcResult) updated = updated.map(s => s.id === session.id ? { ...s, hcSyncStatus: hcResult!.status } : s);
-                            if (gmailResult) updated = updated.map(s => s.id === session.id ? { ...s, gmailSyncStatus: gmailResult!.success ? 'synced' as const : 'failed' as const } : s);
-                            localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
-                            return updated;
-                        });
-                        if (!session.id.startsWith('local-')) {
-                            const payload: Record<string, unknown> = {};
-                            if (hcResult) payload.hcSyncStatus = hcResult.status;
-                            if (gmailResult) payload.gmailSyncStatus = gmailResult.success ? 'synced' : 'failed';
-                            setDoc(doc(getDb(), 'users', user.uid, 'sessions', session.id), payload, { merge: true }).catch(() => {});
-                        }
-                    }
-                    if (hcResult) {
-                        showFeedback(hcResult.success ? 'success' : 'error', hcResult.success ? 'Health Connect sincronizado!' : `HC: ${hcResult.error || 'erro'}`);
-                    }
-                    if (gmailResult && gmailResult.success) {
-                        showFeedback('success', 'Atividade enviada ao Strava!');
-                    } else if (gmailResult && gmailResult.error && gmailResult.error !== 'Apenas dispositivo nativo') {
-                        showFeedback('error', `Strava: ${gmailResult.error}`);
-                    }
-                }}
-              />
-            )}
             {selectedSession && (
               <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="h-8 w-8 bg-bg-elevated rounded animate-pulse" /></div>}>
               <SessionSummary 
@@ -1263,7 +1183,7 @@ CapApp.addListener('backButton', () => {
             ) : (
               <>
               <div className="sticky top-0 z-10 bg-bg-deep px-4 pb-2 pt-4">
-                <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
                     Corre Logo
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-7 h-7" aria-hidden="true">
@@ -1271,42 +1191,11 @@ CapApp.addListener('backButton', () => {
                       <path d="M15 50 C25 50, 35 43, 42 37 C35 39, 28 37, 25 33 C33 33, 45 27, 55 22 C48 32, 42 42, 38 48 C39 42, 36 38, 32 37 C28 44, 20 50, 15 50 Z" fill="var(--color-accent)" opacity="0.6" />
                     </svg>
                   </h1>
-                  <div className='flex gap-2'>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={toggleDarkMode}
-                    aria-label={isLightMode ? 'Alternar para modo escuro' : 'Alternar para modo claro'}
-                  >
-                    {isLightMode ? '🌙' : '☀️'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowHistory(true)}
-                    aria-label="Histórico de treinos"
-                  >
-                    <BarChart2 size={20} />
-                  </Button>
-                  <button
-                    onClick={() => setShowUserProfile(true)}
-                    className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center hover:opacity-90 transition-opacity overflow-hidden"
-                    aria-label="Perfil do usuário"
-                  >
-                    {user.photoURL ? (
-                      <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xs font-bold">
-                        {(profile?.displayName || user.email || '?')[0].toUpperCase()}
-                      </span>
-                    )}
-                  </button>
-                  </div>
                 </div>
-
                 <p className="text-text-secondary mt-1">Olá, <strong>{greetingName}</strong></p>
               </div>
 
+              {activeTab === 'treinos' && (
               <div className="px-4 pb-4">
               <div className="mt-4 bg-bg-surface border border-border rounded-xl overflow-hidden">
                 <button
@@ -1523,6 +1412,114 @@ CapApp.addListener('backButton', () => {
                 )}
               </div>
               </div>
+              )}
+              {activeTab === 'registros' && (
+                <div className="px-4 pb-4">
+                  <SessionHistory
+                    sessions={sessions}
+                    onSelectSession={(s) => setSelectedSession(s)}
+                    onDeleteSession={(sessionId) => {
+                      const updated = sessions.filter(si => si.id !== sessionId);
+                      setSessions(updated);
+                      if (user) {
+                        localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                        if (!sessionId.startsWith('local-')) {
+                          deleteDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionId)).catch(() => {});
+                        }
+                        readRecords(user.uid)
+                          .then(recs => {
+                            if (!recs) return;
+                            const next = recomputeRecords(updated, recs);
+                            return saveRecords(user.uid, next).then(() => setRecords(next));
+                          })
+                          .catch(e => console.error("Erro ao recomputar recordes:", e));
+                      }
+                      showFeedback('success', 'Sessão removida do histórico.');
+                    }}
+                    onExportSession={async (session, target) => {
+                        const retryHc = !target || target === 'hc';
+                        const retryGmail = !target || target === 'gmail';
+                        const hcNeeded = retryHc && (!session.hcSyncStatus || session.hcSyncStatus !== 'synced');
+                        const gmailNeeded = retryGmail && (!session.gmailSyncStatus || session.gmailSyncStatus !== 'synced');
+                        let hcResult: { success: boolean; status: SyncStatus; error?: string } | null = null;
+                        let gmailResult: { success: boolean; error?: string } | null = null;
+                        if (hcNeeded) {
+                            const exportData: WorkoutExport = {
+                                startTime: new Date(session.date).getTime(),
+                                endTime: new Date(session.date).getTime() + session.totalDurationSeconds * 1000,
+                                durationSeconds: session.totalDurationSeconds,
+                                distanceKm: session.totalDistanceKm,
+                                exerciseType: session.mode === 'treadmill' ? 'treadmill' : 'running',
+                                avgSpeedKmh: session.avgSpeedKmh,
+                                route: session.mode === 'outdoor' ? session.points
+                                    .filter(p => p.lat && p.lon)
+                                    .map(p => ({
+                                        lat: p.lat!,
+                                        lng: p.lon!,
+                                        altitude: p.altitude,
+                                        timestamp: new Date(session.date).getTime() + (p.timestampSeconds || 0) * 1000,
+                                    }))
+                                    : undefined,
+                            };
+                            hcResult = await exportWorkoutToHealthConnect(exportData);
+                        }
+                        if (gmailNeeded) {
+                            gmailResult = await sendWorkoutToStravaViaEmail(session);
+                        }
+                        if (user) {
+                            setSessions(prev => {
+                                let updated = [...prev];
+                                if (hcResult) updated = updated.map(s => s.id === session.id ? { ...s, hcSyncStatus: hcResult!.status } : s);
+                                if (gmailResult) updated = updated.map(s => s.id === session.id ? { ...s, gmailSyncStatus: gmailResult!.success ? 'synced' as const : 'failed' as const } : s);
+                                localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                                return updated;
+                            });
+                            if (!session.id.startsWith('local-')) {
+                                const payload: Record<string, unknown> = {};
+                                if (hcResult) payload.hcSyncStatus = hcResult.status;
+                                if (gmailResult) payload.gmailSyncStatus = gmailResult.success ? 'synced' : 'failed';
+                                setDoc(doc(getDb(), 'users', user.uid, 'sessions', session.id), payload, { merge: true }).catch(() => {});
+                            }
+                        }
+                        if (hcResult) {
+                            showFeedback(hcResult.success ? 'success' : 'error', hcResult.success ? 'Health Connect sincronizado!' : `HC: ${hcResult.error || 'erro'}`);
+                        }
+                        if (gmailResult && gmailResult.success) {
+                            showFeedback('success', 'Atividade enviada ao Strava!');
+                        } else if (gmailResult && gmailResult.error && gmailResult.error !== 'Apenas dispositivo nativo') {
+                            showFeedback('error', `Strava: ${gmailResult.error}`);
+                        }
+                    }}
+                  />
+                </div>
+              )}
+              {activeTab === 'conquistas' && (
+                <div className="px-4 pb-4">
+                  <Achievements
+                    records={records}
+                    sessions={sessions}
+                    onOpenSession={(sessionId) => {
+                      const found = sessions.find(s => s.id === sessionId);
+                      if (found) setSelectedSession(found);
+                      else showFeedback('error', 'Atividade não encontrada');
+                    }}
+                  />
+                </div>
+              )}
+              {activeTab === 'perfil' && (
+                <div className="px-4 pb-4">
+                  <UserProfile
+                    user={user!}
+                    initialProfile={profile}
+                    initialSettings={settings}
+                    isLightMode={isLightMode}
+                    onToggleTheme={toggleDarkMode}
+                    showFeedback={showFeedback}
+                    onSaved={handleProfileSaved}
+                    onUpdateAvailable={setUpdateInfo}
+                  />
+                </div>
+              )}
               </>
             )}
             {planToUncomplete && (
@@ -1601,18 +1598,6 @@ CapApp.addListener('backButton', () => {
             )}
           </>
         )}
-        {showUserProfile && (
-          <UserProfile
-            open={showUserProfile}
-            onClose={() => setShowUserProfile(false)}
-            user={user!}
-            initialProfile={profile}
-            initialSettings={settings}
-            showFeedback={showFeedback}
-            onSaved={handleProfileSaved}
-            onUpdateAvailable={setUpdateInfo}
-          />
-        )}
         <GoogleCalendarModal
           open={showGoogleCalendarModal}
           onClose={() => setShowGoogleCalendarModal(false)}
@@ -1678,6 +1663,9 @@ CapApp.addListener('backButton', () => {
           }}
         />
       </main>
+      {user && !isLoading && !activePlan && !selectedSession && !isEditing && !showGenerator && !programToReview && !showGoogleCalendarModal && !showSignup && !showBackgroundPrompt && !workoutToStart && !planToDelete && !planToUncomplete && !reschedulePlanId && !updateInfo && !showPlanSheet && (
+        <TabBar active={activeTab} onChange={setActiveTab} />
+      )}
     </div>
   );
 }
