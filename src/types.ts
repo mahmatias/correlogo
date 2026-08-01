@@ -86,6 +86,11 @@ export interface ActivityPoint {
 
 export type SyncStatus = 'synced' | 'pending' | 'failed';
 
+export interface PrResults {
+  newPrs: { distKm: number; timeSeconds: number }[];
+  newBadges: { id: string; label: string }[];
+}
+
 export interface TrainingSession {
   id: string;
   planId: string;
@@ -101,6 +106,7 @@ export interface TrainingSession {
   points: ActivityPoint[];
   hcSyncStatus?: SyncStatus;
   gmailSyncStatus?: SyncStatus;
+  prResults?: PrResults;
 }
 
 export type TrainingPhase = 'base' | 'build' | 'peak' | 'taper';
