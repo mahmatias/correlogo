@@ -1,5 +1,31 @@
 # Handoff
 
+## Session Context (2026-08-01b — Milestones/Conquistas COMPLETA: tab bar + Conquistas + celebração + pill/clip + BLE 15s, build validado)
+
+### What happened
+- Usuário **aprovou o plano completo** após revisar os testes das Tasks 1–6. **Tasks 7–15 executadas** (plano `docs/superpowers/plans/2026-08-01-milestones.md`, código inline):
+  - **Task 7** `e8a8485` `TabBar.tsx` — 4 abas, ícone Tabler `run` inline. *Adaptação*: `React.ReactNode` do plano virou `ReactNode` importado de `'react'` (sem `@types/react`, `React.` namespace daria TS2503 novo).
+  - **Task 8** `533b9d4` `SessionHistory.tsx` → aba **Registros** (remove `onClose`/overlay). Erro transitório `App.tsx:1008 onClose` confirmado e resolvido na Task 10 (o plano já previa).
+  - **Task 9** `fc2902b` `UserProfile.tsx` → aba **Perfil** + seção **Preferências → Tema** (`isLightMode`/`onToggleTheme`); effect roda no mount (`[]`), salvar não fecha mais.
+  - **Task 11** `25e458d` `Achievements.tsx` (layout C) — feito **antes** da Task 10 (dependência do plano).
+  - **Task 10** `c0b8b80` `App.tsx` — `activeTab` no lugar de `showHistory`/`showUserProfile`; back handler prioriza modais e depois volta para `treinos`; header só logo+saudação; abas renderizadas por condicional; `onExportSession`/`onDeleteSession` **movidos** (fonte única) para a aba Registros; bloco `{showHistory}`/`{showUserProfile}` removidos; `<TabBar>` após `</main>` com guard de estados transientes.
+  - **Task 12** `af33509` `SessionSummary.tsx` — celebração (Trophy/Medal âmbar) após a grade 2×2, só com novidade.
+  - **Task 13** `fb3e4fa` `ShareCard.tsx` — `NewPrPill` (top:200, 4 variantes não-transparentes) + **fix clip** RouteSVG (pad interno 10).
+  - **Task 14** `45ddc6b` BLE — `TreadmillBleService.kt` delay 10s→**15s**, `use-treadmill.ts` 11s→**16s**.
+  - **Task 15**: validação completa + docs + commit final.
+- **Validação**: `npm test` ✅ 76/76 · `npm run lint` ✅ **21 erros pré-existentes, 0 novos** (baseline intacto após Task 10; os 2 transitórios de `onClose`/`open` sumiram). Build: `Copy-Item .env.apk→.env` ✅ · `npm run build` ✅ · `npx cap sync android` ✅ (9 plugins) · `gradlew.bat assembleDebug` ✅ **BUILD SUCCESSFUL** (JAVA_HOME 21).
+- **Docs**: `CHANGELOG.md` entrada `[2026-08-01b]`; `TODO.md` Milestones → concluído, clip/BLE removidos dos pendentes; spec `2026-08-01-milestones-design.md` — emenda 2026-08-01 movendo clip+BLE para "Decisões aprovadas".
+
+### Cautions for next session
+1. **Próximo passo**: push `main` → CI (build + `assembleRelease` assinado → GitHub Release `latest` + `update-manifest.json` com `versionCode` novo) → validar no device: abas funcionando, back voltando para Treinos, conquistas abrindo resumo, celebração no resumo, pill no ShareCard, scan BLE com 15s.
+2. **Nunca** copiar `.env.dev` para `.env` (quebra APK/site prod). `.env.apk` é a fonte de verdade.
+3. **Não commitar** `app-release-v139.apk` (untracked na raiz) nem `.env`. A build `dist/` é gitignored.
+4. Baseline lint: 21 erros pré-existentes (App.tsx 351/873–889, WorkoutTracker, SessionHistory `React.ReactNode`, UserProfile `React.ChangeEvent`, tracking.ts, ical.ts, treadmill-machine.ts, vite.config.ts). Sem `@types/react` — `React.` namespace não existe (usar import de `'react'`).
+5. `@capacitor/app@8.1.0`/`browser@8.0.3` vs core 7.6.7 segue como landmine conhecida (não corrigir sem conversar).
+6. A Task 15 do plano previa `git add -A` + commit final — **não foi feito**; o commit `084fc7e` (docs Tasks 1–6) já commitou o plano; Tasks 7–15 foram commitadas individualmente. Docs atualizados neste turno ainda **não commitados** (decisão pendente: commitar junto com o push).
+
+---
+
 ## Session Context (2026-08-01a — Milestones/Conquistas: data layer completa (Tasks 1–6), UI pendente)
 
 ### What happened

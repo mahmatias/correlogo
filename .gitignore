@@ -19,3 +19,5 @@ firebase-key.json
 gh_*.txt
 # Firebase CLI cache
 .firebase/
+# APKs locais de teste (nunca commitar)
+*.apk
