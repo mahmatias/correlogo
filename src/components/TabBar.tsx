@@ -38,10 +38,10 @@ export default function TabBar({ active, onChange }: TabBarProps) {
               key={t.id}
               type="button"
               onClick={() => onChange(t.id)}
-              className={`flex flex-col items-center gap-1 py-2.5 ${isActive ? 'text-accent' : 'text-text-muted'}`}
+              className={`flex flex-col items-center gap-1.5 py-4 ${isActive ? 'text-accent' : 'text-text-muted'}`}
             >
-              {t.renderIcon(18)}
-              <span className="text-[8px] font-semibold tracking-wide">{t.label}</span>
+              {t.renderIcon(27)}
+              <span className="text-[12px] font-semibold tracking-wide">{t.label}</span>
             </button>
           );
         })}

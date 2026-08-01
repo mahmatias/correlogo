@@ -18,6 +18,38 @@ export default function Achievements({ records, sessions, onOpenSession }: Achie
     <div className="text-text-primary">
       <h2 className="text-2xl font-bold mb-6 text-center">Conquistas</h2>
 
+      <h3 className="font-bold mb-3">Conquistas</h3>
+      <div className="space-y-4 mb-6">
+        {BADGE_GROUPS.map((group) => (
+          <div key={group.id}>
+            <h4 className="text-sm font-semibold text-text-secondary mb-2">{group.label}</h4>
+            <div className="grid grid-cols-3 gap-2">
+              {group.ids.map((id) => {
+                const badge = records?.badges?.[id];
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    disabled={!badge}
+                    onClick={() => badge && onOpenSession(badge.sessionId)}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-center ${
+                      badge
+                        ? 'bg-bg-surface border-border text-accent'
+                        : 'bg-bg-elevated border-transparent text-text-muted opacity-60 cursor-default'
+                    }`}
+                  >
+                    {badge ? <Medal size={20} /> : <Lock size={16} />}
+                    <span className="text-[10px] leading-tight text-text-primary">{BADGE_LABELS[id]}</span>
+                    {badge && <span className="text-[9px] text-text-muted">{new Date(badge.unlockedAt).toLocaleDateString()}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="font-bold mb-3">Estatísticas</h3>
       <div className="grid grid-cols-3 gap-2 mb-6">
         <div className="p-3 rounded-xl bg-bg-surface border border-border text-center">
           <div className="text-2xl font-bold text-accent">{prCount}</div>
@@ -54,51 +86,33 @@ export default function Achievements({ records, sessions, onOpenSession }: Achie
                   <ChevronRight size={16} className="text-text-muted" />
                 </span>
               ) : (
-                <span className="text-text-muted">—</span>
+                <Lock size={16} className="text-text-muted" />
               )}
             </button>
           );
         })}
       </div>
 
-      <h3 className="font-bold mb-3">Conquistas</h3>
-      <div className="space-y-4 mb-6">
-        {BADGE_GROUPS.map((group) => (
-          <div key={group.id}>
-            <h4 className="text-sm font-semibold text-text-secondary mb-2">{group.label}</h4>
-            <div className="grid grid-cols-3 gap-2">
-              {group.ids.map((id) => {
-                const badge = records?.badges?.[id];
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    disabled={!badge}
-                    onClick={() => badge && onOpenSession(badge.sessionId)}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-center ${
-                      badge
-                        ? 'bg-bg-surface border-border text-accent'
-                        : 'bg-bg-elevated border-transparent text-text-muted opacity-60 cursor-default'
-                    }`}
-                  >
-                    {badge ? <Medal size={20} /> : <Lock size={16} />}
-                    <span className="text-[10px] leading-tight text-text-primary">{BADGE_LABELS[id]}</span>
-                    {badge && <span className="text-[9px] text-text-muted">{new Date(badge.unlockedAt).toLocaleDateString()}</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
       <h3 className="font-bold mb-3">Como os recordes funcionam</h3>
       <div className="flex flex-wrap gap-2">
-        {PR_DISTANCES.map((D) => (
-          <span key={D} className="px-3 py-1 rounded-full bg-bg-surface border border-border text-xs text-text-secondary">
-            {formatDistance(D)}
-          </span>
-        ))}
+        {PR_DISTANCES.map((D) => {
+          const pr = records?.prs?.[String(D)];
+          return (
+            <button
+              key={D}
+              type="button"
+              disabled={!pr}
+              onClick={() => pr && onOpenSession(pr.sessionId)}
+              className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                pr
+                  ? 'bg-bg-surface border-border text-text-secondary hover:bg-bg-elevated'
+                  : 'bg-bg-elevated border-transparent text-text-muted opacity-60 cursor-default'
+              }`}
+            >
+              {formatDistance(D)}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
