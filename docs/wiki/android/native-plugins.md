@@ -256,7 +256,9 @@ class TreadmillBlePlugin : Plugin() { ... }
 | `READY` → `ACTIVE_SESSION` | `requestControl` handshake |
 | `ACTIVE_SESSION` → `ACTIVE_SESSION_CONTROLLED` | Control granted response |
 
-**Keep-alive**: Coroutine every 3s sends `SetSpeed` with current speed.
+**Keep-alive**: Renovação de `Request Control` **por idle** — checa a cada 5s e só reenvia se `now - lastSuccessfulWriteMs >= 25s` (corrige GATT error 133; ver `docs/wiki/tracking/ftms.md`).
+
+> ⚠️ A tabela de estados acima reflete a implementação antiga (pré-2026-08). O código atual usa `BleState.Disconnected → Connecting → Discovering → Ready → Controlled` com fila de writes serializada — ver `docs/wiki/tracking/ftms.md`.
 
 **UUIDs**:
 - Service: `00001826-0000-1000-8000-00805f9b34fb` (FTMS)
