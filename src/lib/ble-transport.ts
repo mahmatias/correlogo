@@ -42,13 +42,19 @@ export class MockTransport implements BleTransport {
       if (this._speedKmh > 0) {
         this._distanceM += (this._speedKmh * 1000) / 3600;
       }
-      const buf = new ArrayBuffer(12);
+      // Standard FTMS Treadmill Data: flags bit0 (More Data)=0 => speed present,
+      // bit2=total distance (24-bit), bit3=inclination+ramp, bit10=elapsed time.
+      const flags = 0x0004 | 0x0008 | 0x0400;
+      const buf = new ArrayBuffer(13);
       const view = new DataView(buf);
-      view.setUint16(0, 0x47, true);
+      view.setUint16(0, flags, true);
       view.setUint16(2, Math.round(this._speedKmh * 100), true);
-      view.setUint32(4, Math.round(this._distanceM), true);
-      view.setInt16(8, Math.round(this._inclinePct * 10), true);
-      view.setUint16(10, this._time, true);
+      view.setUint8(4, Math.round(this._distanceM) & 0xff);
+      view.setUint8(5, (Math.round(this._distanceM) >> 8) & 0xff);
+      view.setUint8(6, (Math.round(this._distanceM) >> 16) & 0xff);
+      view.setInt16(7, Math.round(this._inclinePct * 10), true);
+      view.setInt16(9, 0, true);
+      view.setUint16(11, this._time, true);
       this.metricsListeners.forEach(cb => cb(new DataView(buf.slice(0))));
     }, 100);
   }
@@ -68,18 +74,18 @@ export class MockTransport implements BleTransport {
     if (opcode === 0x02) {
       this._speedKmh = view.getUint16(1, true) / 100;
       this.controlPointListeners.forEach(cb => {
-        const resp = new Uint8Array([0x80, 0x01, 0x02]).buffer;
+        const resp = new Uint8Array([0x80, 0x02, 0x00]).buffer;
         cb(new DataView(resp));
       });
     } else if (opcode === 0x03) {
       this._inclinePct = view.getInt16(1, true) / 10;
       this.controlPointListeners.forEach(cb => {
-        const resp = new Uint8Array([0x80, 0x01, 0x03]).buffer;
+        const resp = new Uint8Array([0x80, 0x03, 0x00]).buffer;
         cb(new DataView(resp));
       });
     } else if (opcode === 0x00) {
       this.controlPointListeners.forEach(cb => {
-        const resp = new Uint8Array([0x80, 0x01, 0x00]).buffer;
+        const resp = new Uint8Array([0x80, 0x00, 0x00]).buffer;
         cb(new DataView(resp));
       });
     }

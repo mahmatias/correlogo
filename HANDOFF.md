@@ -1,5 +1,28 @@
 # Handoff
 
+## Session Context (2026-08-05b — Fix telemetria FTMS: flag map padrão + control point response; speed era lido como inclinação)
+
+### What happened
+- Usuário testou a release com o fix do error 133 e reportou **sintoma novo**: (1) speed manual na esteira aparece como **inclinação ×10** no app (5.0 km/h → 50%, 15.0 → 150%); (2) mudar inclinação na esteira não é lido; (3) comando de speed/incline pelo app aparece na barra e **reseta pra 0.0 sem erro**.
+- **Root cause telemetria (confirmada)** — `parseTreadmillMetrics` (`src/lib/ftms-protocol.ts`, caminho real via `use-treadmill.ts`) usava flag map **inventado**: bit0 tratado como "speed presente" quando é **More Data invertido** (0 = speed presente), bit2 tratado como inclinação quando é **Total Distance (24-bit)**. Com flags reais `bit0=0, bit2=1`, o parser pulava o speed e lia os **bytes do speed como inclinação** ÷10 → 500 raw → 50%. Speed nunca parseado → 0.0 sempre. Confirmado por 2 fontes: diagnóstico nRF `docs/archive/FTMS-Bluetooth-Esteiras/DIAGNOSTICO-FTMS-NRF.md` (packet `8C 07` = flags `0x078C`, decodificado com bit0=0 speed, bit2 distance, bit3 incline+ramp) e parser duhow `FtmsDataParser.kt` (mesma semântica).
+- **Root cause controle (confirmada)** — `TreadmillBleService.onCharacteristicChanged` e `TreadmillFtmsManager.parseControlPointResponse` trocavam resultCode/requestedOpcode (spec: `[0x80][opcode][result]`). Request Control **rejeitado** pela esteira virava **sucesso** (CONTROLLED falso, opcode 0x00 == success 0x00 por coincidência) → app envia Set Incline sem controle real, sem erro pro usuário.
+- **Fix aplicado**:
+  - `src/lib/ftms-protocol.ts`: `parseTreadmillMetrics` reescrito (flag map padrão FTMS, bounds-guarded) + `parseControlPointResponse` corrigido.
+  - `src/lib/ble-transport.ts`: MockTransport com packet padrão (`0x040C`) e respostas `[0x80, opcode, 0x00]`.
+  - `TreadmillBleService.kt`: resultCode=`value[2]`, opcode=`value[1]`.
+  - `TreadmillFtmsManager.kt`: swap corrigido + `parseMetrics` (dead code) com flag map correto.
+  - Testes reescritos (TDD red→green): `ftms-protocol.test.ts` + `ble-transport.test.ts`.
+- **Validação**: `npm test` ✅ 79/79 · lint ✅ 0 novos · `.env.apk→.env` ✅ · `npm run build` ✅ (5.65s) · `cap sync android` ✅ · `gradlew assembleDebug` ✅ BUILD SUCCESSFUL.
+
+### Cautions for next session
+1. **Teste no device**: (a) speed manual na esteira deve aparecer como speed correto; (b) inclinação manual deve ser lida; (c) comandos do app não devem mais resetar pra 0.0. Capturar logcat `adb logcat -s CorreLogo-BLE` — agora as respostas de control point são logadas corretamente (`Control Point response: opcode=0x.. resultCode=0x..`).
+2. **Escala de inclinação não resolvida**: parser usa ÷10 (padrão FTMS, confirmado pelo nRF WiLinktech). Se a inclinação lida aparecer **~6× maior** que a real, a esteira é BH iConcept (escala proprietária `raw/62.5`, ver duhow `BhFitnessTreadmill.INCLINE_SCALE=62.5`) → precisará detecção por device name `T01_XXXXX` antes de aplicar a correção. **Não** aplicar a correção 62.5 globalmente (quebraria esteiras padrão).
+3. Se o Request Control for realmente rejeitado (resultCode ≠ 0x00 no log), o app agora vai parar de aceitar comandos (plugin rejeita com mensagem) — investigar se a esteira exige sequência diferente (ex: Start `0x07` antes de Set).
+4. `.env` = cópia de `.env.apk` (não commitado). Baseline lint 21 erros pré-existentes intacto. Não commitar `app-release-*.apk`.
+5. A feature usa `limit(50)` em sessions e tudo mais segue o padrão das AGENTS.md.
+
+---
+
 ## Session Context (2026-08-05 — Fix BLE error 133: fila GATT serializada + keep-alive por idle + retry 200ms + API 33 write, build validado e pushado)
 
 ### What happened

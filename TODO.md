@@ -31,6 +31,16 @@
 
 ---
 
+## ✅ Concluídos (Sessão 2026-08-05b — Fix telemetria FTMS + control point response)
+
+- [x] **Fix speed lido como inclinação ×10** — `ftms-protocol.ts` `parseTreadmillMetrics` reescrito com flag map **padrão FTMS** (bit0 = More Data invertido; bit1 avg speed; bit2 distância 24-bit; bit3 inclinação+ramp; bit7 energia; bit8 HR; bit10 elapsed; leituras bounds-guarded). Root cause confirmado pelo diagnóstico nRF (`0x078C`) e parser duhow
+- [x] **Fix Control Point response** — `TreadmillBleService.kt` + `TreadmillFtmsManager.kt`: spec `[0x80][opcode][result]` (antes lia `[1]` como result → Request Control rejeitado virava sucesso/CONTROLLED falso)
+- [x] **MockTransport corrigido** — packet padrão `0x040C` (speed + distância 24-bit + incline + ramp + elapsed) e respostas `[0x80, opcode, 0x00]`
+- [x] **Testes reescritos (TDD)** — `ftms-protocol.test.ts` + `ble-transport.test.ts`; `npm test` ✅ 79/79 · lint ✅ 0 novos · build ✅ 5.65s · cap sync ✅ · gradle ✅ BUILD SUCCESSFUL
+- [ ] **Aguardando**: teste no device — speed manual deve aparecer como speed; inclinação manual lida; comandos não resetarem pra 0.0. **Verificar escala de inclinação** (~6× maior = BH iConcept, escala 62.5, precisa detecção `T01_XXXXX`)
+
+---
+
 ## ✅ Concluídos (Sessão 2026-08-05 — Fix BLE error 133)
 
 - [x] **Fix `Write failed: error 133`** (`6ed3498`, pushado) — `TreadmillBleService.kt`: fila GATT serializada (main handler, um write por vez), API 33+ `writeCharacteristic(char, value, writeType)` sem mutar `char.value`, retry 200ms (`pendingRetry`, drop após 10 tentativas), keep-alive **por idle** (renova Request Control só após 25s sem write OK, checando a cada 5s) no lugar do spam de 2s, desistência silenciosa do keep-alive após 2 falhas (sem toast), CCCD NOTIFY como fallback p/ control point sem `PROPERTY_INDICATE` (BH iConcept)

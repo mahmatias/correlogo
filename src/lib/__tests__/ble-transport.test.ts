@@ -30,7 +30,9 @@ describe('MockTransport', () => {
       transport.onControlPointResponse(data => resolve(data));
       transport.sendCommand(encodeSetSpeed(8.0));
     });
-    expect(cpResponse.getUint8(1)).toBe(0x01);
+    expect(cpResponse.getUint8(0)).toBe(0x80);
+    expect(cpResponse.getUint8(1)).toBe(0x02);
+    expect(cpResponse.getUint8(2)).toBe(0x00);
   });
 
   it('reflects set speed in subsequent metrics', async () => {
