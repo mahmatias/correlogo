@@ -23,18 +23,24 @@ class TreadmillBleService(private val context: Context) {
         private const val TAG = "CorreLogo-BLE"
         val FTMS_SERVICE_UUID: UUID = UUID.fromString("00001826-0000-1000-8000-00805f9b34fb")
         val FTMS_MEASUREMENT_CHAR: UUID = UUID.fromString("00002acd-0000-1000-8000-00805f9b34fb")
+        val FTMS_STATUS_CHAR: UUID = UUID.fromString("00002ada-0000-1000-8000-00805f9b34fb")
         val FTMS_CONTROL_POINT_CHAR: UUID = UUID.fromString("00002ad9-0000-1000-8000-00805f9b34fb")
         val CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+        val VENDOR_PREAMBLE_UUID: UUID = UUID.fromString("d18d2c10-c44c-11e8-a355-529269fb1459")
+        val VENDOR_PREAMBLE_PAYLOAD = byteArrayOf(0x01, 0x00, 0x0d, 0x00, 0x06, 0x0b, 0x0f, 0x0d)
         private const val KEEP_ALIVE_CHECK_INTERVAL_MS = 5000L
         private const val KEEP_ALIVE_RENEW_AFTER_IDLE_MS = 25000L
         private const val MAX_GATT_WRITE_ATTEMPTS = 10
 
+        // Result codes conforme a spec Bluetooth SIG (Fitness Machine Service).
+        // Firmwares legadas respondem 0x00 como sucesso — aceitamos 0x00 e 0x01.
         fun ftmsResultCodeToString(code: Int): String = when (code) {
-            0x00 -> "Success"
-            0x01 -> "Op Code Not Supported"
-            0x02 -> "Invalid Parameter"
-            0x03 -> "Operation Failed"
-            0x04 -> "Control Not Permitted"
+            0x01 -> "Success"
+            0x02 -> "Op Code Not Supported"
+            0x03 -> "Invalid Parameter"
+            0x04 -> "Operation Failed"
+            0x05 -> "Control Not Permitted"
+            0x00 -> "Success (legacy 0x00)"
             else -> "Unknown (0x${code.toString(16)})"
         }
     }
@@ -66,11 +72,26 @@ class TreadmillBleService(private val context: Context) {
     private var controlPointNotificationsEnabled = false
     private val ftms = TreadmillFtmsManager()
 
+    private var sessionLog: BleSessionLog? = null
+    var controlStrategy: String = "A"
+        private set
+    val logFilePath: String?
+        get() = sessionLog?.path
+    private var ftmsStatusChar: BluetoothGattCharacteristic? = null
+    private var preambleChar: BluetoothGattCharacteristic? = null
+    private var autoStarted = false
+    private var metricsReceived = false
+    private var pendingSetCommand: ByteArray? = null
+    private var pendingSetRunnable: Runnable? = null
+    private val readQueue = ArrayDeque<BluetoothGattCharacteristic>()
+    private var isReading = false
+
     var onMetrics: ((ByteArray) -> Unit)? = null
     var onControlPointResponse: ((ByteArray) -> Unit)? = null
     var onStateChange: ((BleState) -> Unit)? = null
     var onDisconnect: (() -> Unit)? = null
     var onError: ((String) -> Unit)? = null
+    var onLogFile: ((String) -> Unit)? = null
 
     private class QueuedCommand(val data: ByteArray, val isKeepAlive: Boolean, val attempts: Int = 0)
     private val requestQueue = ConcurrentLinkedQueue<QueuedCommand>()
@@ -133,12 +154,24 @@ class TreadmillBleService(private val context: Context) {
                 return
             }
 
+            ftmsStatusChar = service.getCharacteristic(FTMS_STATUS_CHAR)
+
+            if (controlStrategy == "C") {
+                val sb = StringBuilder("modo C — dump do serviço FTMS:")
+                service.characteristics.forEach { c ->
+                    sb.append("\n  ${c.uuid} props=0x${c.properties.toString(16)}")
+                }
+                sLog(sb.toString())
+                preambleChar = service.getCharacteristic(VENDOR_PREAMBLE_UUID)?.also {
+                    sLog("modo C — característica vendor preamble encontrada: ${it.uuid}")
+                }
+            }
+
             val cp = ftmsControlPointChar
             val meas = ftmsMeasurementChar
             val cpProps = cp?.properties ?: 0
             val measProps = meas?.properties ?: 0
-            Log.d(
-                TAG,
+            sLog(
                 "FTMS chars — CP props=0x${cpProps.toString(16)} " +
                     "(WRITE=${cpProps and BluetoothGattCharacteristic.PROPERTY_WRITE != 0}, " +
                     "WRITE_NO_RESPONSE=${cpProps and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0}, " +
@@ -158,26 +191,56 @@ class TreadmillBleService(private val context: Context) {
         ) {
             when (characteristic.uuid) {
                 FTMS_MEASUREMENT_CHAR -> {
+                    metricsReceived = true
+                    flushPendingSet()
+                    if (controlStrategy == "B" && state is BleState.Ready) {
+                        requestControlRetryRunnable?.let { handler.removeCallbacks(it) }
+                        requestControlRetryRunnable = null
+                        sLog("modo B — dados de esteira chegando: concedendo controle otimista")
+                        enterControlled()
+                    }
                     onMetrics?.invoke(value)
+                }
+                FTMS_STATUS_CHAR -> {
+                    val hex = value.joinToString(" ") { "%02x".format(it) }
+                    val opcode = if (value.isNotEmpty()) (value[0].toInt() and 0xFF) else -1
+                    val label = when (opcode) {
+                        0x01 -> "Stopped/Paused"
+                        0x04 -> "Started/Resumed"
+                        0x05 -> "Target Speed Changed"
+                        0xFF -> "Control Permission Lost"
+                        else -> "?"
+                    }
+                    sLog("Fitness Machine Status: 0x${opcode.toString(16)} ($label) bytes=[$hex]")
                 }
                 FTMS_CONTROL_POINT_CHAR -> {
                     if (value.isNotEmpty() && value[0] == 0x80.toByte() && value.size > 1) {
                         val requestedOpcode = value[1].toInt() and 0xFF
                         val resultCode = if (value.size > 2) (value[2].toInt() and 0xFF) else -1
-                        Log.d(TAG, "Control Point response: opcode=0x${requestedOpcode.toString(16)} resultCode=0x${resultCode.toString(16)} (${ftmsResultCodeToString(resultCode)})")
-                        if (resultCode == 0x00) {
-                            requestControlRetryRunnable?.let { handler.removeCallbacks(it) }
-                            requestControlRetryRunnable = null
-                            if (state !is BleState.Controlled) {
-                                _state = BleState.Controlled
-                                onStateChange?.invoke(state)
-                                startKeepAlive()
+                        sLog("Control Point response: opcode=0x${requestedOpcode.toString(16)} resultCode=0x${resultCode.toString(16)} (${ftmsResultCodeToString(resultCode)}) modo=$controlStrategy")
+                        when {
+                            controlStrategy == "B" -> {
+                                sLog("modo B — resposta do CP é apenas informativa (otimista)")
                             }
-                        } else {
-                            Log.w(TAG, "Control Point command failed: resultCode=0x${resultCode.toString(16)} (${ftmsResultCodeToString(resultCode)})")
+                            isControlSuccess(resultCode) -> {
+                                requestControlRetryRunnable?.let { handler.removeCallbacks(it) }
+                                requestControlRetryRunnable = null
+                                if (state !is BleState.Controlled) enterControlled()
+                            }
+                            requestedOpcode == 0x00 && resultCode == 0x04 -> {
+                                // WiLinktech/KingSmith: rejeita Request Control com Operation Failed
+                                // de propósito e ainda assim obedece comandos seguintes.
+                                sLog("Request Control com Operation Failed (0x04) — comportamento conhecido da família WiLinktech, seguindo com controle")
+                                requestControlRetryRunnable?.let { handler.removeCallbacks(it) }
+                                requestControlRetryRunnable = null
+                                if (state !is BleState.Controlled) enterControlled()
+                            }
+                            else -> {
+                                sLog("Control Point command não aprovado: resultCode=0x${resultCode.toString(16)} (${ftmsResultCodeToString(resultCode)})")
+                            }
                         }
                     } else {
-                        Log.d(TAG, "Control Point indication (non-response): ${value.joinToString(" ") { "%02x".format(it) }}")
+                        sLog("Control Point indication (não-resposta): ${value.joinToString(" ") { "%02x".format(it) }}")
                     }
                     onControlPointResponse?.invoke(value)
                 }
@@ -212,8 +275,25 @@ class TreadmillBleService(private val context: Context) {
             } else {
                 keepAliveFailures = 0
                 lastSuccessfulWriteMs = System.currentTimeMillis()
+                if (controlStrategy == "B" && !wasKeepAlive && state is BleState.Ready &&
+                    lastCommand?.size == 1 && (lastCommand!![0].toInt() and 0xFF) == 0x00
+                ) {
+                    sLog("modo B — write-ack do Request Control: concedendo controle otimista")
+                    enterControlled()
+                }
             }
             handler.post { processNextCommand() }
+        }
+
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray,
+            status: Int,
+        ) {
+            isReading = false
+            sLog("Read ${characteristic.uuid} (status=$status): [${value.joinToString(" ") { "%02x".format(it) }}]")
+            handler.post { processNextRead() }
         }
 
         override fun onDescriptorWrite(
@@ -221,19 +301,36 @@ class TreadmillBleService(private val context: Context) {
             descriptor: BluetoothGattDescriptor,
             status: Int,
         ) {
-            val next = pendingDescriptorWrite
+            val isControlCccd = descriptor.characteristic.uuid == FTMS_CONTROL_POINT_CHAR
             if (status != BluetoothGatt.GATT_SUCCESS) {
-                Log.w(TAG, "Descriptor write failed: $status")
-                pendingDescriptorWrite = null
-                onError?.invoke("Notification enable failed")
+                Log.w(TAG, "Descriptor write failed (${descriptor.characteristic.uuid}): $status")
+                if (isControlCccd) {
+                    pendingDescriptorWrite = null
+                    onError?.invoke("Notification enable failed")
+                }
                 return
             }
+            if (isControlCccd) {
+                controlPointNotificationsEnabled = true
+                val p = preambleChar
+                if (p != null) {
+                    sLog("modo C — escrevendo vendor preamble ${VENDOR_PREAMBLE_PAYLOAD.joinToString(" ") { "%02x".format(it) }} antes do Request Control")
+                    val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        gatt.writeCharacteristic(p, VENDOR_PREAMBLE_PAYLOAD, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        p.value = VENDOR_PREAMBLE_PAYLOAD
+                        if (gatt.writeCharacteristic(p)) BluetoothStatusCodes.SUCCESS else BluetoothStatusCodes.ERROR_UNKNOWN
+                    }
+                    sLog("vendor preamble write result: $result")
+                }
+                requestControlWithRetry()
+                return
+            }
+            val next = pendingDescriptorWrite
             if (next != null) {
                 pendingDescriptorWrite = null
                 next.run()
-            } else if (state is BleState.Ready && !controlPointNotificationsEnabled) {
-                controlPointNotificationsEnabled = true
-                requestControlWithRetry()
             }
         }
     }
@@ -248,11 +345,19 @@ class TreadmillBleService(private val context: Context) {
         val descMeasurement = measurementChar.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR)
         descMeasurement?.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
 
+        val statusChar = ftmsStatusChar
+        if (statusChar != null) {
+            sLog("Inscrevendo no Fitness Machine Status (2ADA)")
+            gatt?.setCharacteristicNotification(statusChar, true)
+            val descStatus = statusChar.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR)
+            descStatus?.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+        }
+
         pendingDescriptorWrite = Runnable {
             gatt?.setCharacteristicNotification(controlPointChar, true)
             val descControl = controlPointChar.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR)
             val cpUsesIndicate = controlPointChar.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0
-            Log.d(TAG, "Control Point CCCD: ${if (cpUsesIndicate) "INDICATION (0x0002)" else "NOTIFICATION (0x0001)"} (props=0x${controlPointChar.properties.toString(16)})")
+            sLog("Control Point CCCD: ${if (cpUsesIndicate) "INDICATION (0x0002)" else "NOTIFICATION (0x0001)"} (props=0x${controlPointChar.properties.toString(16)})")
             descControl?.value = if (cpUsesIndicate) {
                 BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
             } else {
@@ -260,7 +365,18 @@ class TreadmillBleService(private val context: Context) {
             }
             gatt?.writeDescriptor(descControl)
         }
-        gatt?.writeDescriptor(descMeasurement)
+
+        handler.postDelayed({
+            gatt?.writeDescriptor(descMeasurement)
+        }, 100)
+        handler.postDelayed({
+            if (statusChar != null) {
+                statusChar.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR)?.let { gatt?.writeDescriptor(it) }
+            }
+        }, 250)
+        handler.postDelayed({
+            pendingDescriptorWrite?.run()
+        }, 450)
     }
 
     private fun requestControlWithRetry(maxAttempts: Int = 3) {
@@ -268,15 +384,20 @@ class TreadmillBleService(private val context: Context) {
 
         fun attempt() {
             if (requestControlAttempts >= maxAttempts) {
-                Log.e(TAG, "Request Control failed after $maxAttempts attempts")
+                sLog("Request Control falhou após $maxAttempts tentativas (modo $controlStrategy)")
                 requestControlRetryRunnable = null
-                onError?.invoke("Falha ao assumir controle da esteira")
-                cleanup()
+                if (controlStrategy == "B") {
+                    sLog("modo B — concedendo controle otimista mesmo sem resposta")
+                    enterControlled()
+                } else {
+                    onError?.invoke("Falha ao assumir controle da esteira (modo $controlStrategy). Log: ${logFilePath ?: "indisponível"}")
+                    cleanup()
+                }
                 return
             }
 
             requestControlAttempts++
-            Log.d(TAG, "Request Control attempt ${requestControlAttempts}/$maxAttempts")
+            sLog("Request Control tentativa $requestControlAttempts/$maxAttempts (modo $controlStrategy)")
             sendCommand(ftms.encodeRequestControl())
 
             requestControlRetryRunnable = Runnable {
@@ -337,11 +458,17 @@ class TreadmillBleService(private val context: Context) {
         }
     }
 
-    fun connect(address: String) {
+    fun connect(address: String, mode: String = "A") {
         if (state !is BleState.Disconnected) {
             Log.w(TAG, "Already connecting/connected")
             return
         }
+        controlStrategy = if (mode in listOf("A", "B", "C")) mode else "A"
+        val log = BleSessionLog(context)
+        sessionLog = log
+        val path = log.start(controlStrategy)
+        if (path != null) onLogFile?.invoke(path)
+        sLog("connect($address) modo=$controlStrategy")
         _state = BleState.Connecting
         onStateChange?.invoke(state)
 
@@ -373,6 +500,7 @@ class TreadmillBleService(private val context: Context) {
         requestControlRetryRunnable = null
         stopKeepAlive()
         keepAliveFailures = 0
+        sessionLog?.flush()
         gatt?.disconnect()
         gatt?.close()
         gatt = null
@@ -381,6 +509,31 @@ class TreadmillBleService(private val context: Context) {
     }
 
     fun sendCommand(data: ByteArray, isKeepAlive: Boolean = false) {
+        if (controlStrategy == "B" && !isKeepAlive && data.isNotEmpty() &&
+            (data[0] == 0x02.toByte() || data[0] == 0x03.toByte())
+        ) {
+            if (!autoStarted) {
+                autoStarted = true
+                sLog("modo B — auto-Start (0x07) antes do primeiro comando de controle")
+                requestQueue.add(QueuedCommand(ftms.encodeStart(), false))
+                handler.post { processNextCommand() }
+            }
+            if (!metricsReceived && pendingSetCommand == null) {
+                pendingSetCommand = data
+                pendingSetRunnable = Runnable {
+                    pendingSetRunnable = null
+                    val cmd = pendingSetCommand
+                    pendingSetCommand = null
+                    if (cmd != null) {
+                        sLog("modo B — timeout de métricas (2s): enviando Set pendente [${cmd.joinToString(" ") { "%02x".format(it) }}]")
+                        requestQueue.add(QueuedCommand(cmd, false))
+                        handler.post { processNextCommand() }
+                    }
+                }
+                handler.postDelayed(pendingSetRunnable!!, 2000)
+                return
+            }
+        }
         requestQueue.add(QueuedCommand(data, isKeepAlive))
         handler.post { processNextCommand() }
     }
@@ -469,6 +622,65 @@ class TreadmillBleService(private val context: Context) {
         keepAliveJob = null
     }
 
+    private fun sLog(msg: String) {
+        Log.d(TAG, msg)
+        sessionLog?.append(msg)
+    }
+
+    private fun isControlSuccess(resultCode: Int): Boolean =
+        resultCode == 0x01 || resultCode == 0x00
+
+    private fun enterControlled() {
+        if (state is BleState.Controlled) return
+        _state = BleState.Controlled
+        onStateChange?.invoke(state)
+        startKeepAlive()
+        if (controlStrategy == "C") queueModeCReads()
+    }
+
+    private fun flushPendingSet() {
+        pendingSetRunnable?.let { handler.removeCallbacks(it) }
+        pendingSetRunnable = null
+        val cmd = pendingSetCommand
+        pendingSetCommand = null
+        if (cmd != null) {
+            sLog("modo B — métricas chegando: enviando Set pendente [${cmd.joinToString(" ") { "%02x".format(it) }}]")
+            requestQueue.add(QueuedCommand(cmd, false))
+            handler.post { processNextCommand() }
+        }
+    }
+
+    private fun queueModeCReads() {
+        val g = gatt ?: return
+        val service = g.getService(FTMS_SERVICE_UUID) ?: return
+        readQueue.clear()
+        listOf(0x2acc to "Feature", 0x2ad4 to "Supported Speed Range", 0x2ad5 to "Supported Inclination Range").forEach { (id, label) ->
+            val c = service.getCharacteristic(
+                UUID.fromString(String.format("0000%04x-0000-1000-8000-00805f9b34fb", id)),
+            )
+            if (c != null) readQueue.addLast(c)
+        }
+        if (readQueue.isNotEmpty()) {
+            sLog("modo C — lendo características de diagnóstico (${readQueue.size})")
+            handler.post { processNextRead() }
+        }
+    }
+
+    private fun processNextRead() {
+        if (isReading) return
+        val g = gatt ?: return
+        val next = readQueue.removeFirstOrNull() ?: return
+        isReading = true
+        handler.postDelayed({
+            @Suppress("DEPRECATION")
+            val started = g.readCharacteristic(next)
+            if (!started) {
+                isReading = false
+                handler.post { processNextRead() }
+            }
+        }, 200)
+    }
+
     private fun cleanup() {
         connectionTimeoutRunnable?.let { handler.removeCallbacks(it) }
         connectionTimeoutRunnable = null
@@ -476,17 +688,28 @@ class TreadmillBleService(private val context: Context) {
         discoveryTimeoutRunnable = null
         requestControlRetryRunnable?.let { handler.removeCallbacks(it) }
         requestControlRetryRunnable = null
+        pendingSetRunnable?.let { handler.removeCallbacks(it) }
+        pendingSetRunnable = null
+        pendingSetCommand = null
         stopKeepAlive()
         keepAliveFailures = 0
         pendingDescriptorWrite = null
         controlPointNotificationsEnabled = false
+        autoStarted = false
+        metricsReceived = false
         gatt?.close()
         gatt = null
         ftmsMeasurementChar = null
         ftmsControlPointChar = null
+        ftmsStatusChar = null
+        preambleChar = null
+        readQueue.clear()
+        isReading = false
         requestQueue.clear()
         pendingRetry = null
         isWriting = false
+        sessionLog?.finish()
+        sessionLog = null
         _state = BleState.Disconnected
         onStateChange?.invoke(state)
     }

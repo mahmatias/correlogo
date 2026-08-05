@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { isNative } from './capacitor/platform';
-import type { BleTransport, BleDevice } from './ble-transport';
+import type { BleTransport, BleDevice, TreadmillControlMode } from './ble-transport';
 import { MockTransport } from './ble-transport';
 import { NativeBleTransport } from './native-ble-transport';
 import { parseTreadmillMetrics, encodeSetSpeed, encodeSetIncline } from './ftms-protocol';
 import type { TreadmillMetrics } from './ftms-protocol';
+
+export type { TreadmillControlMode };
 
 export interface TreadmillConnection {
   state: string
@@ -15,8 +17,10 @@ export interface TreadmillConnection {
   speedKmh: number
   inclinePercent: number
   error: string | null
+  mode: TreadmillControlMode
+  logFile: string | null
   scan: () => Promise<void>
-  connect: (address: string) => Promise<void>
+  connect: (address: string, mode?: TreadmillControlMode) => Promise<void>
   disconnect: () => Promise<void>
   setSpeed: (speed: number) => Promise<void>
   setIncline: (incline: number) => Promise<void>
@@ -30,6 +34,8 @@ export function useTreadmill(simulateBle?: boolean): TreadmillConnection {
   const [inclinePercent, setInclinePercent] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [connectedDeviceName, setConnectedDeviceName] = useState<string | null>(null);
+  const [mode, setMode] = useState<TreadmillControlMode>('A');
+  const [logFile, setLogFile] = useState<string | null>(null);
   const transportRef = useRef<BleTransport | null>(null);
   const cleanupsRef = useRef<Array<() => void>>([]);
   const devicesRef = useRef<BleDevice[]>([]);
@@ -73,7 +79,11 @@ export function useTreadmill(simulateBle?: boolean): TreadmillConnection {
       setError(msg);
     });
 
-    cleanupsRef.current = [c1, c2, c3];
+    const c4 = transport.onLogFile((path) => {
+      setLogFile(path);
+    });
+
+    cleanupsRef.current = [c1, c2, c3, c4];
     return transport;
   }, [simulateBle]);
 
@@ -124,12 +134,14 @@ export function useTreadmill(simulateBle?: boolean): TreadmillConnection {
     }
   }, [ensureTransport, clearScanTimeout]);
 
-  const connect = useCallback(async (address: string) => {
+  const connect = useCallback(async (address: string, selectedMode: TreadmillControlMode = 'A') => {
     clearScanTimeout();
     setError(null);
+    setMode(selectedMode);
+    setLogFile(null);
     setState('CONNECTING');
     try {
-      await ensureTransport().connect(address);
+      await ensureTransport().connect(address, { mode: selectedMode });
       const dev = devicesRef.current.find(d => d.address === address);
       setConnectedDeviceName(dev?.name ?? address);
       setState('CONTROLLED');
@@ -148,6 +160,7 @@ export function useTreadmill(simulateBle?: boolean): TreadmillConnection {
     setSpeedKmh(0);
     setInclinePercent(0);
     setConnectedDeviceName(null);
+    setLogFile(null);
   }, [ensureTransport, clearScanTimeout]);
 
   const setSpeed = useCallback(async (speed: number) => {
@@ -177,6 +190,8 @@ export function useTreadmill(simulateBle?: boolean): TreadmillConnection {
     speedKmh,
     inclinePercent,
     error,
+    mode,
+    logFile,
     scan,
     connect,
     disconnect,

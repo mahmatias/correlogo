@@ -3,16 +3,19 @@ export interface BleDevice {
   address: string
 }
 
+export type TreadmillControlMode = 'A' | 'B' | 'C'
+
 export interface BleTransport {
   scan(onDevice: (device: BleDevice) => void): Promise<void>
   stopScan(): Promise<void>
-  connect(address: string): Promise<void>
+  connect(address: string, options?: { mode?: TreadmillControlMode }): Promise<void>
   disconnect(): Promise<void>
   sendCommand(data: ArrayBuffer): Promise<void>
   onMetrics(cb: (data: DataView) => void): () => void
   onControlPointResponse(cb: (data: DataView) => void): () => void
   onDisconnect(cb: () => void): () => void
   onError(cb: (error: string) => void): () => void
+  onLogFile(cb: (path: string) => void): () => void
 }
 
 export class MockTransport implements BleTransport {
@@ -20,6 +23,7 @@ export class MockTransport implements BleTransport {
   private controlPointListeners: Array<(data: DataView) => void> = [];
   private disconnectListeners: Array<() => void> = [];
   private errorListeners: Array<(err: string) => void> = [];
+  private logFileListeners: Array<(path: string) => void> = [];
   private metricsInterval: ReturnType<typeof setInterval> | null = null;
   private _connected = false;
   private _speedKmh = 0;
@@ -35,8 +39,10 @@ export class MockTransport implements BleTransport {
 
   async stopScan(): Promise<void> {}
 
-  async connect(_address: string): Promise<void> {
+  async connect(_address: string, options?: { mode?: TreadmillControlMode }): Promise<void> {
     this._connected = true;
+    const mode = options?.mode ?? 'A';
+    this.logFileListeners.forEach(cb => cb(`Download/CorreLogo/ftms-modo${mode}-mock.log`));
     this.metricsInterval = setInterval(() => {
       this._time++;
       if (this._speedKmh > 0) {
@@ -109,5 +115,10 @@ export class MockTransport implements BleTransport {
   onError(cb: (err: string) => void): () => void {
     this.errorListeners.push(cb);
     return () => { this.errorListeners = this.errorListeners.filter(l => l !== cb); };
+  }
+
+  onLogFile(cb: (path: string) => void): () => void {
+    this.logFileListeners.push(cb);
+    return () => { this.logFileListeners = this.logFileListeners.filter(l => l !== cb); };
   }
 }

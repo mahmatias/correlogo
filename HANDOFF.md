@@ -1,5 +1,29 @@
 # Handoff
 
+## Session Context (2026-08-05c — Seletor de modo FTMS A/B/C + log em arquivo para diagnosticar "Falha ao assumir controle")
+
+### What happened
+- Sintoma pós-fix telemetria: **"Falha ao assumir controle da esteira"** ao conectar. Pesquisa GitHub concluiu 3 causas: (C1) mapa de result code **deslocado de 1** (spec `0x01=Success`, código usava `0x00`); (C2) WiLinktech/KingSmith rejeita Request Control com `0x04` de propósito e obedece; (C3) falta canal de ack real (2ADA) + CCCD em cadeia descartados.
+- **Decisão do usuário**: 1 APK com **seletor A/B/C** (long-press 3s no botão Conectar do configurador de treino), cada modo com **log em arquivo** (sem logcat — trava no celular).
+- **Implementado**:
+  - `BleSessionLog.kt` (novo) — `Download/CorreLogo/ftms-modoX-*.log` via MediaStore (minSdk 29, sem permissão), flush 25 linhas, `IS_PENDING`.
+  - `TreadmillBleService.kt` — result codes spec (aceita `0x01`/`0x00`, tolera `0x04` no Request Control), modos A (estrito) / B (otimista: auto-Start `0x07`, Set pendente 2s, grant write-ack/metrica/exaustão) / C (dump + reads 2ACC/2AD4/2AD5 + vendor preamble WiLinktech `d18d2c10-...`), assinatura 2ADA, CCCD escalonados 100/250/450ms, `connect(address, mode)`, `onLogFile`.
+  - `TreadmillFtmsManager.kt` — `encodeStart()`.
+  - `TreadmillBlePlugin.kt` — `mode` no `connectTreadmill` + evento `treadmillLogFile`.
+  - TS: `BleTransport.connect(address, {mode})` + `onLogFile`; MockTransport; `useTreadmill` (states `mode`/`logFile`); `App.tsx` (seletor + modal + badge).
+- **Validação**: `npm test` ✅ 83/83 · lint ✅ 0 novos (baseline 21) · `.env.apk→.env` ✅ · `npm run build` ✅ · `cap sync android` ✅ · `gradlew assembleDebug` ✅ BUILD SUCCESSFUL.
+- Erros de Kotlin corrigidos durante o build: chave extra no `onDescriptorWrite`; `onCharacteristicRead` usa assinatura API 33 `(gatt, char, value, status)` (não `status, value`); `processNextRead` usa o retorno `Boolean` do `readCharacteristic` (overload Int não resolve no compileSdk 36).
+
+### Cautions for next session
+1. **Testar os 3 modos no device** (esteira WiLinktech Vision ID 2592, possivelmente BH iConcept rebadgeado) e mandar `Download/CorreLogo/ftms-modoX-*.log`. O log mostra o `resultCode` real (0x01/0x04/nenhum) → escolher estratégia definitiva.
+2. **Modo B muda o fluxo**: auto-Start `0x07` é enviado antes do primeiro Set; se a esteira não estiver na correia, pode não andar. O grant acontece via write-ack/métrica/exaustão — estado `CONTROLLED` pode aparecer sem aprovação real (intencional no modo B).
+3. **CCCD agora são 3 escritas escalonadas** (measurement 100ms, status 250ms, control 450ms) — o `onDescriptorWrite` detecta o control point por UUID; falha em measurement/status é não-fatal, falha no control point ainda aborta.
+4. **Baseline lint 21 erros** pré-existentes intactos (tracking.ts, ical.ts, treadmill-machine.ts, vite.config.ts, App.tsx:347/912-928 etc.) — não são desta sessão. `npm run build` (vite/esbuild) passa apesar deles.
+5. `.env` = cópia de `.env.apk` (não commitado). Não commitar APKs. Modo B/C ainda são experimentais — nada fixado como padrão até teste no device.
+6. **Pergunta em aberto**: modelo exato da esteira (WiLinktech Vision vs BH iConcept). Afeta quirk default (preamble vendor, escala de inclinação 62.5). Ver docs/archive FTMS-Bluetooth-Esteiras.
+
+---
+
 ## Session Context (2026-08-05b — Fix telemetria FTMS: flag map padrão + control point response; speed era lido como inclinação)
 
 ### What happened

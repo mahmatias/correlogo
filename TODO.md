@@ -8,6 +8,7 @@
 ## Pendentes
 
 ### Alta (imediato)
+- [ ] **FTMS: decidir estratégia definitiva após teste no device** — seletor de modo A/B/C implementado (2026-08-05c) para diagnóstico: cada modo gera log em `Download/CorreLogo/ftms-modoX-*.log`. Testar os 3 modos na esteira e escolher o vencedor; depois fixar como padrão (ou detectar automaticamente). Ver seção Concluídos 2026-08-05c e CHANGELOG
 - [ ] **Figurinha no Stories — dívida técnica (nova abordagem)** — usuário estudando como outros apps fazem (a Meta parece exigir processo/asset específico além do PNG transparente). Investigar alternativas: `MediaSharePlugin` do Capacitor (intent nativo `com.instagram.share.ADD_TO_STORY`), share sheet nativo do Android, ou plugin `@capacitor/share` com MIME correto
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
@@ -31,6 +32,19 @@
 
 ---
 
+## ✅ Concluídos (Sessão 2026-08-05c — Seletor de modo FTMS A/B/C + log em arquivo sem logcat)
+
+- [x] **Seletor de modo de conexão FTMS** — long-press 3s (ou toque) no botão "Conectar esteira Bluetooth" do configurador de treino abre modal A/B/C; modo é usado no `connect` e exibido no badge de conexão. 1 APK com seletor (usuário confirmou; não 3 APKs)
+- [x] **Estratégias** — **A** (estrito: spec, aceita result code `0x01` e `0x00` legacy), **B** (otimista: fire-and-forget, auto-Start `0x07` antes do 1º comando, Set pendente até métricas ou 2s, grant por write-ack/metrics/exaustão — estilo KS Fit/duhow), **C** (instrumentado: dump de características do serviço FTMS, lê 2ACC/2AD4/2AD5, vendor preamble WiLinktech `d18d2c10-...` com payload `01 00 0d 00 06 0b 0f 0d` antes do Request Control se a char existir)
+- [x] **Mapa de result code corrigido p/ spec** — `0x01=Success`, `0x02` Op Not Supported, `0x03` Invalid Param, `0x04` Operation Failed, `0x05` Control Not Permitted, `0x00` como "Success (legacy)"; critério de sucesso aceita `0x01`/`0x00`; Request Control rejeitado com `0x04` (WiLinktech) é tolerado e segue com controle
+- [x] **Log em arquivo sem logcat** — `BleSessionLog.kt` (novo): escreve em `Download/CorreLogo/ftms-modo{X}-yyyyMMdd-HHmmss.log` via MediaStore (minSdk 29, sem permissão), flush a cada 25 linhas, nome do arquivo propagado ao app (`treadmillLogFile` + `onLogFile`). Cada evento GATT/CP/CCCD/keep-alive logado
+- [x] **Canal de ack real** — assinatura do **2ADA** (Fitness Machine Status) com notificação + log do opcode; CCCD escritos escalonados 100/250/450ms (WiLinktech descarta CCCD escritos em cadeia)
+- [x] **Pipeline TS/Android completo** — `ble-transport.ts`/`native-ble-transport.ts`/`use-treadmill.ts` com `mode` + `logFile`; `TreadmillBlePlugin.connectTreadmill` aceita `mode`; `TreadmillFtmsManager.encodeStart()` (0x07) adicionado
+- [x] **Testes** — `npm test` ✅ 83/83 (3 novos: logFile por modo, modos A/B/C no mock) · lint ✅ 0 novos (baseline 21) · `.env.apk→.env` ✅ · `npm run build` ✅ · `cap sync android` ✅ (9 plugins) · `gradlew assembleDebug` ✅ BUILD SUCCESSFUL
+- [ ] **Aguardando**: teste no device com os 3 modos — reproduzir conexão, capturar `Download/CorreLogo/ftms-modoX-*.log` e mandar para decidir a estratégia definitiva (fixar como padrão ou detectar automaticamente)
+
+---
+
 ## ✅ Concluídos (Sessão 2026-08-05b — Fix telemetria FTMS + control point response)
 
 - [x] **Fix speed lido como inclinação ×10** — `ftms-protocol.ts` `parseTreadmillMetrics` reescrito com flag map **padrão FTMS** (bit0 = More Data invertido; bit1 avg speed; bit2 distância 24-bit; bit3 inclinação+ramp; bit7 energia; bit8 HR; bit10 elapsed; leituras bounds-guarded). Root cause confirmado pelo diagnóstico nRF (`0x078C`) e parser duhow
@@ -38,6 +52,7 @@
 - [x] **MockTransport corrigido** — packet padrão `0x040C` (speed + distância 24-bit + incline + ramp + elapsed) e respostas `[0x80, opcode, 0x00]`
 - [x] **Testes reescritos (TDD)** — `ftms-protocol.test.ts` + `ble-transport.test.ts`; `npm test` ✅ 79/79 · lint ✅ 0 novos · build ✅ 5.65s · cap sync ✅ · gradle ✅ BUILD SUCCESSFUL
 - [ ] **Aguardando**: teste no device — speed manual deve aparecer como speed; inclinação manual lida; comandos não resetarem pra 0.0. **Verificar escala de inclinação** (~6× maior = BH iConcept, escala 62.5, precisa detecção `T01_XXXXX`)
+- [ ] **⚠️ Novo sintoma (teste pós-fix)**: "Falha ao assumir controle da esteira" ao conectar. Hipótese principal confirmada por pesquisa: **result code Success é 0x01 (spec), nosso código usa 0x00** (mapa deslocado de 1) → nem grant passa no `== 0x00`. Alternativa: esteira WiLinktech rejeita Request Control com `0x04` de propósito (comportamento esperado, seguir mesmo assim)
 
 ---
 

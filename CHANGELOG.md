@@ -1,5 +1,33 @@
 # Changelog
 
+## [2026-08-05c] — Seletor de modo FTMS A/B/C + log em arquivo (diagnóstico "Falha ao assumir controle")
+
+### Contexto
+- Sintoma reportado após o fix de telemetria: **"Falha ao assumir controle da esteira"** ao conectar. Pesquisa GitHub (duhow/ftms-bridge, walkingpad-controller, NordicFTMS, python-pyftms, QZ, pycycling, etc.) concluiu: (1) mapa de result code deslocado — spec usa `0x01=Success`, código usava `0x00`; (2) família WiLinktech/KingSmith rejeita Request Control com `0x04` de propósito; (3) falta canal de ack real (2ADA).
+
+### Decisão (usuário)
+- **1 APK com seletor A/B/C** no botão "Conectar esteira Bluetooth" (não 3 APKs). Long-press de 3s (ou toque) abre o seletor. Cada modo gera **log próprio em arquivo** (`Download/CorreLogo/ftms-modoX-*.log`) — logcat trava no celular do usuário.
+
+### Implementado
+- **`BleSessionLog.kt`** (novo): log via `MediaStore.Downloads` (minSdk 29, sem permissão), nome `ftms-modo{A|B|C}-yyyyMMdd-HHmmss.log`, flush a cada 25 linhas, `IS_PENDING` para atomicidade, caminho propagado via evento `treadmillLogFile`.
+- **`TreadmillBleService.kt`**:
+  - Result codes corrigidos para spec (`0x01` Success, `0x02`–`0x05`; `0x00` aceito como legacy); sucesso aceita `0x01`/`0x00`; Request Control com `0x04` (WiLinktech) é tolerado e segue com controle.
+  - Modo A (estrito), B (otimista: auto-Start `0x07`, Set pendente até métricas/2s, grant por write-ack, métrica ou exaustão), C (dump do serviço + leitura 2ACC/2AD4/2AD5 + vendor preamble WiLinktech `d18d2c10-c44c-11e8-a355-529269fb1459` payload `01 00 0d 00 06 0b 0f 0d` antes do Request Control se a char existir).
+  - Assinatura do **2ADA** (Fitness Machine Status) + log de opcode; CCCD escalonados 100/250/450ms (WiLinktech descarta CCCD em cadeia).
+  - `connect(address, mode)`, `logFilePath`, `onLogFile`, sessão de log em cada conexão.
+- **`TreadmillFtmsManager.kt`**: `encodeStart()` (0x07).
+- **`TreadmillBlePlugin.kt`**: `connectTreadmill` com `mode` + evento `treadmillLogFile`.
+- **TS**: `BleTransport.connect(address, { mode })`, `onLogFile`, MockTransport (logFile por modo), `NativeBleTransport` (mode + listener `treadmillLogFile`), `useTreadmill` (state `mode`/`logFile`, `connect(address, mode)`).
+- **`App.tsx`**: botão seletor (Wrench) com long-press 3s + modal A/B/C, badge de modo/log no estado conectado.
+
+### Validação
+- `npm test` ✅ **83/83** (10 arquivos, 3 novos) · lint ✅ 0 novos nos arquivos tocados (baseline 21 pré-existentes intacto) · `.env.apk→.env` ✅ · `npm run build` ✅ (5.51s) · `cap sync android` ✅ (9 plugins) · `gradlew assembleDebug` ✅ **BUILD SUCCESSFUL**.
+
+### Próximo
+- **Testar no device**: reproduzir a conexão com os 3 modos e enviar `Download/CorreLogo/ftms-modoX-*.log`. O log dirá se a esteira responde `0x01`, `0x04` ou nada → decidir estratégia definitiva (fixar como padrão ou detectar por device name `T01_XXXXX`/ID 2592).
+
+---
+
 ## [2026-08-05b] — Fix telemetria FTMS: flag map padrão + control point response (speed lido como inclinação)
 
 ### Sintoma (device)
