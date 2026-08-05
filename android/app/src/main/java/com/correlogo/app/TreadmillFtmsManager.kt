@@ -120,6 +120,10 @@ class TreadmillFtmsManager {
         return byteArrayOf(0x01)
     }
 
+    fun encodeStart(): ByteArray {
+        return byteArrayOf(0x07)
+    }
+
     fun parseControlPointResponse(data: ByteArray): ControlPointResponse {
         val buf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
         val requestedOpcode = buf.get(1).toInt() and 0xFF

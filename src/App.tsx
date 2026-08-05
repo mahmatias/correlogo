@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
-import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar, Bluetooth, BluetoothSearching, BluetoothConnected, X, Check } from 'lucide-react';
+import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar, Bluetooth, BluetoothSearching, BluetoothConnected, X, Check, Wrench } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData, PrResults } from './types';
@@ -25,7 +25,7 @@ import WeekCalendar from './components/WeekCalendar';
 import MonthCalendar from './components/MonthCalendar';
 import BottomSheet from './components/BottomSheet';
 import GoogleCalendarModal from './components/GoogleCalendarModal';
-import { useTreadmill, type TreadmillConnection } from './lib/use-treadmill';
+import { useTreadmill, type TreadmillConnection, type TreadmillControlMode } from './lib/use-treadmill';
 import { useBackHandler } from './lib/hooks/useBackHandler';
 import { getAuth, getDb } from './lib/firebase';
 import { applySessionToRecords, emptyRecords, readRecords, saveRecords, recomputeRecords, backfillRecords, type Records } from './lib/records';
@@ -81,6 +81,25 @@ export default function App() {
   const [isLightMode, setIsLightMode] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
   const treadmill = useTreadmill();
+  const [treadmillMode, setTreadmillMode] = useState<TreadmillControlMode>('A');
+  const [modeSelectorOpen, setModeSelectorOpen] = useState(false);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressConnectClickRef = useRef(false);
+
+  const startModeLongPress = () => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null;
+      suppressConnectClickRef.current = true;
+      setModeSelectorOpen(true);
+    }, 3000);
+  };
+  const cancelModeLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
   const [isEditing, setIsEditing] = useState(false);
   const [showGenerator, setShowGenerator] = useState(false);
   const [programToReview, setProgramToReview] = useState<TrainingProgram | null>(null);
@@ -1070,9 +1089,20 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                           {!treadmill.connected ? (
                             <>
                               <button
-                                onClick={() => treadmill.scan()}
+                                onPointerDown={startModeLongPress}
+                                onPointerUp={cancelModeLongPress}
+                                onPointerLeave={cancelModeLongPress}
+                                onPointerCancel={cancelModeLongPress}
+                                onContextMenu={(e) => e.preventDefault()}
+                                onClick={() => {
+                                  if (suppressConnectClickRef.current) {
+                                    suppressConnectClickRef.current = false;
+                                    return;
+                                  }
+                                  treadmill.scan();
+                                }}
                                 disabled={treadmill.state === 'SCANNING'}
-                                className="w-full flex items-center justify-center gap-2 p-3 rounded-lg bg-bg-surface hover:bg-bg-elevated text-text-primary transition-colors disabled:opacity-50"
+                                className="w-full flex items-center justify-center gap-2 p-3 rounded-lg bg-bg-surface hover:bg-bg-elevated text-text-primary transition-colors disabled:opacity-50 select-none touch-manipulation"
                               >
                                 {treadmill.state === 'SCANNING' ? (
                                   <BluetoothSearching size={18} className="animate-pulse" />
@@ -1083,12 +1113,23 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                                   {treadmill.state === 'SCANNING' ? 'Escaneando...' : 'Conectar esteira Bluetooth'}
                                 </span>
                               </button>
+                              <p className="text-[10px] text-text-muted px-1">
+                                Segure o botão por 3s para escolher o modo de conexão (atual: <strong className="text-text-secondary">{treadmillMode}</strong>)
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => setModeSelectorOpen(true)}
+                                className="w-full flex items-center justify-center gap-2 p-2 rounded-lg border border-border bg-bg-deep hover:bg-bg-elevated text-text-secondary transition-colors"
+                              >
+                                <Wrench size={14} />
+                                <span className="text-xs">Modo de conexão: <strong className="text-text-primary">{treadmillMode}</strong></span>
+                              </button>
                               {treadmill.devices.length > 0 && (
                                 <div className="border border-border rounded-lg max-h-32 overflow-y-auto space-y-1">
                                   {treadmill.devices.map(d => (
                                     <button
                                       key={d.address}
-                                      onClick={() => treadmill.connect(d.address)}
+                                      onClick={() => treadmill.connect(d.address, treadmillMode)}
                                       disabled={treadmill.state === 'CONNECTING'}
                                       className="w-full text-left p-2 rounded bg-bg-surface text-xs hover:bg-bg-elevated transition-colors disabled:opacity-50"
                                     >
@@ -1100,18 +1141,24 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                               {treadmill.state === 'CONNECTING' && (
                                 <p className="text-xs text-yellow-400 flex items-center gap-1 px-1">
                                   <BluetoothSearching size={14} className="animate-pulse" />
-                                  Conectando...
+                                  Conectando (modo {treadmillMode})...
                                 </p>
                               )}
                             </>
                           ) : (
                             <div className="flex items-center justify-between p-3 rounded-lg bg-green-900/20 border border-green-700/30">
-                              <p className="text-sm text-green-400 flex items-center gap-2">
-                                <BluetoothConnected size={16} />
-                                <span className="font-medium">
-                                  {treadmill.connectedDeviceName ? `Conectado: ${treadmill.connectedDeviceName}` : 'Conectado'}
-                                </span>
-                              </p>
+                              <div className="min-w-0">
+                                <p className="text-sm text-green-400 flex items-center gap-2">
+                                  <BluetoothConnected size={16} />
+                                  <span className="font-medium">
+                                    {treadmill.connectedDeviceName ? `Conectado: ${treadmill.connectedDeviceName}` : 'Conectado'}
+                                  </span>
+                                </p>
+                                <p className="text-[10px] text-text-muted mt-1 truncate">
+                                  Modo {treadmill.mode}
+                                  {treadmill.logFile ? ` · Log: ${treadmill.logFile}` : ''}
+                                </p>
+                              </div>
                               <button
                                 onClick={() => treadmill.disconnect()}
                                 className="text-text-secondary hover:text-red-400 transition-colors p-1"
@@ -1624,6 +1671,38 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                   <Button variant="ghost" className="w-full" onClick={() => setReschedulePlanId(null)}>
                     Cancelar
                   </Button>
+                    </div>
+                </Modal>
+            )}
+            {modeSelectorOpen && (
+              <Modal open={modeSelectorOpen} onClose={() => setModeSelectorOpen(false)} title="Modo de conexão FTMS">
+                <div className="space-y-3">
+                  <p className="text-xs text-text-muted">
+                    Estratégia usada para assumir o controle da esteira. Cada modo gera um log em
+                    <span className="text-text-primary font-medium"> Download/CorreLogo/</span>.
+                  </p>
+                  {[
+                    { id: 'A' as TreadmillControlMode, name: 'A — Estrito', desc: 'Spec estrita: aguarda resposta do Request Control (aceita 0x01/0x00). Recomendado para a maioria das esteiras.' },
+                    { id: 'B' as TreadmillControlMode, name: 'B — Otimista', desc: 'Fire-and-forget: Start automático e controle concedido sem esperar aprovação (estilo KS Fit). Útil em WiLinktech.' },
+                    { id: 'C' as TreadmillControlMode, name: 'C — Instrumentado', desc: 'Explorer: lê 2ACC/2AD4/2AD5, assina 2ADA e tenta vendor preamble. Diagnóstico completo.' },
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => {
+                        setTreadmillMode(opt.id);
+                        setModeSelectorOpen(false);
+                      }}
+                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                        treadmillMode === opt.id ? 'border-accent bg-accent text-white' : 'border-border bg-bg-surface hover:bg-bg-elevated'
+                      }`}
+                    >
+                      <span className="text-sm font-semibold block">{opt.name}</span>
+                      <span className={`text-xs ${treadmillMode === opt.id ? 'text-white/80' : 'text-text-secondary'}`}>{opt.desc}</span>
+                    </button>
+                  ))}
+                  <div className="flex gap-4 pt-2">
+                    <Button variant="secondary" className="flex-1" onClick={() => setModeSelectorOpen(false)}>Cancelar</Button>
+                  </div>
                 </div>
               </Modal>
             )}

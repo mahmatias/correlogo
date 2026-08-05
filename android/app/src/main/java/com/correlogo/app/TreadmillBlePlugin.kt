@@ -74,6 +74,9 @@ class TreadmillBlePlugin : Plugin() {
             service.onError = { msg ->
                 notifyListeners("treadmillError", JSObject().apply { put("message", msg) })
             }
+            service.onLogFile = { path ->
+                notifyListeners("treadmillLogFile", JSObject().apply { put("path", path) })
+            }
         }
         return bleService
     }
@@ -173,12 +176,13 @@ class TreadmillBlePlugin : Plugin() {
             call.reject("address required")
             return
         }
+        val mode = call.getString("mode") ?: "A"
         val service = ensureService() ?: run {
             call.reject("Service not initialized")
             return
         }
         try {
-            service.connect(address)
+            service.connect(address, mode)
             call.resolve()
         } catch (e: Exception) {
             Log.e(TAG, "connectTreadmill error", e)

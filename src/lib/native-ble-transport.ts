@@ -1,11 +1,11 @@
 import { registerPlugin, Capacitor } from '@capacitor/core';
-import type { BleTransport, BleDevice } from './ble-transport';
+import type { BleTransport, BleDevice, TreadmillControlMode } from './ble-transport';
 import { isNative } from './capacitor/platform';
 
 interface NativeTreadmillBlePlugin {
   initBle(): Promise<void>
   startBleScan(): Promise<void>
-  connectTreadmill(options: { address: string }): Promise<void>
+  connectTreadmill(options: { address: string; mode?: string }): Promise<void>
   disconnectTreadmill(): Promise<void>
   setTreadmillSpeed(options: { speed: number }): Promise<void>
   setTreadmillIncline(options: { incline: number }): Promise<void>
@@ -43,6 +43,7 @@ export class NativeBleTransport implements BleTransport {
   private controlPointListeners: Array<(data: DataView) => void> = [];
   private disconnectListeners: Array<() => void> = [];
   private errorListeners: Array<(err: string) => void> = [];
+  private logFileListeners: Array<(path: string) => void> = [];
   private initPromise: Promise<void> | null = null;
   private activeListeners: Array<{ remove: () => void }> = [];
   private destroyed = false;
@@ -89,7 +90,7 @@ export class NativeBleTransport implements BleTransport {
     } catch {}
   }
 
-  async connect(address: string): Promise<void> {
+  async connect(address: string, options?: { mode?: TreadmillControlMode }): Promise<void> {
     await this.ensureInitialized();
 
     return new Promise<void>((resolve, reject) => {
@@ -122,7 +123,7 @@ export class NativeBleTransport implements BleTransport {
         reject(new Error(data.message || 'Erro na conexão'));
       }).then(h => { errorHandle = h; });
 
-      Plugin.connectTreadmill({ address }).catch((err: any) => {
+      Plugin.connectTreadmill({ address, mode: options?.mode ?? 'A' }).catch((err: any) => {
         cleanup();
         reject(err);
       });
@@ -135,6 +136,7 @@ export class NativeBleTransport implements BleTransport {
     this.controlPointListeners = [];
     this.disconnectListeners = [];
     this.errorListeners = [];
+    this.logFileListeners = [];
     try {
       await Plugin.removeAllListeners();
       await Plugin.disconnectTreadmill();
@@ -221,6 +223,19 @@ export class NativeBleTransport implements BleTransport {
     Plugin.addListener('treadmillError', (data: any) => {
       this.fireError(data.message || 'Erro BLE');
     }).then(h => this.activeListeners.push(h));
+
+    Plugin.addListener('treadmillLogFile', (data: any) => {
+      if (data.path) {
+        this.logFileListeners.forEach(cb => cb(data.path));
+      }
+    }).then(h => this.activeListeners.push(h));
+  }
+
+  onLogFile(cb: (path: string) => void): () => void {
+    this.logFileListeners.push(cb);
+    return () => {
+      this.logFileListeners = this.logFileListeners.filter(l => l !== cb);
+    };
   }
 
   private fireError(msg: string): void {

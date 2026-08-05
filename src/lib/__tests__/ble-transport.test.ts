@@ -83,4 +83,23 @@ describe('MockTransport', () => {
     cleanup();
     expect((transport as any).metricsListeners.length).toBe(0);
   });
+
+  it('emits a log file path reflecting the selected mode', async () => {
+    const transport = new MockTransport();
+    const path = await new Promise<string>(resolve => {
+      transport.onLogFile(p => resolve(p));
+      transport.connect('00:11:22:33:44:55', { mode: 'B' });
+    });
+    expect(path).toContain('modoB');
+  });
+
+  it.each(['A', 'B', 'C'] as const)('connects with mode %s', async (mode) => {
+    const transport = new MockTransport();
+    await transport.connect('00:11:22:33:44:55', { mode });
+    const metrics = await new Promise<any>(resolve => {
+      transport.onMetrics(data => resolve(data));
+    });
+    const parsed = parseTreadmillMetrics(metrics);
+    expect(typeof parsed.instantSpeedKmh).toBe('number');
+  });
 });
