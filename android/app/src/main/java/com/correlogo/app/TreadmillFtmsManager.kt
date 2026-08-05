@@ -54,28 +54,45 @@ class TreadmillFtmsManager {
         val flags = buf.getShort().toInt() and 0xFFFF
 
         var instantSpeedKmh = 0.0
-        if (flags and 0x0001 != 0) {
+        if (flags and 0x0001 == 0) {
             instantSpeedKmh = (buf.getShort().toInt() and 0xFFFF).toDouble() / 100.0
         }
-        val totalDistanceMeters: Long? = if (flags and 0x0002 != 0) {
-            buf.getInt().toLong() and 0xFFFFFFFFL
+        val averageSpeedKmh: Double? = if (flags and 0x0002 != 0) {
+            (buf.getShort().toInt() and 0xFFFF).toDouble() / 100.0
         } else null
-        val instantaneousInclinePercent: Double? = if (flags and 0x0004 != 0) {
+        val totalDistanceMeters: Long? = if (flags and 0x0004 != 0) {
+            val b0 = buf.get().toInt() and 0xFF
+            val b1 = buf.get().toInt() and 0xFF
+            val b2 = buf.get().toInt() and 0xFF
+            (b0 or (b1 shl 8) or (b2 shl 16)).toLong()
+        } else null
+        val instantaneousInclinePercent: Double? = if (flags and 0x0008 != 0) {
             buf.getShort().toDouble() / 10.0
         } else null
-
         if (flags and 0x0008 != 0) buf.getShort()
         if (flags and 0x0010 != 0) buf.getShort()
+        if (flags and 0x0010 != 0) buf.getShort()
         if (flags and 0x0020 != 0) buf.get()
-        if (flags and 0x0040 != 0) buf.getShort()
+        if (flags and 0x0040 != 0) buf.get()
         if (flags and 0x0080 != 0) buf.getShort()
-        if (flags and 0x0100 != 0) buf.getShort()
-        if (flags and 0x0200 != 0) buf.getShort()
+        if (flags and 0x0080 != 0) buf.getShort()
+        if (flags and 0x0080 != 0) buf.get()
+        val heartRate: Int? = if (flags and 0x0100 != 0) {
+            buf.get().toInt() and 0xFF
+        } else null
+        if (flags and 0x0200 != 0) buf.get()
+        val elapsedTimeSeconds: Int? = if (flags and 0x0400 != 0) {
+            (buf.getShort().toInt() and 0xFFFF)
+        } else null
+        if (flags and 0x0800 != 0) buf.getShort()
 
         return TreadmillMetrics(
             instantSpeedKmh = instantSpeedKmh,
+            averageSpeedKmh = averageSpeedKmh,
             totalDistanceMeters = totalDistanceMeters,
             instantaneousInclinePercent = instantaneousInclinePercent,
+            heartRate = heartRate,
+            elapsedTimeSeconds = elapsedTimeSeconds,
         )
     }
 
@@ -105,8 +122,8 @@ class TreadmillFtmsManager {
 
     fun parseControlPointResponse(data: ByteArray): ControlPointResponse {
         val buf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
-        val resultCode = buf.get(1).toInt() and 0xFF
-        val requestedOpcode = buf.get(2).toInt() and 0xFF
+        val requestedOpcode = buf.get(1).toInt() and 0xFF
+        val resultCode = buf.get(2).toInt() and 0xFF
         return ControlPointResponse(resultCode, requestedOpcode)
     }
 }

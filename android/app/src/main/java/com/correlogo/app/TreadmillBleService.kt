@@ -162,8 +162,8 @@ class TreadmillBleService(private val context: Context) {
                 }
                 FTMS_CONTROL_POINT_CHAR -> {
                     if (value.isNotEmpty() && value[0] == 0x80.toByte() && value.size > 1) {
-                        val requestedOpcode = if (value.size > 2) (value[2].toInt() and 0xFF) else -1
-                        val resultCode = value[1].toInt() and 0xFF
+                        val requestedOpcode = value[1].toInt() and 0xFF
+                        val resultCode = if (value.size > 2) (value[2].toInt() and 0xFF) else -1
                         Log.d(TAG, "Control Point response: opcode=0x${requestedOpcode.toString(16)} resultCode=0x${resultCode.toString(16)} (${ftmsResultCodeToString(resultCode)})")
                         if (resultCode == 0x00) {
                             requestControlRetryRunnable?.let { handler.removeCallbacks(it) }

@@ -1,5 +1,32 @@
 # Changelog
 
+## [2026-08-05b] — Fix telemetria FTMS: flag map padrão + control point response (speed lido como inclinação)
+
+### Sintoma (device)
+- Speed manual na esteira → app mostra **inclinação ×10** (5.0 km/h → 50%, 15.0 → 150%); speed no app sempre 0.0; mudar inclinação na esteira não é lido; comando pelo app aparece na barra e reseta para 0.0.
+
+### Root cause
+- **Parse de `0x2ACD` com flag map inventado** (`ftms-protocol.ts` + `TreadmillFtmsManager.kt`): bit0 tratado como "speed presente" quando é **More Data invertido** (0 = speed presente); bit2 tratado como inclinação quando é Total Distance (24-bit). Com flags reais `bit0=0, bit2=1`, o parser pulava o speed e lia **os bytes do speed como inclinação** ÷10 → 5.0 km/h = raw 500 → 50%. Speed nunca era parseado → barra resetava pra 0.0. Confirmado contra diagnóstico nRF (`DIAGNOSTICO-FTMS-NRF.md`, flags `0x078C`) e parser de referência duhow/ftms-bridge.
+- **Control Point response com campos trocados** (`TreadmillBleService` + `TreadmillFtmsManager`): spec é `[0x80][requested opcode][result]`; código lia `[1]` como result. Request Control rejeitado pela esteira era tratado como sucesso (CONTROLLED falso → comandos enviados sem controle real, sem mensagem de erro).
+
+### Fix
+- **`src/lib/ftms-protocol.ts`** — `parseTreadmillMetrics` reescrito com o flag map padrão FTMS (bit0 More Data, bit1 avg speed, bit2 distância 24-bit, bit3 inclinação+ramp, bit7 energia, bit8 HR, bit10 elapsed...) + leituras bounds-guarded; `parseControlPointResponse` com opcode/result corretos.
+- **`src/lib/ble-transport.ts`** — MockTransport emitindo packet padrão (flags `0x040C`, speed+distance 24-bit+incline+ramp+elapsed) e respostas de control point `[0x80, opcode, 0x00]` corretas.
+- **`TreadmillBleService.kt`** — resultCode = `value[2]`, requestedOpcode = `value[1]`.
+- **`TreadmillFtmsManager.kt`** — `parseControlPointResponse` (swap) e `parseMetrics` (flag map correto; código morto mantido consistente).
+- **Testes reescritos** (TDD, red→green) com o layout correto.
+
+### Validação
+- `npm test` ✅ **79/79** (10 arquivos) · lint ✅ 0 novos nos arquivos tocados (baseline 21) · `.env.apk→.env` ✅ · `npm run build` ✅ (5.65s) · `cap sync android` ✅ · `compileDebugKotlin` ✅ · `gradlew assembleDebug` ✅ BUILD SUCCESSFUL.
+
+### Commits
+- `git log` — commit de fix da telemetria + docs wiki.
+
+### Próximo
+- **Testar no device**: speed manual na esteira deve aparecer como speed correto; inclinação manual deve ser lida; comandos do app devem refletir e não resetar pra 0.0. **Atenção à escala de inclinação**: se a inclinação aparecer ~6× maior que a real (BH iConcept usa escala proprietária 62.5, não ÷10), avisar — precisa de detecção por device name `T01_XXXXX`. Ver HANDOFF.
+
+---
+
 ## [2026-08-05] — Fix BLE error 133 (GATT 0x85): fila serializada + keep-alive por idle + retry 200ms
 
 ### O que entrou

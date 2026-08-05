@@ -54,10 +54,26 @@ useTreadmill() hook
 
 ### Telemetria (notify 0x2ACD)
 
-Flags UINT16 LE no byte 0:
-- `0x0001` → Instantaneous Speed (UINT16 × 0.01 km/h)
-- `0x0002` → Total Distance (UINT32, meters)
-- `0x0004` → Instantaneous Incline (SINT16 ÷ 10, %)
+Flags UINT16 LE no byte 0 — bit0 é **More Data** (0 = Instantaneous Speed presente, 1 = ausente):
+
+| Bit | Campo | Tamanho |
+|-----|-------|---------|
+| 0 | More Data (0 = speed presente) | — |
+| 1 | Average Speed (× 0.01 km/h) | UINT16 |
+| 2 | Total Distance (metros, 24-bit) | 24-bit |
+| 3 | Inclination (÷ 10, %) + Ramp Angle (÷ 10, °) | SINT16 + SINT16 |
+| 4 | Elevation Gain (+ e −) | SINT16 + SINT16 |
+| 5 | Instantaneous Pace | UINT8 |
+| 6 | Average Pace | UINT8 |
+| 7 | Expended Energy (total, por hora, por minuto) | UINT16 + UINT16 + UINT8 |
+| 8 | Heart Rate | UINT8 |
+| 9 | Metabolic Equivalent (÷ 10) | UINT8 |
+| 10 | Elapsed Time (s) | UINT16 |
+| 11 | Remaining Time (s) | UINT16 |
+| 12 | Force on Belt + Power Output | SINT16 + SINT16 |
+| 13 | Power Output | SINT16 + SINT16 |
+
+> ⚠️ Atenção: parse anterior (pré-2026-08-05) tratava bit0 como "speed presente" (invertido), bit2 como inclinação e bit1 como distância — isso fazia a velocidade ser lida como inclinação ×10 (5.0 km/h → 50%).
 
 ## GATT State Machine
 
@@ -98,6 +114,8 @@ Simula dispositivo FTMS após 100ms de scan. Gera telemetria a cada 100ms. Proce
 - `FTMS_MEASUREMENT_CHAR` foi corrigido de `00002a63` (Cycling Power) para `00002acd` (Treadmill Data) em 2026-07-30a
 - Características devem ser acessadas apenas dentro de `onServicesDiscovered()`
 - **GATT error 133 (`0x85`) no controle (2026-08-05)** — escrevias falhavam após tempo conectado em Samsung/API 33+. Causas: keep-alive de 2s sem thread-safety + `writeCharacteristic(char)` mutando `char.value` + CCCD hardcoded INDICATE. Corrigido com fila serializada, API 33+ `writeCharacteristic(char, value, writeType)`, retry 200ms e keep-alive por idle (25s). Ver `TreadmillBleService.kt` e commit `6ed3498`.
+- **Telemetria com flag map inventado (2026-08-05)** — speed aparecia como inclinação ×10 e speed sempre 0.0. Root cause: parse de `0x2ACD` com bit0 invertido (More Data) e bit2/bit1 com tamanhos errados. Corrigido em `ftms-protocol.ts` (TS, caminho real) + `TreadmillFtmsManager.kt` (dead code). Confirmado contra diagnóstico nRF (flags `0x078C`) e parser do duhow/ftms-bridge. Commits `8f8xxxx`/ver `git log`.
+- **Control Point response com result/opcode trocados (2026-08-05)** — spec é `[0x80][requested opcode][result]`; o código lia `[1]` como result e `[2]` como opcode. Fazia Request Control rejeitado ser tratado como sucesso (CONTROLLED falso) e respostas de Set Speed/Incline aparecerem como falha. Corrigido no service e no manager.
 
 ## Referências
 

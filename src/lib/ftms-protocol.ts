@@ -25,46 +25,65 @@ export enum FtmsOpcode {
 
 export function parseTreadmillMetrics(data: DataView): TreadmillMetrics {
   const flags = data.getUint16(0, true);
-  let offset = 2;
   const result: TreadmillMetrics = { instantSpeedKmh: 0 };
 
-  if (flags & 0x0001) {
-    result.instantSpeedKmh = data.getUint16(offset, true) / 100;
+  const readU8 = (off: number) =>
+    off + 1 <= data.byteLength ? data.getUint8(off) : undefined;
+  const readU16 = (off: number) =>
+    off + 2 <= data.byteLength ? data.getUint16(off, true) : undefined;
+  const readS16 = (off: number) =>
+    off + 2 <= data.byteLength ? data.getInt16(off, true) : undefined;
+  const readU24 = (off: number) =>
+    off + 3 <= data.byteLength
+      ? data.getUint8(off) | (data.getUint8(off + 1) << 8) | (data.getUint8(off + 2) << 16)
+      : undefined;
+
+  // bit0 = More Data: 0 => Instantaneous Speed present, 1 => not present
+  let offset = 2;
+  if ((flags & 0x0001) === 0) {
+    const v = readU16(offset);
+    if (v !== undefined) result.instantSpeedKmh = v / 100;
     offset += 2;
   }
   if (flags & 0x0002) {
-    result.totalDistanceMeters = data.getUint32(offset, true);
-    offset += 4;
+    const v = readU16(offset);
+    if (v !== undefined) result.averageSpeedKmh = v / 100;
+    offset += 2;
   }
   if (flags & 0x0004) {
-    result.instantaneousInclinePercent = data.getInt16(offset, true) / 10;
-    offset += 2;
+    const v = readU24(offset);
+    if (v !== undefined) result.totalDistanceMeters = v;
+    offset += 3;
   }
   if (flags & 0x0008) {
-    result.elevationGainMeters = data.getInt16(offset, true);
-    offset += 2;
+    // Inclination and Ramp Angle Setting (sint16 each)
+    const incline = readS16(offset);
+    if (incline !== undefined) result.instantaneousInclinePercent = incline / 10;
+    offset += 4;
   }
   if (flags & 0x0010) {
-    result.stepRate = data.getUint16(offset, true);
-    offset += 2;
+    // Elevation Gain (sint16 positive + sint16 negative)
+    const gain = readS16(offset);
+    if (gain !== undefined) result.elevationGainMeters = gain;
+    offset += 4;
   }
-  if (flags & 0x0020) {
-    result.heartRate = data.getUint8(offset);
+  if (flags & 0x0020) offset += 1; // Instantaneous Pace (uint8)
+  if (flags & 0x0040) offset += 1; // Average Pace (uint8)
+  if (flags & 0x0080) offset += 5; // Expended Energy (uint16 + uint16 + uint8)
+  if (flags & 0x0100) {
+    const hr = readU8(offset);
+    if (hr !== undefined) result.heartRate = hr;
     offset += 1;
   }
-  if (flags & 0x0040) {
-    result.elapsedTimeSeconds = data.getUint16(offset, true);
+  if (flags & 0x0200) offset += 1; // Metabolic Equivalent (uint8)
+  if (flags & 0x0400) {
+    const t = readU16(offset);
+    if (t !== undefined) result.elapsedTimeSeconds = t;
     offset += 2;
   }
-  if (flags & 0x0080) {
-    offset += 2;
-  }
-  if (flags & 0x0100) {
-    offset += 2;
-  }
-  if (flags & 0x0200) {
-    offset += 2;
-  }
+  if (flags & 0x0800) offset += 2; // Remaining Time (uint16)
+  if (flags & 0x1000) offset += 4; // Force on Belt and Power Output (sint16 + sint16)
+  if (flags & 0x2000) offset += 4; // Power Output (sint16 + sint16)
 
   return result;
 }
@@ -97,7 +116,7 @@ export function encodeReset(): ArrayBuffer {
 
 export function parseControlPointResponse(data: DataView): ControlPointResponse {
   return {
-    resultCode: data.getUint8(1),
-    requestedOpcode: data.getUint8(2),
+    requestedOpcode: data.getUint8(1),
+    resultCode: data.getUint8(2),
   };
 }
