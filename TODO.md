@@ -31,6 +31,14 @@
 
 ---
 
+## ✅ Concluídos (Sessão 2026-08-05 — Fix BLE error 133)
+
+- [x] **Fix `Write failed: error 133`** (`6ed3498`, pushado) — `TreadmillBleService.kt`: fila GATT serializada (main handler, um write por vez), API 33+ `writeCharacteristic(char, value, writeType)` sem mutar `char.value`, retry 200ms (`pendingRetry`, drop após 10 tentativas), keep-alive **por idle** (renova Request Control só após 25s sem write OK, checando a cada 5s) no lugar do spam de 2s, desistência silenciosa do keep-alive após 2 falhas (sem toast), CCCD NOTIFY como fallback p/ control point sem `PROPERTY_INDICATE` (BH iConcept)
+- [x] **Validação** — `compileDebugKotlin` ✓ · `.env.apk→.env` ✓ · `npm run build` ✓ (7.03s) · `cap sync android` ✓ (9 plugins) · `gradlew assembleDebug` ✓ BUILD SUCCESSFUL
+- [ ] **Aguardando**: CI (firebase-deploy.yml) → baixar release `latest` → testar no device Samsung/Android 13+: conexão > 25s parado e depois mudar velocidade/inclinação sem o erro 133
+
+---
+
 ## ✅ Concluídos (Sessão 2026-08-01b — Milestones/Conquistas COMPLETA: Tasks 7–15 + build)
 
 - [x] **Plano completo aprovado** pelo usuário (após revisão dos testes Tasks 1–6)
