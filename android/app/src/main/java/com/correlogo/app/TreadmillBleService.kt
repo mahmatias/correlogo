@@ -7,7 +7,9 @@ import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -23,8 +25,9 @@ class TreadmillBleService(private val context: Context) {
         val FTMS_MEASUREMENT_CHAR: UUID = UUID.fromString("00002acd-0000-1000-8000-00805f9b34fb")
         val FTMS_CONTROL_POINT_CHAR: UUID = UUID.fromString("00002ad9-0000-1000-8000-00805f9b34fb")
         val CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-        private const val KEEP_ALIVE_INTERVAL_MS = 3000L
-        private const val KEEP_ALIVE_INTERVAL_MS_FAST = 2000L
+        private const val KEEP_ALIVE_CHECK_INTERVAL_MS = 5000L
+        private const val KEEP_ALIVE_RENEW_AFTER_IDLE_MS = 25000L
+        private const val MAX_GATT_WRITE_ATTEMPTS = 10
 
         fun ftmsResultCodeToString(code: Int): String = when (code) {
             0x00 -> "Success"
@@ -52,6 +55,9 @@ class TreadmillBleService(private val context: Context) {
     val state: BleState get() = _state
     private var keepAliveJob: Job? = null
     private var lastCommand: ByteArray? = null
+    private var lastWriteKeepAlive = false
+    private var keepAliveFailures = 0
+    private var lastSuccessfulWriteMs = 0L
     private val handler = Handler(Looper.getMainLooper())
     private var connectionTimeoutRunnable: Runnable? = null
     private var discoveryTimeoutRunnable: Runnable? = null
@@ -66,7 +72,9 @@ class TreadmillBleService(private val context: Context) {
     var onDisconnect: (() -> Unit)? = null
     var onError: ((String) -> Unit)? = null
 
-    private val requestQueue = ConcurrentLinkedQueue<ByteArray>()
+    private class QueuedCommand(val data: ByteArray, val isKeepAlive: Boolean, val attempts: Int = 0)
+    private val requestQueue = ConcurrentLinkedQueue<QueuedCommand>()
+    private var pendingRetry: QueuedCommand? = null
     private var isWriting = false
 
     private val gattCallback = object : BluetoothGattCallback() {
@@ -125,7 +133,18 @@ class TreadmillBleService(private val context: Context) {
                 return
             }
 
-            Log.d(TAG, "FTMS service and characteristics found")
+            val cp = ftmsControlPointChar
+            val meas = ftmsMeasurementChar
+            val cpProps = cp?.properties ?: 0
+            val measProps = meas?.properties ?: 0
+            Log.d(
+                TAG,
+                "FTMS chars — CP props=0x${cpProps.toString(16)} " +
+                    "(WRITE=${cpProps and BluetoothGattCharacteristic.PROPERTY_WRITE != 0}, " +
+                    "WRITE_NO_RESPONSE=${cpProps and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0}, " +
+                    "INDICATE=${cpProps and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0}); " +
+                    "Measurement props=0x${measProps.toString(16)}"
+            )
             _state = BleState.Ready
             onStateChange?.invoke(state)
 
@@ -171,11 +190,30 @@ class TreadmillBleService(private val context: Context) {
             status: Int,
         ) {
             isWriting = false
+            val wasKeepAlive = lastWriteKeepAlive
+            val hex = lastCommand?.joinToString(" ") { "%02x".format(it) }
+            Log.d(
+                TAG,
+                "Write result${if (wasKeepAlive) " [keep-alive]" else ""}: status=$status (0x${status.toString(16)}) " +
+                    "cmd=[$hex] thread=${Thread.currentThread().name}"
+            )
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 Log.w(TAG, "Characteristic write failed: $status")
-                onError?.invoke("Write failed: $status")
+                if (wasKeepAlive) {
+                    keepAliveFailures++
+                    if (keepAliveFailures >= 2) {
+                        Log.w(TAG, "Keep-alive renewal failing ($keepAliveFailures consecutive) — stopping keep-alive to avoid poisoning the GATT link")
+                        stopKeepAlive()
+                    }
+                } else {
+                    keepAliveFailures = 0
+                    onError?.invoke("Write failed: $status")
+                }
+            } else {
+                keepAliveFailures = 0
+                lastSuccessfulWriteMs = System.currentTimeMillis()
             }
-            processNextCommand()
+            handler.post { processNextCommand() }
         }
 
         override fun onDescriptorWrite(
@@ -213,7 +251,13 @@ class TreadmillBleService(private val context: Context) {
         pendingDescriptorWrite = Runnable {
             gatt?.setCharacteristicNotification(controlPointChar, true)
             val descControl = controlPointChar.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR)
-            descControl?.value = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+            val cpUsesIndicate = controlPointChar.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0
+            Log.d(TAG, "Control Point CCCD: ${if (cpUsesIndicate) "INDICATION (0x0002)" else "NOTIFICATION (0x0001)"} (props=0x${controlPointChar.properties.toString(16)})")
+            descControl?.value = if (cpUsesIndicate) {
+                BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+            } else {
+                BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+            }
             gatt?.writeDescriptor(descControl)
         }
         gatt?.writeDescriptor(descMeasurement)
@@ -327,8 +371,8 @@ class TreadmillBleService(private val context: Context) {
         discoveryTimeoutRunnable = null
         requestControlRetryRunnable?.let { handler.removeCallbacks(it) }
         requestControlRetryRunnable = null
-        keepAliveJob?.cancel()
-        keepAliveJob = null
+        stopKeepAlive()
+        keepAliveFailures = 0
         gatt?.disconnect()
         gatt?.close()
         gatt = null
@@ -336,39 +380,79 @@ class TreadmillBleService(private val context: Context) {
         onStateChange?.invoke(state)
     }
 
-    fun sendCommand(data: ByteArray) {
-        requestQueue.add(data)
-        if (!isWriting) {
-            processNextCommand()
-        }
+    fun sendCommand(data: ByteArray, isKeepAlive: Boolean = false) {
+        requestQueue.add(QueuedCommand(data, isKeepAlive))
+        handler.post { processNextCommand() }
     }
 
     private fun processNextCommand() {
-        val data = requestQueue.poll() ?: return
-        val char = ftmsControlPointChar ?: return
-        val g = gatt ?: return
+        if (isWriting) return
+        val cmd = pendingRetry ?: requestQueue.poll() ?: return
+        pendingRetry = null
+        val char = ftmsControlPointChar ?: run {
+            Log.w(TAG, "processNextCommand: control point char not ready — dropping [${cmd.data.joinToString(" ") { "%02x".format(it) }}]")
+            return
+        }
+        val g = gatt ?: run {
+            Log.w(TAG, "processNextCommand: gatt is null — dropping [${cmd.data.joinToString(" ") { "%02x".format(it) }}]")
+            return
+        }
+
+        val writeType = if (char.properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0) {
+            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+        } else {
+            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+        }
 
         isWriting = true
-        gatt?.let {
-            char.value = data
-            char.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-            if (!it.writeCharacteristic(char)) {
-                Log.w(TAG, "writeCharacteristic() returned false (queue busy or char invalid)")
-                isWriting = false
-                processNextCommand()
+        lastCommand = cmd.data
+        lastWriteKeepAlive = cmd.isKeepAlive
+
+        Log.d(
+            TAG,
+            "Writing${if (cmd.isKeepAlive) " [keep-alive]" else ""}: ${cmd.data.joinToString(" ") { "%02x".format(it) }} " +
+                "writeType=$writeType thread=${Thread.currentThread().name}"
+        )
+
+        val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            g.writeCharacteristic(char, cmd.data, writeType)
+        } else {
+            @Suppress("DEPRECATION")
+            char.value = cmd.data
+            if (g.writeCharacteristic(char)) BluetoothStatusCodes.SUCCESS else BluetoothStatusCodes.ERROR_UNKNOWN
+        }
+
+        if (result != BluetoothStatusCodes.SUCCESS) {
+            isWriting = false
+            if (cmd.attempts < MAX_GATT_WRITE_ATTEMPTS) {
+                Log.w(
+                    TAG,
+                    "writeCharacteristic() returned $result (0x${result.toString(16)}) — retrying (attempt ${cmd.attempts + 1}/$MAX_GATT_WRITE_ATTEMPTS) in 200ms"
+                )
+                pendingRetry = QueuedCommand(cmd.data, cmd.isKeepAlive, cmd.attempts + 1)
+                handler.postDelayed({ processNextCommand() }, 200)
+            } else {
+                Log.e(
+                    TAG,
+                    "writeCharacteristic() gave up after $MAX_GATT_WRITE_ATTEMPTS attempts — dropping ${if (cmd.isKeepAlive) "[keep-alive] " else ""}[${cmd.data.joinToString(" ") { "%02x".format(it) }}]"
+                )
+                if (!cmd.isKeepAlive) onError?.invoke("Falha ao enviar comando à esteira (fila GATT ocupada)")
             }
         }
     }
 
     fun startKeepAlive() {
-        keepAliveJob?.cancel()
+        stopKeepAlive()
         keepAliveJob = scope.launch {
             while (isActive) {
                 try {
-                    delay(KEEP_ALIVE_INTERVAL_MS_FAST)
-                    if (state is BleState.Controlled) {
-                        Log.d(TAG, "Keep-alive: re-sending Request Control to renew lease")
-                        sendCommand(ftms.encodeRequestControl())
+                    delay(KEEP_ALIVE_CHECK_INTERVAL_MS)
+                    if (state is BleState.Controlled && keepAliveFailures < 2) {
+                        val idleMs = System.currentTimeMillis() - lastSuccessfulWriteMs
+                        if (idleMs >= KEEP_ALIVE_RENEW_AFTER_IDLE_MS) {
+                            Log.d(TAG, "Keep-alive: renewing Request Control after ${idleMs / 1000}s idle")
+                            sendCommand(ftms.encodeRequestControl(), isKeepAlive = true)
+                        }
                     }
                 } catch (e: CancellationException) {
                     Log.d(TAG, "Keep-alive cancelled")
@@ -380,6 +464,11 @@ class TreadmillBleService(private val context: Context) {
         }
     }
 
+    private fun stopKeepAlive() {
+        keepAliveJob?.cancel()
+        keepAliveJob = null
+    }
+
     private fun cleanup() {
         connectionTimeoutRunnable?.let { handler.removeCallbacks(it) }
         connectionTimeoutRunnable = null
@@ -387,8 +476,8 @@ class TreadmillBleService(private val context: Context) {
         discoveryTimeoutRunnable = null
         requestControlRetryRunnable?.let { handler.removeCallbacks(it) }
         requestControlRetryRunnable = null
-        keepAliveJob?.cancel()
-        keepAliveJob = null
+        stopKeepAlive()
+        keepAliveFailures = 0
         pendingDescriptorWrite = null
         controlPointNotificationsEnabled = false
         gatt?.close()
@@ -396,6 +485,7 @@ class TreadmillBleService(private val context: Context) {
         ftmsMeasurementChar = null
         ftmsControlPointChar = null
         requestQueue.clear()
+        pendingRetry = null
         isWriting = false
         _state = BleState.Disconnected
         onStateChange?.invoke(state)
