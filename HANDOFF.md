@@ -1,5 +1,28 @@
 # Handoff
 
+## Session Context (2026-08-05 — Fix BLE error 133: fila GATT serializada + keep-alive por idle + retry 200ms + API 33 write, build validado e pushado)
+
+### What happened
+- Usuário reportou **`Write failed: error 133`** (GATT_ERROR 0x85) ao controlar velocidade/inclinação da esteira FTMS, **após um tempo conectado** (Samsung/Android 13+). Conexão/scan OK; apenas writes falhavam e a esteira não reagia.
+- **Root cause** (3 vias): (1) keep-alive reenviava Request Control **a cada 2s** com `scope.launch`(IO) + fila `isWriting` não thread-safe → corrida e spam de writes; (2) API 33+ usava `writeCharacteristic(char)` deprecated mutando o mesmo objeto `char.value` a cada write (causa conhecida de 133 em Samsung); (3) CCCD do control point hardcoded INDICATE (0x0002) enquanto esteiras BH iConcept usam NOTIFY.
+- **Fix** em `TreadmillBleService.kt`:
+  - Fila serializada no main handler (`handler.post`), um write por vez, `QueuedCommand(data, isKeepAlive, attempts)`.
+  - API 33+: `g.writeCharacteristic(char, value, writeType)` checando `BluetoothStatusCodes`; fallback deprecated p/ <33. `writeType` conforme `PROPERTY_WRITE`.
+  - Retry 200ms via `pendingRetry` se `writeCharacteristic` retorna ≠ SUCCESS; drop após `MAX_GATT_WRITE_ATTEMPTS = 10`.
+  - Keep-alive **por idle**: checa a cada 5s e renova Request Control só se `now - lastSuccessfulWriteMs >= 25s`; 2 falhas consecutivas → `stopKeepAlive()` silencioso (sem toast).
+  - CCCD: NOTIFY se a char não tem `PROPERTY_INDICATE`.
+- **Validação**: `compileDebugKotlin` ✅ → `.env.apk→.env` ✅ → `npm run build` ✅ (7.03s) → `cap sync android` ✅ (9 plugins) → `assembleDebug` ✅ **BUILD SUCCESSFUL**.
+- **Commit**: `6ed3498` pushado para `main` → CI `firebase-deploy.yml` (assembleRelease + release `latest`).
+
+### Cautions for next session
+1. **Próximo passo**: confirmar CI verde e **testar no device** (Samsung/Android 13+): manter conexão > 25s parado e depois mudar velocidade/inclinação — o erro 133 não deve mais aparecer. Nos logs: `Write result [keep-alive]` a cada write e `renewing Request Control after Xs idle`.
+2. **Cuidado ao puxar o próximo contexto**: este turno **não tocou** nenhum TS/JS — só Kotlin. `.env` ficou como cópia de `.env.apk` (não commitado, como de praxe).
+3. **Não commitar** `.env` nem `app-release-v*.apk`. Baseline de lint (21 erros pré-existentes) intacto.
+4. Landmine conhecida: `@capacitor/app@8.1.0`/`browser@8.0.3` vs core 7.6.7 — não corrigir sem conversar (ver TODO.md).
+5. Se o erro 133 persistir no device, próximos passos de diagnóstico: logar `resultCode` do `onConnectionStateChange`/disconnect reason e conferir se o retry 200ms está estourando (`MAX_GATT_WRITE_ATTEMPTS`) — indicaria fila GATT do stack ocupada pelo keep-alive.
+
+---
+
 ## Session Context (2026-08-01b — Milestones/Conquistas COMPLETA: tab bar + Conquistas + celebração + pill/clip + BLE 15s, build validado)
 
 ### What happened

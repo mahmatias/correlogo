@@ -1,5 +1,29 @@
 # Changelog
 
+## [2026-08-05] — Fix BLE error 133 (GATT 0x85): fila serializada + keep-alive por idle + retry 200ms
+
+### O que entrou
+- **`TreadmillBleService.kt`** — combate ao `Write failed: error 133` (GATT_ERROR 0x85) no controle de velocidade/inclinação em Samsung/Android 13+:
+  - **Fila GATT serializada**: `sendCommand` → `handler.post { processNextCommand() }` (main thread); um único write por vez via `isWriting`, sem recursão direta e sem corrida entre keep-alive (IO) e comandos do plugin (main). Fila tipada `QueuedCommand(data, isKeepAlive, attempts)`.
+  - **API 33+**: usa `g.writeCharacteristic(char, value, writeType)` (retorna `BluetoothStatusCodes`), sem compartilhar/mutar `char.value` — causa conhecida de 133 em Samsung API 33+. Fallback deprecated mantido para <33.
+  - **Write type dinâmico**: `WRITE_TYPE_DEFAULT` se a char tem `PROPERTY_WRITE`, senão `WRITE_TYPE_NO_RESPONSE`.
+  - **Retry 200ms**: se `writeCharacteristic` retorna ≠ `SUCCESS`, re-enfileira o comando (`pendingRetry`) e tenta de novo via `handler.postDelayed(200ms)`, drop após `MAX_GATT_WRITE_ATTEMPTS = 10` com log (não dropa mais na 1ª falha).
+  - **Keep-alive por idle**: coroutine checa a cada `KEEP_ALIVE_CHECK_INTERVAL_MS = 5s` e renova Request Control (`isKeepAlive=true`) **somente** se `now - lastSuccessfulWriteMs >= KEEP_ALIVE_RENEW_AFTER_IDLE_MS = 25s` — acabou o spam de write a cada 2s. `lastSuccessfulWriteMs` atualizado no sucesso de `onCharacteristicWrite`.
+  - **Desistência silenciosa do keep-alive**: 2 falhas consecutivas de write de keep-alive → `stopKeepAlive()` **sem toast** (evita envenenar o link GATT); falha de comando do usuário → `onError` ("Write failed: $status").
+  - **CCCD do control point**: NOTIFY (0x0001) se a char não tem `PROPERTY_INDICATE` (fallback p/ esteiras BH iConcept que usam NOTIFY), INDICATE (0x0002) caso contrário.
+  - Log de properties (WRITE/WRITE_NO_RESPONSE/INDICATE) no `onServicesDiscovered`.
+
+### Validação
+- `.env.apk`→`.env` ✅ · `npm run build` ✅ (Vite 7.03s) · `npx cap sync android` ✅ (9 plugins) · `compileDebugKotlin` ✅ · `gradlew assembleDebug` ✅ **BUILD SUCCESSFUL**.
+
+### Commits
+- `6ed3498` fix(ble): error 133 — queue GATT serializada + keep-alive por idle + retry 200ms + API 33 write.
+
+### Próximo
+- Aguardar CI (firebase-deploy.yml) → baixar release `latest` → testar no device (Samsung/Android 13+): manter conexão > 25s sem comando, depois mudar velocidade/inclinação e confirmar que o erro 133 não reaparece. Logs: `Write result [keep-alive]` a cada 5s e `renewing Request Control after Xs idle`.
+
+---
+
 ## [2026-08-01b] — Milestones/Conquistas completa: tab bar 4 abas, Conquistas, celebração, pill/clip e BLE 15s (Tasks 7–15)
 
 ### O que entrou
