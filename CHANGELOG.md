@@ -1,5 +1,28 @@
 # Changelog
 
+## [2026-08-12] — FTMS: correção do diagnóstico (0x07 É o Start) + auto-Start em todos os modos + log sempre visível
+
+### Contexto (teste no device — esteira `A0:BB:3E:DC:25:4E`)
+- Usuário testou os 3 modos. **Modos A e C**: Request Control **concedido** (`resultCode=0x01 Success`, várias vezes no keep-alive), leituras 2ACC/2AD4/2AD5 OK, mas **todo Set 0x02/0x03 → `0x05 Control Not Permitted`** — nenhum controle exercido. **Modo B: nenhum log gerado**.
+- **2ACC (modo C)**: Target Setting Features = `0x0010` (só Heart Rate). **2ADA**: status `0x02` (`Stopped by Safety Key`) e `0x05` (`Target Speed Changed`). Dump do serviço: só chars FTMS padrão — **não existe** a char vendor `d18d2c10-...` (preamble WiLinktech não aplicável).
+
+### Correção de diagnóstico (a sessão anterior estava errada — agora confirmado contra a spec)
+- **`0x07` É Start/Resume** na spec FTMS (verificado: pycycling, ExFTMS e implementador com a spec PDF). Mapa: `0x04` Resistance · `0x05` **Set Target Power** · `0x06` Set HR · `0x07` **Start or Resume** · `0x08` Stop/Pause. A hipótese "trocar 0x07→0x05" da sessão 2026-08-05c **estava errada** e quebraria o Start.
+- **Root cause real do `0x05 Control Not Permitted`**: a spec só permite Set Target Speed/Incline com a esteira em estado **Started**. Os modos **A e C nunca enviaram Start** (só Request Control) → Sets rejeitados. O **modo B era o único que enviava Start** — e justamente ele **não gerou log**.
+
+### Fix
+- **`TreadmillBleService.kt`** — `sendCommand`: **auto-Start (0x07) antes do primeiro Set em TODOS os modos** (antes era só no B); lógica otimista de "Set pendente até métricas/2s" permanece **exclusiva do modo B**.
+- **`TreadmillBleService.kt`** — labels de Fitness Machine Status corrigidos para a tabela da spec (`0x01` Stopped/Paused by User, `0x02` **Stopped by Safety Key**, `0x04` Started/Resumed, `0x05` Target Speed Changed, `0x06` Incline, ... `0xFF` Control Permission Lost) + **hint no log** quando Set for rejeitado com `0x05` (máquina não Started; partida manual no console / safety key).
+- **`BleSessionLog.kt`** — removido `IS_PENDING`: o arquivo agora fica **sempre visível** em `Download/CorreLogo/` mesmo se o app for morto antes do `finish()` (causa mais provável do "modo B sem log" — arquivo criado mas oculto por `IS_PENDING=1`).
+
+### Validação
+- `npm test` ✅ **83/83** · lint ✅ 0 novos (baseline 21 pré-existentes) · `.env.apk→.env` ✅ · `npm run build` ✅ (6.99s) · `cap sync android` ✅ (9 plugins) · `gradlew assembleDebug` ✅ **BUILD SUCCESSFUL** (só warnings de depreciação pré-existentes).
+
+### Próximo
+- **Testar de novo os 3 modos no device** com o APK novo. Esperado: o 1º Set dispara `Start/Resume (0x07)` e a esteira passa a aceitar os Sets. Se o Start for rejeitado com `0x05`, o hint no log aponta partida manual no console (safety key / exigência física). O modo B deve agora **gerar log** (arquivo sempre visível). Decidir estratégia definitiva a partir dos logs.
+
+---
+
 ## [2026-08-05c] — Seletor de modo FTMS A/B/C + log em arquivo (diagnóstico "Falha ao assumir controle")
 
 ### Contexto

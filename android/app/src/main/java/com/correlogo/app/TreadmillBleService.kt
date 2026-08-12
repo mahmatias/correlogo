@@ -205,9 +205,20 @@ class TreadmillBleService(private val context: Context) {
                     val hex = value.joinToString(" ") { "%02x".format(it) }
                     val opcode = if (value.isNotEmpty()) (value[0].toInt() and 0xFF) else -1
                     val label = when (opcode) {
-                        0x01 -> "Stopped/Paused"
-                        0x04 -> "Started/Resumed"
+                        0x01 -> "Stopped/Paused by User"
+                        0x02 -> "Stopped by Safety Key"
+                        0x04 -> "Started/Resumed by User"
                         0x05 -> "Target Speed Changed"
+                        0x06 -> "Target Incline Changed"
+                        0x07 -> "Target Resistance Level Changed"
+                        0x08 -> "Target Power Changed"
+                        0x09 -> "Target Heart Rate Changed"
+                        0x0A -> "Targeted Expended Energy Changed"
+                        0x0B -> "Targeted Number of Steps Changed"
+                        0x0C -> "Targeted Number of Strides Changed"
+                        0x0D -> "Targeted Distance Changed"
+                        0x0E -> "Targeted Training Time Changed"
+                        0x15 -> "Targeted Cadence Changed"
                         0xFF -> "Control Permission Lost"
                         else -> "?"
                     }
@@ -237,6 +248,9 @@ class TreadmillBleService(private val context: Context) {
                             }
                             else -> {
                                 sLog("Control Point command não aprovado: resultCode=0x${resultCode.toString(16)} (${ftmsResultCodeToString(resultCode)})")
+                                if ((requestedOpcode == 0x02 || requestedOpcode == 0x03) && resultCode == 0x05) {
+                                    sLog("hint: esteira não está em estado Started — Start/Resume (0x07) já foi enviado antes deste Set; se continuar 0x05, a esteira provavelmente exige partida manual no console (ou safety key não encaixado)")
+                                }
                             }
                         }
                     } else {
@@ -509,30 +523,30 @@ class TreadmillBleService(private val context: Context) {
     }
 
     fun sendCommand(data: ByteArray, isKeepAlive: Boolean = false) {
-        if (controlStrategy == "B" && !isKeepAlive && data.isNotEmpty() &&
+        val isSet = !isKeepAlive && data.isNotEmpty() &&
             (data[0] == 0x02.toByte() || data[0] == 0x03.toByte())
-        ) {
+        if (isSet) {
             if (!autoStarted) {
                 autoStarted = true
-                sLog("modo B — auto-Start (0x07) antes do primeiro comando de controle")
+                sLog("auto-Start (0x07 Start/Resume) antes do primeiro Set (modo $controlStrategy)")
                 requestQueue.add(QueuedCommand(ftms.encodeStart(), false))
                 handler.post { processNextCommand() }
             }
-            if (!metricsReceived && pendingSetCommand == null) {
-                pendingSetCommand = data
-                pendingSetRunnable = Runnable {
-                    pendingSetRunnable = null
-                    val cmd = pendingSetCommand
-                    pendingSetCommand = null
-                    if (cmd != null) {
-                        sLog("modo B — timeout de métricas (2s): enviando Set pendente [${cmd.joinToString(" ") { "%02x".format(it) }}]")
-                        requestQueue.add(QueuedCommand(cmd, false))
-                        handler.post { processNextCommand() }
-                    }
+        }
+        if (controlStrategy == "B" && isSet && !metricsReceived && pendingSetCommand == null) {
+            pendingSetCommand = data
+            pendingSetRunnable = Runnable {
+                pendingSetRunnable = null
+                val cmd = pendingSetCommand
+                pendingSetCommand = null
+                if (cmd != null) {
+                    sLog("modo B — timeout de métricas (2s): enviando Set pendente [${cmd.joinToString(" ") { "%02x".format(it) }}]")
+                    requestQueue.add(QueuedCommand(cmd, false))
+                    handler.post { processNextCommand() }
                 }
-                handler.postDelayed(pendingSetRunnable!!, 2000)
-                return
             }
+            handler.postDelayed(pendingSetRunnable!!, 2000)
+            return
         }
         requestQueue.add(QueuedCommand(data, isKeepAlive))
         handler.post { processNextCommand() }

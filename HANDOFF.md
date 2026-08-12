@@ -1,5 +1,29 @@
 # Handoff
 
+## Session Context (2026-08-12 — FTMS: correção do diagnóstico + auto-Start em todos os modos + log sempre visível)
+
+### What happened
+- Usuário testou os 3 modos na esteira `A0:BB:3E:DC:25:4E` (logs `ftms-modoC-20260811-202303.log`, `ftms-modoA-20260811-202652.log`, `ftms-modoA-20260811-201955.log`):
+  - **A/C**: Request Control **concedido** (`resultCode=0x01`, repetido no keep-alive); reads 2ACC/2AD4/2AD5 OK; **todo Set 0x02/0x03 → `0x05 Control Not Permitted`**. 2ACC Target Setting Features = `0x0010` (só Heart Rate). 2ADA: status `0x02` e `0x05`. Dump: **sem** char vendor `d18d2c10-...` → preamble WiLinktech N/A. Nenhum modo controlou.
+  - **B**: **nenhum log gerado**.
+- **CORREÇÃO DE DIAGNÓSTICO — a sessão 2026-08-05c estava errada.** Verifiquei a spec: **`0x07` É Start/Resume** (conf. pycycling, ExFTMS, implementador com spec PDF). Mapa real: `0x04` Resistance, `0x05` **Set Target Power**, `0x06` Set HR, `0x07` **Start/Resume**, `0x08` Stop/Pause. NÃO trocar `encodeStart()` para 0x05 (quebraria — 0x05 é Power). O `encodeStart()` (0x07) e `FtmsOpcode.START=0x07` sempre estiveram certos.
+- **Root cause real**: spec só permite Set Target Speed/Incline com a esteira **Started**. A/C nunca enviam Start (só Request Control). B era o único que enviava — e não logou.
+- **Fix aplicado** (3 arquivos Kotlin, sem mudança TS):
+  1. `TreadmillBleService.sendCommand` — **auto-Start (0x07) antes do primeiro Set em TODOS os modos**; o bloco otimista de "Set pendente até métricas/2s" segue **B-only**.
+  2. `TreadmillBleService` — labels de Fitness Machine Status corrigidos para a spec (0x01 Stopped/Paused, **0x02 Stopped by Safety Key**, 0x04 Started/Resumed, 0x05 Target Speed Changed, 0x06 Incline, ... 0xFF Control Permission Lost) + **hint** no log quando Set com `0x05` (não Started).
+  3. `BleSessionLog` — **removido `IS_PENDING`**; arquivo sempre visível mesmo com app morto antes de `finish()` (causa provável do "modo B sem log").
+- **Validação**: `npm test` ✅ 83/83 · lint ✅ 0 novos (baseline 21) · `.env.apk→.env` ✅ · `npm run build` ✅ (6.99s) · `cap sync android` ✅ (9 plugins) · `gradlew assembleDebug` ✅ BUILD SUCCESSFUL (warnings de depreciação pré-existentes em `getDefaultAdapter`/`writeCharacteristic`).
+
+### Cautions for next session
+1. **Próximo passo: re-testar os 3 modos** com o APK novo. Esperado: 1º Set dispara `Start/Resume (0x07)` → esteira aceita Sets. Se Start responder `0x05`, o hint aponta partida manual no console (safety key / exigência física — ver status `0x02`). **Confirmar que o modo B agora gera log**.
+2. **Cenário já-started**: se o usuário der partida manual no console antes de conectar, o auto-Start pode receber `0x05` (já Started) — inofensivo e logado; o Set seguinte deve funcionar.
+3. **Edge não coberto**: se a esteira voltar a Stopped/Paused (parada manual), `autoStarted` continua `true` na mesma conexão e os Sets voltam a tomar `0x05` — re-Stop/Start ainda não reenvia Start. Só tratar se aparecer no teste.
+4. `0x07`=Start é **definitivo** — não reverter. Qualquer fonte dizendo "0x05=Start" é a mapping antiga/inventada.
+5. Baseline lint 21 pré-existentes intactos. `.env` = cópia de `.env.apk`. Modos ainda experimentais até o teste definitivo.
+6. **Pergunta em aberto**: modelo exato (WiLinktech Vision ID 2592 vs BH iConcept rebadge) e escala de inclinação 62.5 ainda pendentes de confirmação.
+
+---
+
 ## Session Context (2026-08-05c — Seletor de modo FTMS A/B/C + log em arquivo para diagnosticar "Falha ao assumir controle")
 
 ### What happened

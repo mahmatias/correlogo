@@ -8,7 +8,7 @@
 ## Pendentes
 
 ### Alta (imediato)
-- [ ] **FTMS: decidir estratégia definitiva após teste no device** — seletor de modo A/B/C implementado (2026-08-05c) para diagnóstico: cada modo gera log em `Download/CorreLogo/ftms-modoX-*.log`. Testar os 3 modos na esteira e escolher o vencedor; depois fixar como padrão (ou detectar automaticamente). Ver seção Concluídos 2026-08-05c e CHANGELOG
+- [ ] **FTMS: re-testar os 3 modos com o APK corrigido** — teste no device (2026-08-12) mostrou que A/C leem mas não controlam (Set → `0x05` Control Not Permitted, esteira não em estado Started) e o modo B não gerou log. Diagnóstico corrigido (0x07 É Start, ver Concluídos 2026-08-12): auto-Start (0x07) agora vai antes do 1º Set em TODOS os modos + log sempre visível (IS_PENDING removido). Testar de novo e escolher o modo vencedor para fixar como padrão. Ver CHANGELOG 2026-08-12
 - [ ] **Figurinha no Stories — dívida técnica (nova abordagem)** — usuário estudando como outros apps fazem (a Meta parece exigir processo/asset específico além do PNG transparente). Investigar alternativas: `MediaSharePlugin` do Capacitor (intent nativo `com.instagram.share.ADD_TO_STORY`), share sheet nativo do Android, ou plugin `@capacitor/share` com MIME correto
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
@@ -32,6 +32,19 @@
 
 ---
 
+## ✅ Concluídos (Sessão 2026-08-12 — FTMS: correção do diagnóstico + auto-Start em todos os modos + log visível)
+
+- [x] **Teste no device (3 modos) analisado** — esteira `A0:BB:3E:DC:25:4E`: A/C concedem Request Control (`0x01`) e leem 2ACC/2AD4/2AD5, mas **todo Set → `0x05 Control Not Permitted`**; B **não gerou log**. 2ACC Target Setting Features `0x0010` (só HR); status 2ADA `0x02`/`0x05`; sem char vendor `d18d2c10-...` (preamble N/A)
+- [x] **Correção de diagnóstico** — a sessão 2026-08-05c estava errada: **`0x07` É Start/Resume** na spec FTMS (pycycling, ExFTMS, spec PDF); `0x05` é Set Target Power. `encodeStart()` (0x07) SEMPRE esteve certo — não alterado
+- [x] **Root cause real** — spec só permite Set Speed/Incline com a esteira **Started**; A/C nunca enviam Start; B era o único que enviava (e não logou)
+- [x] **Fix `TreadmillBleService.sendCommand`** — **auto-Start (0x07) antes do 1º Set em TODOS os modos**; lógica otimista (Set pendente até métricas/2s) permanece B-only
+- [x] **Labels de Fitness Machine Status corrigidos** (0x01 Stopped/Paused, **0x02 Stopped by Safety Key**, 0x04 Started, 0x05/0x06 Target Changed...) + **hint no log** para Set rejeitado com `0x05` (esteira não Started → partida manual/safety key)
+- [x] **`BleSessionLog` sem `IS_PENDING`** — arquivo sempre visível em `Download/CorreLogo/` mesmo se o app for morto antes do `finish()` (explica o "modo B sem log")
+- [x] **Validação** — `npm test` ✅ 83/83 · lint ✅ 0 novos (baseline 21) · `.env.apk→.env` ✅ · `npm run build` ✅ (6.99s) · `cap sync android` ✅ (9 plugins) · `gradlew assembleDebug` ✅ BUILD SUCCESSFUL
+- [ ] **Aguardando**: re-teste dos 3 modos com o APK corrigido — ver se o Start (0x07) destrava os Sets e se o modo B agora gera log; depois fixar o vencedor como padrão
+
+---
+
 ## ✅ Concluídos (Sessão 2026-08-05c — Seletor de modo FTMS A/B/C + log em arquivo sem logcat)
 
 - [x] **Seletor de modo de conexão FTMS** — long-press 3s (ou toque) no botão "Conectar esteira Bluetooth" do configurador de treino abre modal A/B/C; modo é usado no `connect` e exibido no badge de conexão. 1 APK com seletor (usuário confirmou; não 3 APKs)
@@ -41,7 +54,7 @@
 - [x] **Canal de ack real** — assinatura do **2ADA** (Fitness Machine Status) com notificação + log do opcode; CCCD escritos escalonados 100/250/450ms (WiLinktech descarta CCCD escritos em cadeia)
 - [x] **Pipeline TS/Android completo** — `ble-transport.ts`/`native-ble-transport.ts`/`use-treadmill.ts` com `mode` + `logFile`; `TreadmillBlePlugin.connectTreadmill` aceita `mode`; `TreadmillFtmsManager.encodeStart()` (0x07) adicionado
 - [x] **Testes** — `npm test` ✅ 83/83 (3 novos: logFile por modo, modos A/B/C no mock) · lint ✅ 0 novos (baseline 21) · `.env.apk→.env` ✅ · `npm run build` ✅ · `cap sync android` ✅ (9 plugins) · `gradlew assembleDebug` ✅ BUILD SUCCESSFUL
-- [ ] **Aguardando**: teste no device com os 3 modos — reproduzir conexão, capturar `Download/CorreLogo/ftms-modoX-*.log` e mandar para decidir a estratégia definitiva (fixar como padrão ou detectar automaticamente)
+- [x] **Teste no device realizado** (2026-08-12) — A/C concedem controle mas Sets tomam `0x05`; B sem log. Diagnóstico e fix na seção 2026-08-12 acima
 
 ---
 

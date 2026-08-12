@@ -42,7 +42,6 @@ class BleSessionLog(private val context: Context) {
                 put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/CorreLogo")
-                    put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
             }
             val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
@@ -86,15 +85,6 @@ class BleSessionLog(private val context: Context) {
 
     fun finish() {
         flush()
-        val u = uri ?: return
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val values = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
-                context.contentResolver.update(u, values, null, null)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "finish falhou", e)
-        }
         uri = null
     }
 }
