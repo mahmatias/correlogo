@@ -1,7 +1,7 @@
 # Integração Relógio Fitness — Design Doc
 
 > Data: 2026-08-13
-> Status: Aprovado (aguardando implementação)
+> Status: Implementado (aguardando validação em device)
 
 ## Objetivo
 
@@ -82,7 +82,7 @@ Relógio (GTR 3) ──> Zepp app ──> Health Connect ──> HealthConnectPl
 - Scan de dispositivos anunciando serviço **0x180D** (Heart Rate)
 - Conecta, descobre serviços, habilita notify em **0x2A37** (Heart Rate Measurement)
 - Parse do payload:
-  - Byte 0: flags (bit 0 = 8-bit vs 16-bit, bit 1 = sensor contact, bit 3 = RR intervals)
+  - Byte 0: flags (bit 0 = 8-bit vs 16-bit, bit 1 = sensor contact, bit 4/0x10 = RR intervals) <!-- corrigido: spec Bluetooth SIG usa bit 4/0x10, não "bit 3" -->
   - Bytes seguintes: BPM (8 ou 16-bit)
   - RR intervals (opcionais) se presentes
 - Callback por amostra: BPM + timestamp
@@ -173,3 +173,17 @@ Sequência contínua (decisão do usuário):
 3. Camada 3 (zonas)
 4. Camada 4 (Insights + badge Histórico)
 5. Camada 2 (cinta BLE — teste ao receber a cinta)
+
+---
+
+## Desvios aprovados (implementação)
+
+- **Sono adiado**: `readSleepSessions`/`readSleepFromHealthConnect`/`SleepSummary` (Camada 1) **não implementados** — a tabela Escopo marca sono como "❌ fase futura" (Global Constraints). [Certain]
+- **Flag RR corrigido**: a spec Bluetooth SIG define o flag de RR como **bit 4 (0x10)**, não "bit 3" como escrito acima (linha do parse). O `HrBleService` parseia só BPM; RR está fora de escopo. [Certain]
+- **Re-tentativa de permissão HC**: a "modal com re-tentativa" foi implementada como re-request nativo (`requestReadHealthPermission` abre a própria tela do HC) + toast de orientação, sem novo componente Modal. [Certain]
+
+## Desvios aprovados durante a implementação
+
+- **Sono adiado** — `readSleepSessions`/`SleepSummary` (Camada 1) não foram implementados; a tabela Escopo já marca sono como "❌ fase futura".
+- **Flag RR corrigido** — o `HrBleService` parseia só BPM (flag de RR é o **bit 4/0x10** na spec Bluetooth SIG, não "bit 3" como escrito acima); RR fora de escopo.
+- **Modal de permissão HC** — implementado como re-request nativo (`requestReadHealthPermission` abre a própria tela do HC) + toast de orientação, sem novo componente Modal.

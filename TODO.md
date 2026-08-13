@@ -12,7 +12,8 @@
 - [ ] **Figurinha no Stories — dívida técnica (nova abordagem)** — usuário estudando como outros apps fazem (a Meta parece exigir processo/asset específico além do PNG transparente). Investigar alternativas: `MediaSharePlugin` do Capacitor (intent nativo `com.instagram.share.ADD_TO_STORY`), share sheet nativo do Android, ou plugin `@capacitor/share` com MIME correto
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
-- [ ] **Permission intent Health Connect** — `PermissionController.createIntent()` não resolve no device do usuário. Próximo passo: depurar `health-connect://permissions` deep link ou tentar `Intent(ACTION_VIEW, Uri.parse(...))` alternativo
+- [ ] **Validar em device — Health Connect** — pedir permissão READ real (abre a tela do HC via `requestReadHealthPermission`), importar treino do relógio e conferir badge "Relógio" + dedupe ±2min. Ver CHANGELOG 2026-08-13
+- [ ] **Validar em device — cinta cardíaca** — quando o hardware chegar: scan 0x180D, notify 0x2A37, TTS de zona no `WorkoutTracker`, conexão simultânea com a esteira. Sem device, `MockHrTransport` roda em navegador (não-nativo)
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
 - [ ] Foto do perfil — exibição com problemas (dívida técnica)
 

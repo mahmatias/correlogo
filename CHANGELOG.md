@@ -1,5 +1,27 @@
 # Changelog
 
+## [2026-08-13] — Integração com relógio fitness: FC via cinta BLE (0x180D), zonas Z1–Z5, import Health Connect, Insights no Perfil
+
+### Implementado
+- **Camada 0 — Fix do fluxo de permissão do Health Connect** (`HealthConnectPlugin.kt`): `createIntent` com `startActivityForResult` direto + fallback de racional (sem modal novo).
+- **Camada 1 — Leitura de treinos do Health Connect**: permissões READ no manifest; `checkReadPermissions`/`requestReadPermissions`/`readWorkouts` no plugin; wrapper TS (`readWorkoutsFromHealthConnect`/`checkReadHealthPermissions`/`requestReadHealthPermission`); `WatchWorkout` em `types.ts`. Sono (sleep) fora de escopo (fase futura). Flag RR do GATT corrigido para bit 4/0x10 na spec Bluetooth SIG.
+- **Camada 2 — Cinta cardíaca BLE**: `HrBleService.kt` (scan 0x180D, notify 0x2A37, parse flags 8/16-bit com range válido 30–240) + `HrBlePlugin.kt` (eventos `hrSample`/`hrScanResult`/`hrState`/`hrError`, permissões BLE) + transporte TS Mock/Native (`hr-ble.ts`) + hook `use-hr-belt.ts` (16s scan timeout, conexão simultânea com a esteira).
+- **Camada 3 — Zonas**: `hr-zones.ts` (`estimateHrMax` 208−0.7×idade, Z1–Z5 com limites/cores) e `hr-summary.ts`.
+- **Camada 4 — UI**:
+  - `SessionSummary`: bloco de FC (média/máx/mín) + tempo por zona + gráfico recharts.
+  - Histórico: badge "Relógio" para treinos importados, dedupe ±2min, empty state com CTA.
+  - `UserProfile`: aba Insights (gráfico da última sessão + média/máx por treino).
+  - `WorkoutTracker`: card FC ao vivo com zona colorida, TTS por zona (Z1–Z5), gravação de `heartRate` por ponto (`ActivityPoint.heartRate`).
+- **Testes**: `hr-zones.test.ts` (TDD), `hr-ble.test.ts` (mock), `health-connect-read.test.ts` (mock/derivação).
+
+### Validação
+- `npm test` ✅ **101/101** · lint ✅ 0 novos (baseline 21 pré-existentes) · `.env.apk→.env` ✅ · `npm run build` ✅ (8.06s) · `cap sync android` ✅ (9 plugins) · `gradlew assembleDebug` ✅ **BUILD SUCCESSFUL** (só warnings de depreciação pré-existentes).
+
+### Próximo
+- **Validar em device**: permissão Health Connect real (abre a tela do HC); cinta cardíaca real quando o hardware chegar (scan/notify/TTS de zona); import de treino do relógio via Health Connect.
+
+---
+
 ## [2026-08-12] — FTMS: correção do diagnóstico (0x07 É o Start) + auto-Start em todos os modos + log sempre visível
 
 ### Contexto (teste no device — esteira `A0:BB:3E:DC:25:4E`)

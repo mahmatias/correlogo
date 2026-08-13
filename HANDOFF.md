@@ -1,5 +1,29 @@
 # Handoff
 
+## Session Context (2026-08-13 — Integração com relógio fitness: FC via cinta BLE, zonas Z1–Z5, import Health Connect, Insights no Perfil)
+
+### What happened
+- **Plano completo implementado e commitado** (Tasks 1–8, sem push; commits `[skip ci]`):
+  - T1 `fef63f2` — fix do fluxo de permissão do Health Connect (`createIntent` + `startActivityForResult` direto + fallback de racional).
+  - T2 `0b57d56` — leitura de treinos do HC: permissões READ no manifest, `readWorkouts`/`checkReadPermissions`/`requestReadPermissions` no `HealthConnectPlugin.kt`, wrapper TS (`readWorkoutsFromHealthConnect`/`checkReadHealthPermissions`/`requestReadHealthPermission`), `WatchWorkout` + `TrainingSession.source?: 'app' | 'watch'` em types.
+  - T3 `1f7d059` — `hr-zones.ts` (`estimateHrMax` 208−0.7×idade, Z1–Z5 limites/cores) + `hr-summary.ts`, TDD (`hr-zones.test.ts`).
+  - T4 `43cd3b7` — `SessionSummary`: bloco FC média/máx/mín + tempo por zona + gráfico recharts.
+  - T5 `db51b28` — Histórico: badge "Relógio", import com dedupe ±2min, empty state CTA.
+  - T6 `2076964` — `UserProfile`: aba Insights (gráfico última sessão + média/máx por treino).
+  - T7 `dd23a91` — cinta cardíaca BLE: `HrBleService.kt` (scan 0x180D, notify 0x2A37, parse flags 8/16-bit, range válido 30–240, timeouts 10s/5s) + `HrBlePlugin.kt` (eventos `hrSample`/`hrScanResult`/`hrState`/`hrError`, permissões BLE) + `hr-ble.ts` (Mock/Native transport) + `use-hr-belt.ts` (scan timeout 16s) + `WorkoutTracker` (card FC, TTS por zona, `ActivityPoint.heartRate`) + wiring no `App.tsx`.
+- **Contexto técnico**: padrão GATT do `HrBleService` espelha o `TreadmillBleService` (scan com filtro de serviço, connect/discover com timeout, notificação de char). Transporte FC usa seleção Mock/Native via `isNative()`. Conexão simultânea cinta + esteira é suportada (plugins independentes).
+- **Desvios aprovados**: (1) **sono não implementado** (`readSleepSessions`/`SleepSummary`) — spec marca como fase futura; (2) flag RR do GATT é **bit 4/0x10** na spec Bluetooth SIG (não "bit 3" como escrito no spec) — só BPM parseado, RR fora de escopo; (3) re-tentativa de permissão HC via re-request nativo + toast (sem novo Modal).
+- **Validação**: `npm test` ✅ **101/101** (13 arquivos) · lint ✅ 0 novos (baseline 21 pré-existentes intactos) · `.env.apk→.env` ✅ · `npm run build` ✅ (8.06s) · `cap sync android` ✅ (9 plugins) · `gradlew assembleDebug` ✅ BUILD SUCCESSFUL (só warnings de depreciação pré-existentes: `getDefaultAdapter`/`writeDescriptor`).
+
+### Cautions for next session
+1. **Validar em device**: (a) permissão real do Health Connect (abre a tela do HC via `requestReadHealthPermission`); (b) **cinta cardíaca real quando o hardware chegar** — scan/connect/notify/TTS de zona no `WorkoutTracker`; (c) import de treino do relógio via HC (badge "Relógio" + dedupe).
+2. **TTS de zona**: anúncio usa `speak('Você está na {zone}.', true)` com `lastAnnouncedZoneRef` para não repetir; `estimateHrMax` depende do `dob` do perfil — sem `dob`, o card mostra `—`.
+3. **Conexão simultânea**: cinta BLE e esteira BLE coexistem (plugins `HrBle` e `TreadmillBle` independentes) — se um conflito aparecer no device (Android limita conexões GATT), avaliar desconexão da cinta quando desconecta a esteira.
+4. **Baseline lint 21** pré-existentes intactos (App.tsx ×6, SessionHistory ×2, UserProfile ×1, WorkoutTracker ×3, tracking.ts ×2, ical.ts ×2, treadmill-machine.ts ×4, vite.config.ts ×1). `.env` = cópia de `.env.apk`.
+5. **Plano/spec**: `docs/superpowers/plans/2026-08-13-relogio-fitness-integration.md` (checkboxes marcados) e `docs/superpowers/specs/2026-08-13-relogio-fitness-integration-design.md` (status → "Implementado (aguardando validação em device)").
+
+---
+
 ## Session Context (2026-08-12 — FTMS: correção do diagnóstico + auto-Start em todos os modos + log sempre visível)
 
 ### What happened
