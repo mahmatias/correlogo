@@ -26,6 +26,7 @@ import MonthCalendar from './components/MonthCalendar';
 import BottomSheet from './components/BottomSheet';
 import GoogleCalendarModal from './components/GoogleCalendarModal';
 import { useTreadmill, type TreadmillConnection, type TreadmillControlMode } from './lib/use-treadmill';
+import { useHrBelt } from './lib/use-hr-belt';
 import { useBackHandler } from './lib/hooks/useBackHandler';
 import { getAuth, getDb } from './lib/firebase';
 import { applySessionToRecords, emptyRecords, readRecords, saveRecords, recomputeRecords, backfillRecords, type Records } from './lib/records';
@@ -82,6 +83,7 @@ export default function App() {
   const [isLightMode, setIsLightMode] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
   const treadmill = useTreadmill();
+  const hrBelt = useHrBelt();
   const [treadmillMode, setTreadmillMode] = useState<TreadmillControlMode>('A');
   const [modeSelectorOpen, setModeSelectorOpen] = useState(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1237,6 +1239,8 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                   mode={activePlan.mode} 
                   simulateGps={activePlan.simulateGps}
                   treadmill={treadmill}
+                  hrBelt={hrBelt}
+                  profile={profile}
                   showFeedback={showFeedback}
                   onStop={() => { allowSleep(); setActivePlan(null); setIsFreeTraining(false); }} 
                   markAsCompleted={markAsCompleted}

@@ -10,6 +10,10 @@ import type { WorkoutExport, SyncStatus } from '../lib/capacitor/health-connect'
 import { sendWorkoutToStravaViaEmail } from '../lib/gmailApi';
 import TreadmillPanel from './TreadmillPanel';
 import type { TreadmillConnection } from '../lib/use-treadmill';
+import type { HrBeltConnection } from '../lib/use-hr-belt';
+import { estimateHrMax, hrZone, zoneColor, zoneLabel, type HrZone } from '../lib/hr-zones';
+import type { ProfileData } from '../types';
+import { Heart, RefreshCw } from 'lucide-react';
 import type { TrainingSession } from '../types';
 
 interface Props {
@@ -30,9 +34,11 @@ interface Props {
   onGmailSyncResult?: (status: SyncStatus) => void;
   showFeedback?: (type: 'success' | 'error', message: string) => void;
   treadmill: TreadmillConnection;
+  profile?: ProfileData | null;
+  hrBelt: HrBeltConnection;
 }
 
-export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime, isFreeTraining, simulateGps, onSyncResult, showFeedback, treadmill }: Props) {
+export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime, isFreeTraining, simulateGps, onSyncResult, showFeedback, treadmill, profile, hrBelt }: Props) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedRef = useRef(0);
@@ -255,14 +261,15 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
         distanceKm: distRef.current,
         stepIndex: stepIndexRef.current,
       };
-      if (coordsRef.current) {
-        newPoint.lat = coordsRef.current.lat;
-        newPoint.lon = coordsRef.current.lng;
-        if (coordsRef.current.altitude !== undefined) {
-          newPoint.altitude = coordsRef.current.altitude;
-        }
-      }
-      pointsRef.current.push(newPoint);
+            if (coordsRef.current) {
+                newPoint.lat = coordsRef.current.lat;
+                newPoint.lon = coordsRef.current.lng;
+                if (coordsRef.current.altitude !== undefined) {
+                    newPoint.altitude = coordsRef.current.altitude;
+                }
+            }
+            if (heartRateRef.current) newPoint.heartRate = heartRateRef.current;
+            pointsRef.current.push(newPoint);
 
       // KM announcement
       const currentKm = Math.floor(distRef.current);
@@ -330,14 +337,16 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                 distanceKm: distRef.current,
                 stepIndex: stepIndexRef.current,
             };
-            if (coordsRef.current) {
-                newPoint.lat = coordsRef.current.lat;
-                newPoint.lon = coordsRef.current.lng;
-                if (coordsRef.current.altitude !== undefined) {
-                    newPoint.altitude = coordsRef.current.altitude;
-                }
-            }
-            pointsRef.current.push(newPoint);
+          if (coordsRef.current) {
+              newPoint.lat = coordsRef.current.lat;
+              newPoint.lon = coordsRef.current.lng;
+              if (coordsRef.current.altitude !== undefined) {
+                  newPoint.altitude = coordsRef.current.altitude;
+              }
+          }
+          if (heartRateRef.current) newPoint.heartRate = heartRateRef.current;
+          
+          pointsRef.current.push(newPoint);
 
             const pace = speedRef.current > 0 ? (60 / speedRef.current) : 0;
             setPaceHistory(p => [...p, { timeSeconds: elapsedRef.current, pace }]);
@@ -382,7 +391,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                   newPoint.altitude = coordsRef.current.altitude;
               }
           }
-          
+          if (heartRateRef.current) newPoint.heartRate = heartRateRef.current;
           pointsRef.current.push(newPoint);
 
           // KM announcement
@@ -480,6 +489,25 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     if (!force && (isFreeTraining || isExtended)) return;
     voiceSpeak(text, 'pt-BR');
   };
+
+  const hrMax = estimateHrMax(profile?.dob ?? null);
+  const liveHr = hrBelt.connected && hrBelt.bpm ? hrBelt.bpm : null;
+  const zone = liveHr && hrMax ? hrZone(liveHr, hrMax) : null;
+
+  const heartRateRef = useRef<number | null>(null);
+  useEffect(() => {
+    heartRateRef.current = hrBelt.connected ? hrBelt.bpm : null;
+  }, [hrBelt.connected, hrBelt.bpm]);
+
+  const lastAnnouncedZoneRef = useRef<HrZone | null>(null);
+  useEffect(() => {
+    if (!hrBelt.connected) return;
+    if (zone == null) return;
+    if (lastAnnouncedZoneRef.current !== zone) {
+      lastAnnouncedZoneRef.current = zone;
+      speak(`Você está na ${zoneLabel(zone)}.`, true);
+    }
+  }, [zone, hrBelt.connected]);
 
   const formatDurationSpeech = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -797,6 +825,49 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
             <div className="text-text-secondary text-[12px] uppercase">Vel. Média</div>
             <div className="text-lg font-bold">{(elapsedSeconds > 0 ? (displayDistance / (elapsedSeconds / 3600)) : 0).toFixed(1)} KM/h</div>
           </div>
+        </div>
+
+        {/* Heart rate card */}
+        <div className="flex-shrink-0 mt-2">
+          <div className="w-full px-3 py-2 bg-bg-surface border border-border rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Heart size={16} className={hrBelt.connected ? 'text-danger' : 'text-text-muted'} />
+              <span className="text-xs text-text-muted uppercase">FC</span>
+              {hrBelt.connected && zone && (
+                <span className="text-[10px] font-medium" style={{ color: zoneColor(zone) }}>{zoneLabel(zone)}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-2xl font-bold" style={{ color: hrBelt.connected && zone ? zoneColor(zone) : 'inherit' }}>
+                {liveHr ?? '—'}
+              </div>
+              {hrBelt.connected && (
+                <button onClick={() => hrBelt.disconnect()} className="text-[10px] text-text-muted underline">Desconectar</button>
+              )}
+            </div>
+          </div>
+          {mode === 'treadmill' && !hrBelt.connected && (
+            <div className="mt-1">
+              {hrBelt.state === 'SCANNING' ? (
+                <button className="w-full py-1.5 rounded-lg bg-bg-elevated text-text-muted text-xs font-medium flex items-center justify-center gap-1" disabled>
+                  <RefreshCw size={12} className="animate-spin" /> Procurando cinta…
+                </button>
+              ) : hrBelt.devices.length === 0 ? (
+                <button onClick={() => hrBelt.scan()} className="w-full py-1.5 rounded-lg bg-bg-elevated text-text-primary text-xs font-medium">
+                  Conectar cinta cardíaca
+                </button>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-[10px] text-text-muted">Conecte a cinta em modo broadcast:</p>
+                  {hrBelt.devices.map(d => (
+                    <button key={d.address} onClick={() => hrBelt.connect(d.address)} className="w-full py-1.5 rounded-lg bg-accent text-white text-xs font-medium">
+                      {d.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Marquee — unified height/font for both modes */}
