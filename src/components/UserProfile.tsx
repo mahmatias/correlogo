@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { User, updateProfile, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { ShieldCheck, ShieldOff, RefreshCw, Mail, Download, Bell, BellOff } from 'lucide-react';
+import { ShieldCheck, ShieldOff, RefreshCw, Mail, Download, Bell, BellOff, Heart } from 'lucide-react';
 import Button from './Button';
-import { ProfileData, SettingsData, BRAZILIAN_STATES, GENDER_OPTIONS, WorkoutPlan } from '../types';
+import { ProfileData, SettingsData, BRAZILIAN_STATES, GENDER_OPTIONS, WorkoutPlan, TrainingSession } from '../types';
 import { getAuth, getDb } from '../lib/firebase';
 import { isHealthConnectAvailable, checkHealthPermissions, requestHealthPermission } from '../lib/capacitor/health-connect';
 import { isNative } from '../lib/capacitor/platform';
@@ -11,12 +11,16 @@ import { isGmailConnected, disconnectGmail, startGmailOAuth } from '../lib/gmail
 import { App as CapApp } from '@capacitor/app';
 import { checkForUpdate, type UpdateInfo } from '../lib/update-checker';
 import { requestNotificationPermission, rescheduleAllReminders, cancelAllWorkoutReminders } from '../lib/notifications';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { estimateHrMax, zoneColor, zoneLabel } from '../lib/hr-zones';
+import { computeHrSummary } from '../lib/hr-summary';
 
 interface UserProfileProps {
   user: User;
   initialProfile: ProfileData | null;
   initialSettings: SettingsData | null;
   plans: WorkoutPlan[];
+  sessions: TrainingSession[];
   isLightMode: boolean;
   onToggleTheme: () => void;
   showFeedback: (type: 'success' | 'error', message: string) => void;
@@ -29,6 +33,7 @@ export default function UserProfile({
   initialProfile,
   initialSettings,
   plans,
+  sessions,
   isLightMode,
   onToggleTheme,
   showFeedback,
@@ -54,6 +59,16 @@ export default function UserProfile({
   const [updating, setUpdating] = useState(false);
   const [appInfo, setAppInfo] = useState<{ version: string; build: string } | null>(null);
   const [remindersEnabled, setRemindersEnabled] = useState(initialSettings?.workoutRemindersEnabled ?? false);
+
+  const hrMaxInsights = estimateHrMax(initialProfile?.dob ?? null);
+  const sessionsWithHr = (sessions || [])
+    .filter(s => (s.points || []).some(p => p.heartRate))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const lastHrSession = sessionsWithHr[0] ?? null;
+  const lastHrSummary = lastHrSession && hrMaxInsights ? computeHrSummary(lastHrSession.points, hrMaxInsights) : null;
+  const lastHrPoints = lastHrSession
+    ? lastHrSession.points.filter(p => p.heartRate).map(p => ({ timeSeconds: p.timestampSeconds, heartRate: p.heartRate! }))
+    : [];
 
   useEffect(() => {
     // mount: carrega estado inicial do perfil
@@ -428,6 +443,66 @@ export default function UserProfile({
           {!hcAvailable && (
             <div className="text-xs text-text-muted">Health Connect não disponível neste dispositivo</div>
 )}
+        </div>
+      </div>
+
+      <div className="mb-3">
+        <h3 className="text-sm font-semibold text-text-secondary mb-2">Insights</h3>
+        <div className="p-3 rounded-lg border border-border">
+          {sessionsWithHr.length === 0 ? (
+            <div className="text-center py-6 text-text-muted">
+              <Heart size={28} className="mx-auto mb-2 opacity-60" />
+              <p className="text-sm">Ainda sem dados de frequência cardíaca.</p>
+              <p className="text-xs mt-1">Conecte sua cinta cardíaca no treino ou importe treinos do relógio.</p>
+            </div>
+          ) : (
+            <>
+              <div className="text-sm text-text-primary mb-2">
+                Última sessão com FC: <strong>{lastHrSession?.planName}</strong>
+                {lastHrSummary && (
+                  <span className="text-text-muted ml-2">
+                    média {Math.round(lastHrSummary.avgHr)} · máx {lastHrSummary.maxHr} bpm
+                  </span>
+                )}
+              </div>
+              {lastHrPoints.length > 1 && (
+                <div className="relative h-32 min-h-[128px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={lastHrPoints}>
+                      <XAxis dataKey="timeSeconds" tick={false} />
+                      <YAxis domain={['auto', 'auto']} tickFormatter={(v) => String(v)} width={28} />
+                      <Tooltip formatter={(value: number) => [`${value} bpm`, 'FC']} labelFormatter={() => ''} />
+                      <Line type="monotone" dataKey="heartRate" stroke="#ef4444" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              {lastHrSummary && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {([1, 2, 3, 4, 5] as const).map(z => {
+                    const secs = lastHrSummary!.timeByZone[z];
+                    if (secs <= 0) return null;
+                    return (
+                      <span key={z} className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-bg-elevated" style={{ color: zoneColor(z) }}>
+                        {zoneLabel(z)}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="mt-3 space-y-1">
+                {sessionsWithHr.slice(0, 10).map(s => {
+                  const sum = hrMaxInsights ? computeHrSummary(s.points, hrMaxInsights) : null;
+                  return (
+                    <div key={s.id} className="flex justify-between items-center text-xs">
+                      <span className="text-text-primary">{new Date(s.date).toLocaleDateString()} · {s.planName}</span>
+                      <span className="text-text-muted">{sum ? `${Math.round(sum.avgHr)} / ${sum.maxHr} bpm` : '—'}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

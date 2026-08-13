@@ -1632,6 +1632,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                     initialProfile={profile}
                     initialSettings={settings}
                     plans={plans}
+                    sessions={sessions}
                     isLightMode={isLightMode}
                     onToggleTheme={toggleDarkMode}
                     showFeedback={showFeedback}
