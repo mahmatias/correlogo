@@ -1,4 +1,4 @@
-import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X, Trophy, Medal, Flame } from 'lucide-react';
+import { MapPin, Clock, ArrowLeft, BarChart2, Table, Download, CheckCircle, XCircle, Share2, X, Trophy, Medal, Flame, Heart } from 'lucide-react';
 import { formatDistance, formatDuration, TrainingSession, WorkoutPlan, getStepTypeLabel, ProfileData } from '../types';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
@@ -10,6 +10,9 @@ import { isNative } from '../lib/capacitor/platform';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import ShareScreen from './ShareScreen';
 import { calculateKcal, formatKcal } from '../lib/calories';
+import { estimateHrMax } from '../lib/hr-zones';
+import { zoneColor, zoneLabel } from '../lib/hr-zones';
+import { computeHrSummary } from '../lib/hr-summary';
 
 interface Props {
   session: TrainingSession;
@@ -49,6 +52,12 @@ export default function SessionSummary({ session, plan, profile, onClose, onSugg
   const avgPace = session.totalDurationSeconds / (session.totalDistanceKm || 1); // seconds per km
   const weightKg = profile?.weightInKg ?? 70;
   const estimatedKcal = calculateKcal(session, weightKg);
+
+  const hrMax = estimateHrMax(profile?.dob ?? null);
+  const hrSummary = hrMax ? computeHrSummary(session.points || [], hrMax) : null;
+  const hrPoints = (session.points || [])
+    .filter(p => p.heartRate)
+    .map(p => ({ timeSeconds: p.timestampSeconds, heartRate: p.heartRate! }));
 
   // Pace data for graph
   const pacePoints = (session.points || []).map(p => ({
@@ -331,6 +340,55 @@ export default function SessionSummary({ session, plan, profile, onClose, onSugg
                             />
                         </LineChart>
                     </ResponsiveContainer>
+                </div>
+            </div>
+        )}
+
+        {hrSummary && (
+            <div className="p-4 rounded-xl mb-6 bg-bg-surface">
+                <h3 className="font-bold mb-4 flex items-center gap-2">
+                    <Heart className="text-danger" size={18} /> Frequência Cardíaca
+                </h3>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                    <div className="p-2 rounded-lg bg-bg-elevated text-center">
+                        <div className="text-[10px] text-text-muted uppercase">Média</div>
+                        <div className="text-lg font-bold">{Math.round(hrSummary.avgHr)}</div>
+                    </div>
+                    <div className="p-2 rounded-lg bg-bg-elevated text-center">
+                        <div className="text-[10px] text-text-muted uppercase">Máx</div>
+                        <div className="text-lg font-bold text-danger">{hrSummary.maxHr}</div>
+                    </div>
+                    <div className="p-2 rounded-lg bg-bg-elevated text-center">
+                        <div className="text-[10px] text-text-muted uppercase">Mín</div>
+                        <div className="text-lg font-bold">{hrSummary.minHr}</div>
+                    </div>
+                </div>
+                {hrPoints.length > 1 && (
+                    <div className="relative h-40 min-h-[160px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={hrPoints}>
+                                <XAxis dataKey="timeSeconds" tickFormatter={(t) => {
+                                    const minutes = Math.floor(t / 60);
+                                    const seconds = Math.floor(t % 60);
+                                    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                                }} />
+                                <YAxis domain={['auto', 'auto']} tickFormatter={(v) => String(v)} />
+                                <Tooltip labelFormatter={() => ''} formatter={(value: number) => [`${value} bpm`, 'FC']} />
+                                <Line type="monotone" dataKey="heartRate" stroke="#ef4444" strokeWidth={2} dot={false} connectNulls />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                )}
+                <div className="flex flex-wrap gap-2 mt-3">
+                    {([1, 2, 3, 4, 5] as const).map(z => {
+                        const secs = hrSummary.timeByZone[z];
+                        if (secs <= 0) return null;
+                        return (
+                            <span key={z} className="px-2 py-1 rounded-full text-xs font-medium bg-bg-elevated" style={{ color: zoneColor(z) }}>
+                                {zoneLabel(z)} · {formatDuration(Math.round(secs))}
+                            </span>
+                        );
+                    })}
                 </div>
             </div>
         )}
