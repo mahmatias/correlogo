@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar, Bluetooth, BluetoothSearching, BluetoothConnected, X, Check, Wrench } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
-import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData, PrResults } from './types';
+import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData, PrResults, WatchWorkout } from './types';
 import WorkoutTracker from './components/WorkoutTracker';
 import ImportPlan from './components/ImportPlan';
 import WorkoutEditor from './components/WorkoutEditor';
@@ -29,12 +29,13 @@ import { useTreadmill, type TreadmillConnection, type TreadmillControlMode } fro
 import { useBackHandler } from './lib/hooks/useBackHandler';
 import { getAuth, getDb } from './lib/firebase';
 import { applySessionToRecords, emptyRecords, readRecords, saveRecords, recomputeRecords, backfillRecords, type Records } from './lib/records';
+import { dedupeImportedWorkouts, watchWorkoutToSession } from './lib/watch-import';
 import { downloadIcal } from './lib/ical';
 import { keepAwake, allowSleep } from './lib/capacitor/wakeLock';
 import { requestAllPermissions } from './lib/capacitor/permissions';
 import { Tracking } from './lib/capacitor/tracking';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
-import { exportWorkoutToHealthConnect } from './lib/capacitor/health-connect';
+import { exportWorkoutToHealthConnect, readWorkoutsFromHealthConnect, checkReadHealthPermissions, requestReadHealthPermission } from './lib/capacitor/health-connect';
 import type { WorkoutExport, SyncStatus } from './lib/capacitor/health-connect';
 import { sendWorkoutToStravaViaEmail, handleGmailWebCallback } from './lib/gmailApi';
 import { checkForUpdate, downloadApkAndInstall, canInstallApk, openInstallSettings, type UpdateInfo } from './lib/update-checker';
@@ -106,6 +107,7 @@ export default function App() {
   const [planToDelete, setPlanToDelete] = useState<WorkoutPlan | null>(null);
   const [reschedulePlanId, setReschedulePlanId] = useState<string | null>(null);
 const [activeTab, setActiveTab] = useState<TabId>('treinos');
+  const [importingWatch, setImportingWatch] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [saveFeedback, setSaveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -872,6 +874,45 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
     setSettings(newSettings);
   };
 
+  const handleImportWatchWorkouts = async () => {
+    if (!user) return;
+    if (!Capacitor.isNativePlatform()) {
+      showFeedback('error', 'Importar do relógio só funciona no app Android.');
+      return;
+    }
+    const granted = await checkReadHealthPermissions();
+    if (granted === false) {
+      const ok = await requestReadHealthPermission();
+      if (!ok) {
+        showFeedback('error', 'Permissão negada. Autorize o Health Connect no Perfil.');
+        return;
+      }
+    }
+    setImportingWatch(true);
+    try {
+      const now = Date.now();
+      const workouts = await readWorkoutsFromHealthConnect(now - 30 * 24 * 60 * 60 * 1000, now);
+      const toAdd = dedupeImportedWorkouts(sessions, workouts);
+      if (toAdd.length === 0) {
+        showFeedback('success', 'Nenhum treino novo para importar.');
+        return;
+      }
+      const newSessions = toAdd.map(w => watchWorkoutToSession(w));
+      const updated = [...newSessions, ...sessions];
+      setSessions(updated);
+      localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+      for (const s of newSessions) {
+        setDoc(doc(getDb(), 'users', user.uid, 'sessions', s.id), stripUndefined(s)).catch(() => {});
+      }
+      showFeedback('success', `${toAdd.length} treino${toAdd.length > 1 ? 's' : ''} importado${toAdd.length > 1 ? 's' : ''} do relógio!`);
+    } catch (e) {
+      console.error('[import] Erro ao importar treinos:', e);
+      showFeedback('error', 'Falha ao importar treinos do Health Connect.');
+    } finally {
+      setImportingWatch(false);
+    }
+  };
+
   const parseDate = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
   const daysBetween = (a: string, b: string) => Math.round((parseDate(b).getTime() - parseDate(a).getTime()) / 86400000);
   const addDays = (date: string, days: number) => {
@@ -1514,8 +1555,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                       showFeedback('success', 'Sessão removida do histórico.');
                     }}
                     onExportSession={async (session, target) => {
-                        const retryHc = !target || target === 'hc';
-                        const retryGmail = !target || target === 'gmail';
+                        const retryHc = !target || target === 'hc';                        const retryGmail = !target || target === 'gmail';
                         const hcNeeded = retryHc && (!session.hcSyncStatus || session.hcSyncStatus !== 'synced');
                         const gmailNeeded = retryGmail && (!session.gmailSyncStatus || session.gmailSyncStatus !== 'synced');
                         let hcResult: { success: boolean; status: SyncStatus; error?: string } | null = null;
@@ -1567,6 +1607,8 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                             showFeedback('error', `Strava: ${gmailResult.error}`);
                         }
                     }}
+                    onImportWorkouts={handleImportWatchWorkouts}
+                    importingWatch={importingWatch}
                   />
                 </div>
               )}

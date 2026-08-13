@@ -1,14 +1,17 @@
-import { Calendar, ClipboardList, Trash2, CheckCircle2, Mail, Play, AlertTriangle } from 'lucide-react';
+import { Calendar, ClipboardList, Trash2, CheckCircle2, Mail, Play, AlertTriangle, Watch, RefreshCw } from 'lucide-react';
 import { TrainingSession, SyncStatus, formatDistance, formatDuration } from '../types';
 import { useState } from 'react';
 import Modal from './Modal';
 import Button from './Button';
+import { isNative } from '../lib/capacitor/platform';
 
 interface Props {
   sessions: TrainingSession[];
   onSelectSession: (session: TrainingSession) => void;
   onDeleteSession: (sessionId: string) => void;
   onExportSession?: (session: TrainingSession, target?: 'gmail' | 'hc') => void;
+  onImportWorkouts?: () => void;
+  importingWatch?: boolean;
 }
 
 function SyncBadge({ status, label, icon }: { status: SyncStatus | undefined; label: string; icon: React.ReactNode }) {
@@ -29,7 +32,7 @@ function PendingBadge({ status, label, icon, onClick, retrying }: { status: Sync
   );
 }
 
-export default function SessionHistory({ sessions, onSelectSession, onDeleteSession, onExportSession }: Props) {
+export default function SessionHistory({ sessions, onSelectSession, onDeleteSession, onExportSession, onImportWorkouts, importingWatch }: Props) {
   const [sessionToDelete, setSessionToDelete] = useState<TrainingSession | null>(null);
   const [syncingTarget, setSyncingTarget] = useState<{ id: string; target: 'gmail' | 'hc' } | null>(null);
 
@@ -45,13 +48,25 @@ export default function SessionHistory({ sessions, onSelectSession, onDeleteSess
 
   return (
     <div className="text-text-primary">
-        <h2 className="text-2xl font-bold mb-6 text-center">Registros</h2>
+        <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-center">Registros</h2>
+            {isNative() && onImportWorkouts && (
+                <button
+                    onClick={onImportWorkouts}
+                    disabled={importingWatch}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent text-white text-sm font-bold disabled:opacity-50"
+                >
+                    <RefreshCw size={16} className={importingWatch ? 'animate-spin' : ''} />
+                    Importar relógio
+                </button>
+            )}
+        </div>
         
         {sessions.length === 0 ? (
             <div className="text-center text-text-muted py-16">
               <ClipboardList className="mx-auto mb-2" size={40} />
               <p>Nenhuma sessão encontrada.</p>
-              <p className="text-sm mt-1">Complete um treino para vê-lo aqui.</p>
+              <p className="text-sm mt-1">Complete um treino ou importe do seu relógio.</p>
             </div>
         ) : (
             <div className="space-y-4">
@@ -64,7 +79,14 @@ export default function SessionHistory({ sessions, onSelectSession, onDeleteSess
                       <div className="flex justify-between items-center mb-1">
                         <span className="font-bold cursor-pointer hover:text-accent-secondary"
                           onClick={() => onSelectSession(session)}>{session.planName}</span>
-                        <span className="text-sm text-text-muted">{new Date(session.date).toLocaleDateString()}</span>
+                        <span className="flex items-center gap-2">
+                          {session.source === 'watch' && (
+                            <span className="text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-bg-elevated text-accent-secondary">
+                              <Watch size={10} /> Relógio
+                            </span>
+                          )}
+                          <span className="text-sm text-text-muted">{new Date(session.date).toLocaleDateString()}</span>
+                        </span>
                       </div>
                       <div className="flex justify-between items-center mb-2 cursor-pointer"
                         onClick={() => onSelectSession(session)}>
