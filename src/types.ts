@@ -84,6 +84,15 @@ export interface ActivityPoint {
   cadence?: number;
 }
 
+export interface WatchWorkout {
+  id: string;
+  exerciseType: 'running' | 'treadmill';
+  startTimeMs: number;
+  endTimeMs: number;
+  durationSeconds: number;
+  distanceKm: number;
+}
+
 export type SyncStatus = 'synced' | 'pending' | 'failed';
 
 export interface PrResults {
@@ -107,6 +116,7 @@ export interface TrainingSession {
   hcSyncStatus?: SyncStatus;
   gmailSyncStatus?: SyncStatus;
   prResults?: PrResults;
+  source?: 'app' | 'watch';
 }
 
 export type TrainingPhase = 'base' | 'build' | 'peak' | 'taper';

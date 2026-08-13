@@ -8,8 +8,14 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseRoute
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.Record
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.request.AggregateRequest
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Length
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -20,8 +26,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import org.json.JSONArray
 
 @CapacitorPlugin(name = "HealthConnect", requestCodes = [9301])
 class HealthConnectPlugin : Plugin() {
@@ -245,5 +253,101 @@ class HealthConnectPlugin : Plugin() {
         }
         if (locations.isEmpty()) return null
         return ExerciseRoute(locations)
+    }
+
+    private val readPermissionSet: Set<String> by lazy {
+        setOf(
+            HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+            HealthPermission.getReadPermission(DistanceRecord::class),
+            HealthPermission.getReadPermission(HeartRateRecord::class),
+            HealthPermission.getReadPermission(StepsRecord::class),
+            HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class)
+        )
+    }
+
+    @PluginMethod
+    fun checkReadPermissions(call: PluginCall) {
+        if (!ensureClient()) {
+            call.resolve(JSObject().apply { put("granted", false) })
+            return
+        }
+        val c = client!!
+        scope.launch {
+            try {
+                val granted = c.permissionController.getGrantedPermissions()
+                val readPerm = HealthPermission.getReadPermission(ExerciseSessionRecord::class)
+                call.resolve(JSObject().apply { put("granted", readPerm in granted) })
+            } catch (e: Exception) {
+                Log.e(TAG, "checkReadPermissions error", e)
+                call.resolve(JSObject().apply { put("granted", false) })
+            }
+        }
+    }
+
+    @PluginMethod
+    fun requestReadPermissions(call: PluginCall) {
+        val a = activity
+        if (a == null || !ensureClient()) {
+            call.resolve(JSObject().apply { put("granted", false) })
+            return
+        }
+        launchPermissionIntent(a, call, readPermissionSet)
+    }
+
+    @PluginMethod
+    fun readWorkouts(call: PluginCall) {
+        val startMs = call.getLong("startMs") ?: 0L
+        val endMs = call.getLong("endMs") ?: 0L
+        if (!ensureClient()) {
+            call.resolve(JSObject().apply { put("workouts", JSONArray()) })
+            return
+        }
+        val c = client!!
+        scope.launch {
+            try {
+                val request = ReadRecordsRequest(
+                    recordType = ExerciseSessionRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(
+                        Instant.ofEpochMilli(startMs),
+                        Instant.ofEpochMilli(endMs)
+                    )
+                )
+                val sessions = c.readRecords(request).records
+                    .sortedByDescending { it.startTime }
+                    .take(50)
+                val workouts = JSONArray()
+                for (s in sessions) {
+                    val type = s.exerciseType
+                    if (type != ExerciseSessionRecord.EXERCISE_TYPE_RUNNING &&
+                        type != ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL
+                    ) continue
+                    val duration = Duration.between(s.startTime, s.endTime).seconds
+                    val agg = c.aggregate(
+                        AggregateRequest(
+                            metrics = setOf(DistanceRecord.DISTANCE_TOTAL),
+                            timeRangeFilter = TimeRangeFilter.between(s.startTime, s.endTime)
+                        )
+                    )
+                    val distanceKm = (agg[DistanceRecord.DISTANCE_TOTAL]?.inMeters ?: 0.0) / 1000.0
+                    val w = JSObject().apply {
+                        put("id", s.metadata.id)
+                        put(
+                            "exerciseType",
+                            if (type == ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL) "treadmill" else "running"
+                        )
+                        put("startTimeMs", s.startTime.toEpochMilli())
+                        put("endTimeMs", s.endTime.toEpochMilli())
+                        put("durationSeconds", duration)
+                        put("distanceKm", distanceKm)
+                    }
+                    workouts.put(w)
+                }
+                Log.d(TAG, "readWorkouts: ${workouts.length()} workouts")
+                call.resolve(JSObject().apply { put("workouts", workouts) })
+            } catch (e: Exception) {
+                Log.e(TAG, "readWorkouts error", e)
+                call.reject("Read failed: ${e.message}")
+            }
+        }
     }
 }
