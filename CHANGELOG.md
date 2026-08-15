@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-08-15] — Release 4.1: import de treinos do relógio vai ao ar
+
+### Contexto
+- O feature de relógio (integrado em 13/08) nunca tinha sido **compilado em release**: todos os commits de 13/08 usaram `[skip ci]`, então nenhuma run do CI rodou depois da build 157 (run #57, `4ac1d61` de 12/08). O APK instalado não continha o código do import.
+- Esta release dispara o CI de propósito (commit sem `[skip ci]`) e avança a versão para **4.1** — é a primeira build a conter o import de relógio via Health Connect.
+
+### Implementado
+- `android/app/build.gradle`: `versionName "4.0" → "4.1"`.
+- A partir desta build, a aba **Registros** exibe o botão **"Importar relógio"** (APK Android, usuário logado) — importa treinos de corrida/esteira dos últimos 30 dias do Health Connect, com dedupe por id (`watch-*`) e por horário ±2min, badge "Relógio", salvos em localStorage + Firestore.
+
+### Validação
+- Feature validada localmente em 13/08 (`npm test` 101/101, build debug OK). Compilação release via CI (`.env.apk` → `.env` no workflow).
+
+### Próximo
+- Validar no device: permissão Health Connect real, import de treino do relógio via HC, e auto-update da build 157 → 4.1.
+
+---
+
 ## [2026-08-14] — Backup do ambiente + receita de recuperação pós-formatação do Windows
 
 ### Implementado
