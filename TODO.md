@@ -411,6 +411,14 @@
 - ✅ U13. Google Login com fallback signInWithRedirect se popup for bloqueado
 - ✅ U15. Aviso explícito de "apagado permanentemente" no modal de uncomplete
 
+## ✅ Concluídos (Sessão 2026-08-15 — Restore pós-formatação + release 4.1 + regra de versionamento)
+
+- [x] **Ambiente restaurado pós-formatação** — JDK 21 instalado (Temurin `jdk-21.0.12.8-hotspot` via winget), `JAVA_HOME` do usuário corrigido; `npm test` 101/101; `npm run build` OK; `cap sync android` OK (9 plugins); `gradlew assembleDebug` OK (APK debug 25,2 MB). Referências de JDK atualizadas em `AGENTS.md`, `docs/RECOVERY.md`, `scripts/restore-workspace.ps1` (commit `bdc1091`)
+- [x] **Skills verificadas pós-restore** — 67 skills agents + 53 gstack + ui-ux-pro-max idênticas ao backup (byte a byte, 0 faltando)
+- [x] **Diagnóstico: botão "Importar relógio" ausente na build 157** — feature de 13/08 nunca foi compilado: todos os commits usaram `[skip ci]`, então nenhuma release saiu com o import. Build 157 = run #57 (`4ac1d61`, 12/08), antes do feature
+- [x] **Release 4.1 publicada** — bump `versionName 4.0 → 4.1` + push sem `[skip ci]` → CI run #58 → **build 158** no Release `latest` (commit `864f56c`). Primeira build com o import de relógio via Health Connect; auto-update dispara a partir da 157
+- [x] **Regra de versionamento formalizada** (2026-08-15, commit `c2be164`) — `versionCode` automático a cada release (auto-update); `versionName` `X.Y`: **minor** sobe o Y (`4.1 → 4.2`), **major** (quebra de fluxo visível OU entrega grande) sobe o X e zera Y (`4.2 → 5.0`). Documentada em `docs/wiki/roadmap/backlog.md` + `AGENTS.md`. Exceção histórica: release 4.1 seria 5.0 pela regra (nota no CHANGELOG)
+
 ## ✅ Concluídos (Sessão 2026-08-14 — Backup do ambiente + receita de recuperação)
 
 - [x] **Backup do ambiente para formatação do Windows** — commit `552b3f0` ([skip ci]): `scripts/backup-workspace.ps1` gerou `backup/correlogo-backup-20260814-211555.zip` (296 MB, 17.112 entradas) com secrets do projeto (.env, .env.apk, .env.dev, functions.env, google-services.json, keystore.jks x2, opencode.json, .superpowers/), configs do usuário (.ssh, .git-credentials, .gitconfig, .npmrc, gh-hosts.yml, firebase-tools.json), configs do opencode (global + skills + models.json + rg.exe) e env-manifest.txt

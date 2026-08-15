@@ -1,5 +1,22 @@
 # Handoff
 
+## Session Context (2026-08-15 — Restore pós-formatação + diagnóstico build 157 + release 4.1 + regra de versionamento)
+
+### What happened
+- **Ambiente restaurado após formatação** do Windows usando `docs/RECOVERY.md` + `scripts/restore-workspace.ps1`: JDK 21 instalado via winget (Temurin `jdk-21.0.12.8-hotspot`), `JAVA_HOME` do usuário corrigido. Pipeline validado: `npm test` 101/101, `npm run build` OK, `cap sync android` OK (9 plugins), `gradlew assembleDebug` OK. Referências de JDK atualizadas em `AGENTS.md`/`docs/RECOVERY.md`/`scripts/restore-workspace.ps1` (commit `bdc1091`).
+- **Skills verificadas**: 67 agents + 53 gstack + ui-ux-pro-max idênticas ao backup (byte a byte).
+- **Diagnóstico do botão "Importar relógio" ausente na build 157**: o feature de relógio (13/08) nunca foi compilado — todos os commits de 13/08 têm `[skip ci]`, logo nenhuma release saiu com o código. Build 157 = run #57 (`4ac1d61`, 12/08), anterior ao feature.
+- **Release 4.1 publicada** (commit `864f56c`): `versionName 4.0 → 4.1` + push sem `[skip ci]` → CI run #58 → **build 158** no Release `latest`. Primeira build com import de relógio via Health Connect. Auto-update dispara da 157 → 158.
+- **Regra de versionamento formalizada** (commit `c2be164`): `versionCode` automático a cada release (`GITHUB_RUN_NUMBER + 100`); `versionName` `X.Y` — **minor** sobe o Y, **major** (quebra de fluxo visível OU entrega grande) sobe o X e zera Y. Registrada em `docs/wiki/roadmap/backlog.md` + `AGENTS.md`. **Exceção histórica**: 4.1 seria 5.0 pela regra (nota no CHANGELOG).
+
+### Cautions for next session
+1. **Validar em device (pendente do TODO, alta)**: permissão real do Health Connect (`requestReadHealthPermission`), import de treino do relógio com badge "Relógio" + dedupe ±2min, e cinta cardíaca BLE quando o hardware chegar.
+2. **CI roda a cada push em `main`** — até push de docs gera release nova (versionCode novo). Para evitar release-desnecessária, avaliar filter de paths no workflow, mas **nunca usar `[skip ci]`** em commits de feature (foi exatamente isso que prendeu o feature de 13/08 fora de produção).
+3. **`docs/wiki/roadmap/backlog.md`** agora é a fonte da regra de versionamento; `AGENTS.md` referencia. Conferir antes de qualquer bump de versão.
+4. `npm run build` não foi re-rodado nesta sessão após as mudanças de docs (nenhum código-fonte alterado — só docs/versionName). O CI validou a release 4.1 inteira (build 158).
+
+---
+
 ## Session Context (2026-08-14 — Backup do ambiente + receita de recuperação pós-formatação do Windows)
 
 ### What happened
