@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-08-14] — Backup do ambiente + receita de recuperação pós-formatação do Windows
+
+### Implementado
+- **`scripts/backup-workspace.ps1`**: gera `correlogo-backup-<data>.zip` com tudo que **não está** no repositório GitHub e é necessário para reconstruir o ambiente local: secrets do projeto (`.env`, `.env.apk`, `.env.dev`, `functions/.env`, `google-services.json`, `keystore.jks` x2, `opencode.json`, `.superpowers/`), configs do usuário (`.ssh/`, `.git-credentials`, `.gitconfig`, `.npmrc`, `gh-hosts.yml`, `firebase-tools.json`), configs do opencode (global + skills gstack/agents/opencode + `models.json` + `bin/rg.exe`) e `env-manifest.txt` (versões de node/npm/git/gh/firebase, `JAVA_HOME`, `ANDROID_HOME`, globals npm).
+- **`scripts/restore-workspace.ps1`**: restaura o ZIP numa instalação limpa (copia secrets para o repo, configs de usuário, configs do opencode, define `JAVA_HOME`/`ANDROID_HOME`/`PATH` e imprime os próximos passos de build).
+- **`docs/RECOVERY.md`**: receita passo a passo — instalação de ferramentas base (Git, Node, JDK 21, Android Studio, opencode, firebase-tools), restore de SSH/git/gh/firebase, clone, restore de secrets, build de validação (`npm test`/`npm run build`/`cap sync`/`gradlew assembleDebug`) e plano de emergência sem backup local.
+- Backup inicial gerado e validado: `backup/correlogo-backup-20260814-211555.zip` (296 MB, 17.112 entradas, `env-manifest.txt` ancorado em Node v26.4.0 / npm 12.0.2 / Git 2.55.0 / gh 2.96.0 / firebase-tools 15.26.0).
+
+### Observação importante
+- `$env:JAVA_HOME` persistente aponta para `jdk-21.0.7.6-hotspot` (não existe); o real é `jdk-21.0.11.10-hotspot` — a receita documenta definir `JAVA_HOME` explicitamente antes de `gradlew`.
+
+### Próximo
+- Guardar o ZIP fora do computador (pendrive/nuvem). Regerar backups periodicamente com `scripts/backup-workspace.ps1`.
+
+---
+
 ## [2026-08-13] — Integração com relógio fitness: FC via cinta BLE (0x180D), zonas Z1–Z5, import Health Connect, Insights no Perfil
 
 ### Implementado

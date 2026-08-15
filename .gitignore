@@ -21,3 +21,5 @@ gh_*.txt
 .firebase/
 # APKs locais de teste (nunca commitar)
 *.apk
+# Backups locais com segredos (nunca commitar)
+backup/

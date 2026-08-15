@@ -1,5 +1,24 @@
 # Handoff
 
+## Session Context (2026-08-14 — Backup do ambiente + receita de recuperação pós-formatação do Windows)
+
+### What happened
+- **User vai formatar o computador** e pediu para garantir tudo commitado + backup zip do que não está no repo + script/receita MD para restaurar numa instalação limpa.
+- **Estado verificado**: `git status` limpo; repo pushed em `main` (HEAD `8ecb43c`); secrets de CI todos cadastrados no GitHub Actions (ENV_FILE, GOOGLE_SERVICES_B64, KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD, FIREBASE_APP_ID, FIREBASE_CREDENTIALS) — rede de segurança: mesmo sem backup local, o CI reconstrói produção.
+- **`scripts/backup-workspace.ps1`** criado e **executado**: `backup/correlogo-backup-20260814-211555.zip` (296 MB, 17.112 entradas) com `project/` (`.env`, `.env.apk`, `.env.dev`, `functions.env`, `google-services.json`, `keystore.jks` x2, `opencode.json`, `.superpowers/`, apk), `user/` (`.ssh/`, `.git-credentials`, `.gitconfig`, `.npmrc`, `gh-hosts.yml`, `firebase-tools.json`), `opencode/` (config global, skills gstack/agents/opencode, `models.json`, `bin/rg.exe`) e `env-manifest.txt`.
+- **`scripts/restore-workspace.ps1`** criado: restaura secrets, configs de usuário, configs do opencode e define `JAVA_HOME`/`ANDROID_HOME`/`PATH` do usuário.
+- **`docs/RECOVERY.md`** criado: receita completa (ferramentas base → restore ssh/git/gh/firebase → clone → secrets → build → opencode skills → emergência sem backup).
+- **`CHANGELOG.md`** atualizado com entrada 2026-08-14.
+
+### Cautions for next session
+1. **O usuário deve copiar o ZIP para fora do computador** (pendrive/nuvem) — contém segredos de produção, não commitar.
+2. **`$env:JAVA_HOME` persistente está quebrado** — aponta para `C:\Program Files\Eclipse Adoptium\jdk-21.0.7.6-hotspot` (não existe). O JDK real é `jdk-21.0.11.10-hotspot`. Sempre definir `$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"` antes de `gradlew`. A receita documenta isso.
+3. O commit desta sessão ainda **não foi feito nem pushed** — próxima etapa: `git add` (scripts, docs, backup NO — backup/ é ignorado?), commit e push. Conferir se `backup/` precisa entrar no `.gitignore` (o zip não deve ser commitado).
+4. **`npm test`/`npm run build`** não foram re-rodados nesta sessão (nenhum código-fonte foi alterado — só scripts + docs). Validar se necessário antes do commit final.
+5. Plano/spec anteriores: `docs/superpowers/plans/2026-08-13-relogio-fitness-integration.md` (Tasks 1–8 concluídas, commitado `8ecb43c`, pushed via CI).
+
+---
+
 ## Session Context (2026-08-13 — Integração com relógio fitness: FC via cinta BLE, zonas Z1–Z5, import Health Connect, Insights no Perfil)
 
 ### What happened
