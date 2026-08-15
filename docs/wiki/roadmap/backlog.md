@@ -80,14 +80,30 @@
 
 ## Release Process
 
-| Versão | Tipo | Critério |
-|--------|------|----------|
-| **Patch** (2.2.x) | Bugfix hotfix | Critical bug em produção |
-| **Minor** (2.x.0) | Feature + bugfix | Nova feature estável |
-| **Major** (3.0.0) | Breaking changes | Migração arquitetural |
+### Versionamento
+
+- **Build** (`versionCode`): automático. Toda release de APK gera build nova (`GITHUB_RUN_NUMBER + 100` no CI) — é o que garante o auto-update in-app. Sem decisão manual.
+- **Versão** (`versionName`): 2 partes (`X.Y`), decidida pelo tamanho da mudança:
+
+| Mudança | Ação | Exemplo |
+|---------|------|---------|
+| **Minor** | Sobe o número após o ponto | `4.1` → `4.2` |
+| **Major** | Sobe o número antes do ponto (zera o Y) | `4.2` → `5.0` |
+
+### Critério Major vs Minor
+
+| Classificação | Exemplos |
+|---------------|----------|
+| **Major** — quebra de fluxo visível OU entrega grande | Migração de dados; fluxo de login/auth diferente; mudança na estrutura de dados salva; requisito de Android mínimo maior; remoção de feature; **módulo novo inteiro** (ex: integração relógio/Health Connect) |
+| **Minor** — todo o resto | Feature menor; bugfix; ajuste de UI; melhoria de desempenho |
+
+> Regra prática: se o usuário final precisa aprender a usar algo novo ou se o comportamento existente muda de forma visível → **Major**. Se é uma melhoria que não exige mudança de hábito → **Minor**.
 
 ### Versionamento Atual
 ```
+v4.1 (versionCode 158) - import de relógio via Health Connect + bump build (2026-08-15)
+v3.4 (versionCode 135) - auto-update + Firebase App Distribution (2026-07-31)
+v3.0 (versionCode 129) - app 3.0 (2026-07-30)
 v2.2 (versionCode 19) - Strava via Gmail + HC fixes
 v2.1 (versionCode 18) - HC route fallback
 v2.0 (versionCode 11) - ActivityResultLauncher fix
@@ -95,4 +111,4 @@ v2.0 (versionCode 11) - ActivityResultLauncher fix
 
 ---
 
-*Última revisão: 2026-07-29*
+*Última revisão: 2026-08-15*

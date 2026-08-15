@@ -5,6 +5,7 @@
 ### Contexto
 - O feature de relógio (integrado em 13/08) nunca tinha sido **compilado em release**: todos os commits de 13/08 usaram `[skip ci]`, então nenhuma run do CI rodou depois da build 157 (run #57, `4ac1d61` de 12/08). O APK instalado não continha o código do import.
 - Esta release dispara o CI de propósito (commit sem `[skip ci]`) e avança a versão para **4.1** — é a primeira build a conter o import de relógio via Health Connect.
+- > **Nota (regra de versionamento de 2026-08-15):** pela regra formalizada no mesmo dia (Major = entrega grande, ex: módulo novo inteiro), esta release *deveria* ter sido **5.0**. Ficou 4.1 por decisão explícita (exceção histórica, sem release dupla). Daqui pra frente, toda entrega grande sobe a versão antes do ponto.
 
 ### Implementado
 - `android/app/build.gradle`: `versionName "4.0" → "4.1"`.

@@ -120,6 +120,10 @@ Estas regras garantem que qualquer alteração minha nunca quebre o build do APK
 - **CI/CD (auto-update do APK)**: push em `main` dispara `.github/workflows/firebase-deploy.yml` → build web + `assembleRelease` assinado → publica em **GitHub Release `latest`** junto com `update-manifest.json` (com `versionCode` = `GITHUB_RUN_NUMBER + 100`). O app verifica esse manifest (`releases/download/latest/update-manifest.json`) via `CapacitorHttp` e instala sozinho (a partir da 3.2).
 - **`VITE_*` são baked no build**: mudar variável exige `npm run build` de novo; `firebase deploy` serve o bundle já compilado.
 - **Versão atual**: checar `android/app/build.gradle` (`versionName`). Release `latest` sempre reflete o último push.
+- **Versionamento (regra formalizada 2026-08-15)**: toda release de APK gera `versionCode` novo automático (`GITHUB_RUN_NUMBER + 100`) — é o que permite o auto-update. O `versionName` é manual, formato `X.Y`:
+  - **Minor** (só para features pequenas/bugfix/UI): sobe o número após o ponto (`4.1` → `4.2`).
+  - **Major** (quebra de fluxo visível OU entrega grande, ex: módulo novo inteiro como integração relógio/Health Connect): sobe o número antes do ponto e zera o Y (`4.2` → `5.0`).
+  - Critério completo em `docs/wiki/roadmap/backlog.md` → Release Process. Sempre verificar se a mudança é major antes de commitar um bump.
 - **Não usar portas hardcoded**: o Vite dev server usa porta 3000 (`vite.config.ts`, `host: 0.0.0.0`, `allowedHosts: true`). Não havia Nginx/PM2 — não há config de servidor para atualizar.
 - **`.gitignore`** já exclui `.env*` (com `!.env.example`), `dist/`, `node_modules/`, logs, `keystore.jks`, `firebase-key.json`, `android/app/google-services.json` e `gh_*_base64.txt`. Não remover — `.env` contém a Firebase API key e o `gh_*` contém credenciais de CI.
 - Ver `HANDOFF.md` e a wiki (`docs/wiki/`) antes de sugerir qualquer mudança de infra.
