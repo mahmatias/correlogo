@@ -6,7 +6,7 @@
 # Pré-requisitos (instalados antes de rodar este script):
 #   - Git for Windows, Node.js LTS, JDK 21 (Eclipse Adoptium),
 #     Android SDK (Android Studio), opencode, firebase-tools
-#   - Repositório clonado em D:\corre-logo
+#   - Repositório clonado em D:\Trabalho\Corre-Logo
 #   - As funções loadEnv/installEnv abaixo assumem permissão de
 #     administrador para definir variáveis de ambiente do usuário.
 #
@@ -17,7 +17,7 @@ param(
   [Parameter(Mandatory=$true)]
   [string]$ZipPath,
 
-  [string]$RepoRoot = 'D:\corre-logo'
+  [string]$RepoRoot = 'D:\Trabalho\Corre-Logo'
 )
 
 $ErrorActionPreference = 'Stop'

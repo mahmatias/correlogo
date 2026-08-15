@@ -91,7 +91,7 @@ firebase projects:list    # deve listar correlogo-prod
 ## 3) Clonar o projeto
 
 ```powershell
-git clone git@github.com:mahmatias/correlogo.git D:\corre-logo
+git clone git@github.com:mahmatias/correlogo.git D:\Trabalho\Corre-Logo
 ```
 
 O repo já inclui: código, `scripts/backup-workspace.ps1`, `scripts/restore-workspace.ps1`,
@@ -105,8 +105,8 @@ O script `scripts/restore-workspace.ps1` faz tudo (copia secrets do zip para o r
 restaura configs de usuário, define `JAVA_HOME`/`ANDROID_HOME`/`PATH`):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File D:\corre-logo\scripts\restore-workspace.ps1 `
-  -ZipPath "D:\backup\correlogo-backup-<data>.zip" -RepoRoot D:\corre-logo
+powershell -ExecutionPolicy Bypass -File D:\Trabalho\Corre-Logo\scripts\restore-workspace.ps1 `
+  -ZipPath "D:\backup\correlogo-backup-<data>.zip" -RepoRoot D:\Trabalho\Corre-Logo
 ```
 
 **ATENÇÃO** (regra do AGENTS.md): se o script não copiar `.env.apk`, faça manualmente:
@@ -124,7 +124,7 @@ Nunca copie `.env.dev` para `.env` (quebra autenticação em produção).
 Em **novo terminal** (para as variáveis de ambiente valerem):
 
 ```powershell
-Set-Location D:\corre-logo
+Set-Location D:\Trabalho\Corre-Logo
 
 # Node 21+ para o projeto
 node --version; npm --version
