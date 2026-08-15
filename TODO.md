@@ -410,3 +410,10 @@
 - ✅ U12. Botão DESCARTAR com estilo secundário (bg-bg-elevated + border)
 - ✅ U13. Google Login com fallback signInWithRedirect se popup for bloqueado
 - ✅ U15. Aviso explícito de "apagado permanentemente" no modal de uncomplete
+
+## ✅ Concluídos (Sessão 2026-08-14 — Backup do ambiente + receita de recuperação)
+
+- [x] **Backup do ambiente para formatação do Windows** — commit `552b3f0` ([skip ci]): `scripts/backup-workspace.ps1` gerou `backup/correlogo-backup-20260814-211555.zip` (296 MB, 17.112 entradas) com secrets do projeto (.env, .env.apk, .env.dev, functions.env, google-services.json, keystore.jks x2, opencode.json, .superpowers/), configs do usuário (.ssh, .git-credentials, .gitconfig, .npmrc, gh-hosts.yml, firebase-tools.json), configs do opencode (global + skills + models.json + rg.exe) e env-manifest.txt
+- [x] **scripts/restore-workspace.ps1** — restaura o ZIP em instalação limpa: secrets no repo, configs de usuário, configs do opencode, define JAVA_HOME/ANDROID_HOME/PATH do usuário
+- [x] **docs/RECOVERY.md** — receita completa: ferramentas base, restore SSH/git/gh/firebase, clone, build de validação (npm test/build, cap sync, gradlew) e plano de emergência sem backup local
+- [x] **.gitignore** — adicionado `backup/` (o zip contém segredos de produção e não deve ser commitado)
