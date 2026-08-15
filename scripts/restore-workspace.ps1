@@ -102,14 +102,14 @@ if (Test-Path (Join-Path $o 'bin\rg.exe')) {
 # 4) Variáveis de ambiente do usuário
 # -------------------------------------------------------------
 Write-Host "`n[4/5] Variáveis de ambiente (usuário)" -ForegroundColor Yellow
-[Environment]::SetEnvironmentVariable('JAVA_HOME', 'C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot', 'User')
+[Environment]::SetEnvironmentVariable('JAVA_HOME', 'C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot', 'User')
 [Environment]::SetEnvironmentVariable('ANDROID_HOME', 'C:\Users\' + $env:USERNAME + '\AppData\Local\Android\Sdk', 'User')
 $current = [Environment]::GetEnvironmentVariable('Path', 'User')
 $addPaths = @(
   'C:\Program Files\nodejs',
   'C:\Program Files\Git\cmd',
   'C:\Users\' + $env:USERNAME + '\AppData\Roaming\npm',
-  'C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot\bin',
+  'C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot\bin',
   'C:\Users\' + $env:USERNAME + '\AppData\Local\Android\Sdk\platform-tools',
   'C:\Users\' + $env:USERNAME + '\AppData\Local\Android\Sdk\cmdline-tools\latest\bin'
 )
@@ -117,7 +117,7 @@ foreach ($p in $addPaths) {
   if ($current -notlike "*$p*") { $current = "$current;$p" }
 }
 [Environment]::SetEnvironmentVariable('Path', $current, 'User')
-Write-Host "  + JAVA_HOME -> jdk-21.0.11.10-hotspot"
+Write-Host "  + JAVA_HOME -> jdk-21.0.12.8-hotspot"
 Write-Host "  + ANDROID_HOME + PATH atualizados (reabra o terminal para valer)"
 
 # -------------------------------------------------------------

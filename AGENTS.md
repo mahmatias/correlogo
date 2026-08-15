@@ -105,9 +105,9 @@ Estas regras garantem que qualquer alteração minha nunca quebre o build do APK
    npm run build && npx cap sync android && (cd android && gradlew assembleDebug)
    ```
 
-8. **JAVA_HOME** na máquina local está em `C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot`. Antes de `gradlew`, definir:
+8. **JAVA_HOME** na máquina local está em `C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot` (Temurin 21.0.12.8, instalado no restore pós-formatação). Antes de `gradlew`, definir:
    ```powershell
-   $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"
+   $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot"
    ```
 
 ## Production & Deploy — Firebase Only

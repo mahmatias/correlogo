@@ -39,7 +39,7 @@ Instalar na ordem (instaladores oficiais; abrir novo terminal após cada uma):
 1. **Git for Windows** — `https://git-scm.com/download/win` (2.55+)
 2. **Node.js LTS** — `https://nodejs.org/` (v26.x; npm 12.x). Instalação direta, **sem** nvm/fnm.
 3. **JDK 21 (Eclipse Adoptium)** — `https://adoptium.net/temurin/releases/?version=21`
-   - Alvo: `C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot`
+   - Alvo: `C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot` (ou `winget install --id EclipseAdoptium.Temurin.21.JDK`)
 4. **Android Studio** — `https://developer.android.com/studio` (instala o SDK)
    - SDK alvo: `%LOCALAPPDATA%\Android\Sdk` (build-tools, platform-tools, cmdline-tools, licenses)
    - Aceitar licenças: `sdkmanager --licenses`
@@ -140,7 +140,7 @@ npm run build          # gera dist/ (Firebase Hosting + base do APK)
 npx cap sync android
 
 # APK de debug (usando o JDK real — o JAVA_HOME persistente pode apontar p/ um dir que não existe)
-$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot"
 Set-Location android
 .\gradlew assembleDebug
 Set-Location ..
