@@ -1,5 +1,20 @@
 # Handoff
 
+## Session Context (2026-08-15 — Move do projeto para D:\Trabalho\Corre-Logo)
+
+### What happened
+- **Projeto movido** de `D:\corre-logo` para `D:\Trabalho\Corre-Logo` (mesmo volume D:, rename). Tudo commitado e pushed antes do move (HEAD `853ea42`).
+- **Move-Item falhou parcialmente** em artefatos de build com caminho >260 chars dentro de `node_modules` (PathTooLong) e `.git` (permissão). Recuperação: destino `.git` íntegro (confere com origin), secrets preservados (`.env*`, keystores x2, `google-services.json`), `src/`+`scripts/` movidos à parte, `node_modules` parciais purgados via `robocopy` (que lida com long paths) e reinstalados com `npm ci --legacy-peer-deps` + `npm install-scripts approve` (esbuild/@firebase/util/protobufjs).
+- **Validado no novo local**: `npm test` 101/101, `npm run build` OK, `npx cap sync android` OK (9 plugins), git limpo. Referências ao caminho antigo removidas de `docs/RECOVERY.md` e `scripts/restore-workspace.ps1` (commit `853ea42`). `allowScripts` commitado em `package.json` (commit `f356aaa`).
+- **`D:\corre-logo` ficou vazio** e preso pelo handle da sessão do opencode (cwd) — remover após fechar esta sessão.
+
+### Cautions for next session
+1. **Workspace agora é `D:\Trabalho\Corre-Logo`** — abrir o opencode nesse diretório.
+2. `D:\corre-logo` (vazio) pode ser apagado após o fechamento da sessão.
+3. Demais pendências: ver sessão anterior (validação em device do Health Connect/BLE, wikis JDK `jdk-21.0.11.10`, `@capacitor/app|browser@8` vs core 7).
+
+---
+
 ## Session Context (2026-08-15 — Restore pós-formatação + diagnóstico build 157 + release 4.1 + regra de versionamento)
 
 ### What happened

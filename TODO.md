@@ -292,6 +292,12 @@
 
 ## Concluídos
 
+### 2026-08-15b — Move do projeto para D:\Trabalho\Corre-Logo
+- ✅ Move concluído: repo agora vive em `D:\Trabalho\Corre-Logo` (docs/RECOVERY.md + scripts/restore-workspace.ps1 atualizados)
+- ✅ Secrets preservados (`.env*`, keystores x2, `google-services.json`), `node_modules` reinstalado do zero
+- ✅ Validado no novo local: `npm test` 101/101, build OK, `cap sync` OK; git limpo; allowScripts commitado (`f356aaa`)
+- ⚠️ `D:\corre-logo` (vazio) — remover após fechar a sessão do opencode (handle do cwd)
+
 ### 2026-07-10d — Reavaliação Geral do Projeto
 - ✅ Função de Repetição na criação manual de treino
 - ✅ Escalonamento de duração mínima para Standard/ImprovePace (6-52 semanas)
