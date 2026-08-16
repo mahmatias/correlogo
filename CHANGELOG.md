@@ -24,11 +24,13 @@
 - **Secret vazado morto**: secret antigo (`GOCSPX-eaxIk…`, exibido como `****zbbr`) **desabilitado e deletado** no Console ✅.
 - Modelo usado: rotação oficial do Google Auth Platform (2 secrets simultâneos → migra → desabilita → deleta) — sem re-auth de usuários, sem rebuild do bundle (client ID inalterado).
 
-### Pendente (ação do usuário)
-1. Revogação do órfão `GOCSPX-gw4d5…`: Reset secret do client `550159999478` (ou deletar o client).
-2. **Ticket de suporte GitHub** para purgar o commit `4c3afa07` dos refs internos (`refs/pull/1/head` ainda o alcança — não é alterável via push) e do object store (blob por SHA).
-3. Keystore: nenhuma ação (já rotacionado).
-4. Commit/push do código migrado + docs.
+### Concluído depois
+- **Órfão morto**: client `550159999478-j2a6b9gknlo9vu4t39lpvo00bijpq0tn` (projeto `correlogo-calendar`, da era AWS) **deletado** no Console — liveness test → `deleted_client`, `GOCSPX-gw4d5…` invalidado. `.env.dev` limpo (`GOOGLE_CLIENT_SECRET`, `VITE_GOOGLE_CLIENT_ID` removidos).
+- **Commit `61d290d`** (`fix(security): mover WEB_CLIENT_SECRET para Secret Manager`) pushado — functions + CHANGELOG + TODO + HANDOFF. CI dispara release (só docs/functions, sem mudança de web/APK).
+
+### Pendente (ação do usuário) — Ticket de purge: CONSIDERADO RESOLVIDO (2026-08-16)
+1. ~~**Ticket de suporte GitHub**~~ para purgar o commit `4c3afa07` dos refs internos (`refs/pull/1/head` ainda o alcança — não é alterável via push) e do object store (blob por SHA). **Encerrado por decisão do usuário**: o portal de suporte atual não expõe mais o fluxo de remoção de dados sensíveis (a categoria "Repositories" leva ao formulário de *deleção do repositório*; o link legado `support.github.com/contact?legacy&tags=rr-remove-data` morreu e redireciona ao formulário guiado; o formulário PIRP `support.github.com/contact/private-information` existe mas atende conteúdo de terceiros, não purge do próprio repo). **Risco aceito**: todas as credenciais rotacionadas/revogadas, 0 forks, histórico local purgado. Blob por SHA e `refs/pull/1/head` permanecem acessíveis no GitHub até eventual GC — sem ação possível do nosso lado.
+2. Keystore: nenhuma ação (já rotacionado).
 
 ### Nota
 - O AuthCallback de dev (`.env.dev`, client `550159999478`) já estava quebrado antes desta sessão (mismatch com o client da function) — bug pré-existente, fora do escopo.

@@ -8,13 +8,13 @@
 - **Código preparado (NÃO commitado)**: `functions/src/index.ts` migrado para `defineSecret("WEB_CLIENT_SECRET")` (Secret Manager) nas functions `authCallback`/`refreshAuthToken`; `.env.apk` sem `GOOGLE_CLIENT_SECRET`/`VITE_GOOGLE_CLIENT_ID` (mortas). Builds validados (`tsc` + `npm run build`).
 - **Purge executado**: force-push `mahmatias-patch-1` `9eaa9f5 → e6834d2` a partir do clone bare `%TEMP%\opencode\correlogo-purge2` (git-filter-repo). `main` e tag `latest` já estavam limpos. **`refs/pull/1/head` ainda aponta `9eaa9f5`** (alcança `4c3afa07`) — ref gerenciada pelo GitHub, não alterável por push → requer ticket de suporte.
 - **Rotação do `WEB_CLIENT_SECRET` concluída**: o Google não tem mais "Reset secret" na UI — virou **"Add a new secret"** (2 secrets simultâneos, rotação oficial em 4 passos). Novo secret criado (`client_secret_2_985879764466…json`, `GOCSPX-JoOm…`) → `firebase functions:secrets:set WEB_CLIENT_SECRET` (v1) → `firebase deploy --only functions` (3 functions v2; 1º deploy falhou por Compute Engine API desabilitado, rerun ok) → **testado: Calendar + Gmail conectam** → secret antigo (`GOCSPX-eaxIk…`, `****zbbr`) **desabilitado e deletado** no Console. Sem re-auth de usuários, sem rebuild.
+- **Órfão `550159999478` morto**: o client é do projeto **`correlogo-calendar`** (número `550159999478`, era AWS) — **não do prod** (`985879764466`). Deletado no Console → liveness test → `deleted_client` (`GOCSPX-gw4d5…` invalidado). `.env.dev` limpo (`GOOGLE_CLIENT_SECRET`, `VITE_GOOGLE_CLIENT_ID` removidos).
+- **Commit `61d290d` pushado** (`fix(security)`): functions (defineSecret) + CHANGELOG + TODO + HANDOFF. O código novo já está em produção (deploy manual das functions feito).
 
 ### Cautions / próximo passo (ação do usuário)
-1. **Revogar órfão**: Console → client `550159999478-j2a6…` → Reset/Add secret (mata `GOCSPX-gw4d5…`); limpar `GOOGLE_CLIENT_SECRET`/`VITE_GOOGLE_CLIENT_ID` de `.env.dev`.
-2. **Ticket suporte GitHub**: purgar commit `4c3afa07d3b7f9eaa25e473b3bdbccf3d705651f` + blobs (`gh_env_base64.txt`, `gh_firebase_cred_base64.txt`, `gh_keystore_base64.txt`, `android/app/google-services.json`) e o `refs/pull/1/head`; repo sem forks → purge total viável. Formulário: support.github.com.
-3. **Commit/push** do código preparado (functions + TODO + CHANGELOG + HANDOFF) — secret já está no Secret Manager e deploy feito.
-4. Bug pré-existente (fora do escopo): OAuth de dev usa client `550159999478` mas a function troca com `985879764466` → Calendar/Gmail quebrados em dev.
-5. Guardar o JSON do novo secret (`D:\Trabalho\client_secret_2_985879764466…json`) em local seguro ou apagar (runtime lê do Secret Manager).
+1. **Ticket suporte GitHub: CONSIDERADO RESOLVIDO (2026-08-16)** — o portal de suporte não expõe mais o fluxo de purge (categoria "Repositories" só leva ao formulário de deleção do repo; link legacy `?legacy&tags=rr-remove-data` morreu; formulário PIRP `support.github.com/contact/private-information` é para conteúdo de terceiros). Decisão do usuário: **risco aceito** — todas as credenciais rotacionadas/revogadas, 0 forks, purge local feito. O commit `4c3afa07d3b7f9eaa25e473b3bdbccf3d705651f` + blobs + `refs/pull/1/head` seguem acessíveis no GitHub até GC deles (sem ação possível).
+2. Bug pré-existente (fora do escopo): OAuth de dev usa client `550159999478` (agora deletado) mas a function troca com `985879764466` → Calendar/Gmail quebrados em dev; e `APP_URL` em `.env.dev` ainda aponta pra `correlogo.sytes.net` (morto).
+3. Guardar o JSON do novo secret (`D:\Trabalho\client_secret_2_985879764466…json`) em local seguro ou apagar (runtime lê do Secret Manager).
 
 ---
 
