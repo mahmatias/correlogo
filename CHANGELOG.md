@@ -1,5 +1,40 @@
 # Changelog
 
+## [2026-08-16] — Auditoria de vazamento de credenciais (SECURITY)
+
+### Contexto
+- Usuário reportou que a URL `github.com/mahmatias/correlogo/blob/4c3afa07…/gh_firebase_cred_base64.txt` ainda serve o arquivo. Investigação completa do vazamento do commit `4c3afa07` (30/07) em repo público.
+
+### Achados (testados empiricamente)
+- **Service account vazado** (`gh_firebase_cred_base64.txt`, key `b153831c…`): **JÁ REVOGADO** — JWT assinado com a chave (self-verifica) foi rejeitado pelo Google (`invalid_grant`), mesmo com header `kid`. O `FIREBASE_CREDENTIALS` atual usa outra chave (`7d1a5796…`, confirmado no arquivo local). Nenhuma ação.
+- **Keystore vazado** (`gh_keystore_base64.txt`): **keystore ANTIGO** — rotacionado pelo CI em 30/07. Senhas nunca estiveram no repo (workflow já usava secrets). Nenhuma ação.
+- **`gh_env_base64.txt`**: continha `GOOGLE_CLIENT_SECRET=GOCSPX-gw4d5…` (client `550159999478`). **Ainda VÁLIDO** mas órfão (client não usado pelo código atual). Rotação/referência de client no Console.
+- **NOVO ACHADO (mais grave)**: o `WEB_CLIENT_SECRET` de **produção** (`GOCSPX-eaxIk…`, client `985879764466`) estava **hardcoded em `functions/src/index.ts:5`** no repo público — **vivo** (validado via Google OAuth). O `authCallback`/`refreshAuthToken` de Calendar/Gmail o usam.
+- Repo público, **0 forks** (viabiliza purge no GitHub). O blob por SHA continua acessível após rewrite — comportamento conhecido do GitHub.
+
+### Implementado
+- `functions/src/index.ts`: `WEB_CLIENT_SECRET` hardcoded → `defineSecret("WEB_CLIENT_SECRET")` (Secret Manager), com `secrets: [WEB_CLIENT_SECRET]` nas duas functions e `WEB_CLIENT_SECRET.value()` nas trocas OAuth. Client ID permanece hardcoded (público, embutido no bundle).
+- `.env.apk`: removidas vars mortas/vazadas (`GOOGLE_CLIENT_SECRET`, `VITE_GOOGLE_CLIENT_ID` — o código sempre prefere `VITE_GOOGLE_WEB_CLIENT_ID`).
+- **Purge executado**: force-push do branch `mahmatias-patch-1` (purgado, `9eaa9f5 → e6834d2`) via clone `git-filter-repo` em `%TEMP%\opencode\correlogo-purge2`. `main` e tag `latest` já estavam limpos (não alcançavam o commit vazado). Árvore do branch verificada: sem arquivos sensíveis.
+- Build validado: `functions` (`tsc`) ✅ · root `npm run build` (`.env.apk→.env`) ✅.
+
+### Rotação executada (mesmo dia)
+- **`WEB_CLIENT_SECRET` rotacionado** — novo secret (`client_secret_2_985879764466…json`, secret `GOCSPX-JoOm…`) criado via "Add a new secret" no Console → `firebase functions:secrets:set WEB_CLIENT_SECRET` (versão 1) → `firebase deploy --only functions` (3 functions v2, nodejs22; healthCheck `{"status":"ok"}`; 1º deploy falhou por Compute Engine API desabilitado — fallback não-fatal, rerun passou).
+- **Testado**: Google Calendar e Gmail conectados via OAuth no app ✅.
+- **Secret vazado morto**: secret antigo (`GOCSPX-eaxIk…`, exibido como `****zbbr`) **desabilitado e deletado** no Console ✅.
+- Modelo usado: rotação oficial do Google Auth Platform (2 secrets simultâneos → migra → desabilita → deleta) — sem re-auth de usuários, sem rebuild do bundle (client ID inalterado).
+
+### Pendente (ação do usuário)
+1. Revogação do órfão `GOCSPX-gw4d5…`: Reset secret do client `550159999478` (ou deletar o client).
+2. **Ticket de suporte GitHub** para purgar o commit `4c3afa07` dos refs internos (`refs/pull/1/head` ainda o alcança — não é alterável via push) e do object store (blob por SHA).
+3. Keystore: nenhuma ação (já rotacionado).
+4. Commit/push do código migrado + docs.
+
+### Nota
+- O AuthCallback de dev (`.env.dev`, client `550159999478`) já estava quebrado antes desta sessão (mismatch com o client da function) — bug pré-existente, fora do escopo.
+
+---
+
 ## [2026-08-15] — Release 4.1: import de treinos do relógio vai ao ar
 
 ### Contexto

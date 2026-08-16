@@ -1,5 +1,23 @@
 # Handoff
 
+## Session Context (2026-08-16 — Auditoria de vazamento de credenciais + purge + rotação concluída)
+
+### What happened
+- **Reporte**: URL `github.com/mahmatias/correlogo/blob/4c3afa07…/gh_firebase_cred_base64.txt` ainda servia o arquivo. Investigado o vazamento do commit `4c3afa07` (30/07).
+- **Testes de liveness feitos** (todos empíricos): (a) SA key vazada `b153831c…` → JWT RS256 com `kid` self-verifica, **Google rejeita `invalid_grant`** → REVOGADA; atual `FIREBASE_CREDENTIALS` = `7d1a5796…` (arquivo local `gh_firebase_cred_base64.txt`, gitignored). (b) `GOOGLE_CLIENT_SECRET=GOCSPX-gw4d5…` (do `.env` vazado, client `550159999478`) → **VÁLIDO** (invalid_grant = credencial ok, só código fake) mas órfão. (c) `WEB_CLIENT_SECRET=GOCSPX-eaxIk…` hardcoded em `functions/src/index.ts:5` → **VÁLIDO e em produção**.
+- **Código preparado (NÃO commitado)**: `functions/src/index.ts` migrado para `defineSecret("WEB_CLIENT_SECRET")` (Secret Manager) nas functions `authCallback`/`refreshAuthToken`; `.env.apk` sem `GOOGLE_CLIENT_SECRET`/`VITE_GOOGLE_CLIENT_ID` (mortas). Builds validados (`tsc` + `npm run build`).
+- **Purge executado**: force-push `mahmatias-patch-1` `9eaa9f5 → e6834d2` a partir do clone bare `%TEMP%\opencode\correlogo-purge2` (git-filter-repo). `main` e tag `latest` já estavam limpos. **`refs/pull/1/head` ainda aponta `9eaa9f5`** (alcança `4c3afa07`) — ref gerenciada pelo GitHub, não alterável por push → requer ticket de suporte.
+- **Rotação do `WEB_CLIENT_SECRET` concluída**: o Google não tem mais "Reset secret" na UI — virou **"Add a new secret"** (2 secrets simultâneos, rotação oficial em 4 passos). Novo secret criado (`client_secret_2_985879764466…json`, `GOCSPX-JoOm…`) → `firebase functions:secrets:set WEB_CLIENT_SECRET` (v1) → `firebase deploy --only functions` (3 functions v2; 1º deploy falhou por Compute Engine API desabilitado, rerun ok) → **testado: Calendar + Gmail conectam** → secret antigo (`GOCSPX-eaxIk…`, `****zbbr`) **desabilitado e deletado** no Console. Sem re-auth de usuários, sem rebuild.
+
+### Cautions / próximo passo (ação do usuário)
+1. **Revogar órfão**: Console → client `550159999478-j2a6…` → Reset/Add secret (mata `GOCSPX-gw4d5…`); limpar `GOOGLE_CLIENT_SECRET`/`VITE_GOOGLE_CLIENT_ID` de `.env.dev`.
+2. **Ticket suporte GitHub**: purgar commit `4c3afa07d3b7f9eaa25e473b3bdbccf3d705651f` + blobs (`gh_env_base64.txt`, `gh_firebase_cred_base64.txt`, `gh_keystore_base64.txt`, `android/app/google-services.json`) e o `refs/pull/1/head`; repo sem forks → purge total viável. Formulário: support.github.com.
+3. **Commit/push** do código preparado (functions + TODO + CHANGELOG + HANDOFF) — secret já está no Secret Manager e deploy feito.
+4. Bug pré-existente (fora do escopo): OAuth de dev usa client `550159999478` mas a function troca com `985879764466` → Calendar/Gmail quebrados em dev.
+5. Guardar o JSON do novo secret (`D:\Trabalho\client_secret_2_985879764466…json`) em local seguro ou apagar (runtime lê do Secret Manager).
+
+---
+
 ## Session Context (2026-08-15 — Move do projeto para D:\Trabalho\Corre-Logo)
 
 ### What happened

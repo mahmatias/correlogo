@@ -1,11 +1,11 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 
-// Web Client ID & Secret (used by both Calendar and Gmail OAuth)
 const WEB_CLIENT_ID = "985879764466-kd0plotbh6349qrniqv09enasnajst1i.apps.googleusercontent.com";
-const WEB_CLIENT_SECRET = "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";
+const WEB_CLIENT_SECRET = defineSecret("WEB_CLIENT_SECRET");
 const redirectUri = "https://correlogo.web.app/auth/google/callback";
 
-export const authCallback = onRequest(async (req, res) => {
+export const authCallback = onRequest({ secrets: [WEB_CLIENT_SECRET] }, async (req, res) => {
   const code = req.query.code as string;
   const state = (req.query.state as string) || "";
 
@@ -19,7 +19,7 @@ export const authCallback = onRequest(async (req, res) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         client_id: WEB_CLIENT_ID,
-        client_secret: WEB_CLIENT_SECRET,
+        client_secret: WEB_CLIENT_SECRET.value(),
         code,
         grant_type: "authorization_code",
         redirect_uri: redirectUri,
@@ -59,7 +59,7 @@ export const authCallback = onRequest(async (req, res) => {
   }
 });
 
-export const refreshAuthToken = onRequest(async (req, res) => {
+export const refreshAuthToken = onRequest({ secrets: [WEB_CLIENT_SECRET] }, async (req, res) => {
   const { refresh_token } = req.body;
   if (!refresh_token) {
     res.status(400).json({ error: "refresh_token required" });
@@ -72,7 +72,7 @@ export const refreshAuthToken = onRequest(async (req, res) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         client_id: WEB_CLIENT_ID,
-        client_secret: WEB_CLIENT_SECRET,
+        client_secret: WEB_CLIENT_SECRET.value(),
         refresh_token,
         grant_type: "refresh_token",
       }),
