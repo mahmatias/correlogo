@@ -1,5 +1,30 @@
 # Handoff
 
+## Session Context (2026-08-20c — Fix permissões READ HC + botão "Conectar" concede READ+WRITE)
+
+### What happened
+- **Bug report**: após fix 2026-08-20b, importação de relógio dizia "sem permissão" mesmo HC conectado
+- **Secondary**: botão "Conectar Health Connect" no Perfil não abria pedido de autorização
+- **Root cause**: `handleOnActivityResult` sempre checava permissão WRITE — quando `requestReadPermissions` enviava READ-only, resultado sempre retornava `false`
+- **Secondary root cause**: `requestHcPermissions` só pedia WRITE, nunca READ
+
+### Fix applied
+1. **`pendingPermissionExpected`** — novo field que armazena o set de permissões enviado ao intent
+2. **`handleOnActivityResult`** — valida `expected.all { it in grantedPerms }` em vez de hardcoded WRITE check
+3. **`requestHcPermissions`** — agora pede WRITE + READ para ExerciseSessionRecord, DistanceRecord, SpeedRecord
+4. **`readPermissionSet`** — reduzido de 6 para 3: ExerciseSessionRecord + DistanceRecord + SpeedRecord (remove HeartRate, Steps, Calories que eram hard blockers desnecessários)
+
+### Validation
+- `npm run build` ✅ · `cap sync android` ✅ · `gradlew assembleDebug` ✅
+- `npm test` ✅ 104/104
+
+### Cautions for next session
+1. **Deploy pendente**: push → CI → release nova para testar no device
+2. **Re-testar**: importar treino `watch-1f1bde4b...` e verificar tempo/distância/velocidade
+3. **Se HC ainda reclamar**: checar Logcat `CorreLogo-HC` para ver se `handleOnActivityResult` está sendo chamado (deprecated method — Capacitor 7 pode não garantir)
+
+---
+
 ## Session Context (2026-08-20b — Fix importação HC: permissão DistanceRecord + fallback SpeedRecord + UX)
 
 ### What happened

@@ -44,6 +44,7 @@ class HealthConnectPlugin : Plugin() {
     private var client: HealthConnectClient? = null
     private val permContract = PermissionController.createRequestPermissionResultContract()
     private var pendingPermissionCall: PluginCall? = null
+    private var pendingPermissionExpected: Set<String>? = null
 
     override fun load() {
         Log.d(TAG, "Plugin loaded")
@@ -103,7 +104,10 @@ class HealthConnectPlugin : Plugin() {
 
         val permissions = setOf(
             HealthPermission.getWritePermission(ExerciseSessionRecord::class),
-            HealthPermission.getWritePermission(DistanceRecord::class)
+            HealthPermission.getWritePermission(DistanceRecord::class),
+            HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+            HealthPermission.getReadPermission(DistanceRecord::class),
+            HealthPermission.getReadPermission(SpeedRecord::class)
         )
         launchPermissionIntent(a, call, permissions)
     }
@@ -118,6 +122,7 @@ class HealthConnectPlugin : Plugin() {
             return
         }
         pendingPermissionCall = call
+        pendingPermissionExpected = permissions
         a.runOnUiThread {
             try {
                 Log.d(TAG, "Opening HC permissions page for package=${a.packageName}")
@@ -125,6 +130,7 @@ class HealthConnectPlugin : Plugin() {
             } catch (e: Exception) {
                 Log.e(TAG, "startActivityForResult failed — falling back to HC rationale", e)
                 pendingPermissionCall = null
+                pendingPermissionExpected = null
                 openHcRationale(call)
             }
         }
@@ -135,11 +141,17 @@ class HealthConnectPlugin : Plugin() {
         super.handleOnActivityResult(requestCode, resultCode, data)
         if (requestCode != 9301) return
         val call = pendingPermissionCall ?: return
+        val expected = pendingPermissionExpected
         pendingPermissionCall = null
+        pendingPermissionExpected = null
         val grantedPerms = permContract.parseResult(resultCode, data)
-        val writePerm = HealthPermission.getWritePermission(ExerciseSessionRecord::class)
-        val granted = writePerm in grantedPerms
-        Log.d(TAG, "Permission result: WRITE_EXERCISE granted=$granted (${grantedPerms.size} total)")
+        val granted = if (expected != null) {
+            expected.all { it in grantedPerms }
+        } else {
+            val writePerm = HealthPermission.getWritePermission(ExerciseSessionRecord::class)
+            writePerm in grantedPerms
+        }
+        Log.d(TAG, "Permission result: granted=$granted (expected=${expected?.size ?: "write-fallback"}, got=${grantedPerms.size})")
         call.resolve(JSObject().apply { put("granted", granted) })
     }
 
@@ -260,10 +272,7 @@ class HealthConnectPlugin : Plugin() {
         setOf(
             HealthPermission.getReadPermission(ExerciseSessionRecord::class),
             HealthPermission.getReadPermission(DistanceRecord::class),
-            HealthPermission.getReadPermission(SpeedRecord::class),
-            HealthPermission.getReadPermission(HeartRateRecord::class),
-            HealthPermission.getReadPermission(StepsRecord::class),
-            HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class)
+            HealthPermission.getReadPermission(SpeedRecord::class)
         )
     }
 

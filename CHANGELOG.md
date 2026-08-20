@@ -1,5 +1,31 @@
 # Changelog
 
+## [2026-08-20c] — HC: fix permissões READ + botão "Conectar" concede READ+WRITE
+
+### Contexto
+- Após o fix [2026-08-20b], importação de relógio dizia "sem permissão" mesmo HC conectado
+- Botão "Conectar Health Connect" no Perfil não abria pedido de autorização
+- Usuário desconectou/reconectou manualmente, sem efeito
+
+### Root cause
+1. **`handleOnActivityResult` sempre checava permissão WRITE** (linha 143): quando `requestReadPermissions` enviava permissões READ-only, o resultado sempre retornava `false` porque WRITE nunca estava no set de granted
+2. **`requestHcPermissions` só pedia WRITE**: o botão "Conectar" no Perfil pedia apenas ExerciseSessionRecord + DistanceRecord WRITE, nunca READ
+3. **`readPermissionSet` com 6 tipos**: HeartRateRecord, StepsRecord, TotalCaloriesBurnedRecord eram hard requirements — se qualquer um faltasse, o import bloqueava
+
+### Implementado
+
+**Fix Kotlin** (`HealthConnectPlugin.kt`):
+- `pendingPermissionExpected` — armazena o set de permissões enviado ao intent, para validar no resultado
+- `handleOnActivityResult` — agora valida `expected.all { it in grantedPerms }` em vez de checar apenas WRITE
+- `requestHcPermissions` — agora pede WRITE + READ para ExerciseSessionRecord, DistanceRecord, SpeedRecord (concede tudo de uma vez)
+- `readPermissionSet` — reduzido para 3: ExerciseSessionRecord + DistanceRecord + SpeedRecord (os que importação realmente usa)
+
+**Validação**:
+- `npm run build` ✅ · `cap sync android` ✅ · `gradlew assembleDebug` ✅
+- `npm test` ✅ 104/104
+
+---
+
 ## [2026-08-20b] — Health Connect: fix permissão DistanceRecord + fallback SpeedRecord + UX import
 
 ### Contexto
