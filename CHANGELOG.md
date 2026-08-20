@@ -1,5 +1,29 @@
 # Changelog
 
+## [2026-08-20d] — HC: revert requestHcPermissions to WRITE-only + remove SpeedRecord from readPermissionSet
+
+### Contexto
+- Após fix 2026-08-20c, botão "Conectar Health Connect" retornava "Permissão negada" imediatamente
+- Importação continuava bloqueada mesmo com HC conectado manualmente
+
+### Root cause
+1. **`requestHcPermissions` com READ+WRITE misturados** — `permContract.createIntent()` falhava ao combinar READ e WRITE no mesmo intent → fallback `openHcRationale` resolvia com `false`
+2. **`readPermissionSet` com SpeedRecord** — SpeedRecord READ pode não aparecer como toggle no HC app, impossibilitando grant manual
+
+### Implementado
+
+**Revert seletivo** (`HealthConnectPlugin.kt`):
+- `requestHcPermissions` — revertido para WRITE-only (ExerciseSessionRecord + DistanceRecord write) — como antes do fix 2026-08-20c
+- `readPermissionSet` — reduzido para 2: ExerciseSessionRecord + DistanceRecord READ (remove SpeedRecord)
+- SpeedRecord **mantido como fallback** em `readWorkouts` (agregaSpeed→distância se DistanceRecord = 0)
+- `handleOnActivityResult` — mantido o fix que valida `pendingPermissionExpected` em vez de hardcoded WRITE
+
+**Validação**:
+- `npm run build` ✅ · `cap sync android` ✅ · `gradlew assembleDebug` ✅
+- `npm test` ✅ 104/104
+
+---
+
 ## [2026-08-20c] — HC: fix permissões READ + botão "Conectar" concede READ+WRITE
 
 ### Contexto

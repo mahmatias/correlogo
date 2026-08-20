@@ -1,5 +1,30 @@
 # Handoff
 
+## Session Context (2026-08-20d — Revert HC permissions: WRITE-only + remove SpeedRecord blocker)
+
+### What happened
+- **Bug report**: após fix 2026-08-20c, botão "Conectar Health Connect" retornava "Permissão negada" imediatamente
+- **Secondary**: importação continuava bloqueada mesmo com HC conectado manualmente
+- **Root cause**: `requestHcPermissions` com READ+WRITE misturados causava falha em `createIntent` → fallback resolvia `false`
+- **Secondary root cause**: `readPermissionSet` com SpeedRecord — toggle pode não existir no HC app
+
+### Fix applied
+1. **`requestHcPermissions`** — revertido para WRITE-only (ExerciseSessionRecord + DistanceRecord write)
+2. **`readPermissionSet`** — reduzido para 2: ExerciseSessionRecord + DistanceRecord READ (remove SpeedRecord)
+3. SpeedRecord **mantido como fallback** em `readWorkouts` (não é mais hard requirement)
+4. `handleOnActivityResult` — mantido o fix com `pendingPermissionExpected`
+
+### Validation
+- `npm run build` ✅ · `cap sync android` ✅ · `gradlew assembleDebug` ✅
+- `npm test` ✅ 104/104
+
+### Cautions for next session
+1. **Deploy pendente**: push → CI → release nova
+2. **Testar no device**: "Conectar" deve abrir diálogo HC; importar deve funcionar com 2 permissões READ
+3. **Se ainda falhar**: provavelmente `handleOnActivityResult` deprecated não está sendo chamado pelo Capacitor 7 — testar com `@ActivityCallback` flow
+
+---
+
 ## Session Context (2026-08-20c — Fix permissões READ HC + botão "Conectar" concede READ+WRITE)
 
 ### What happened

@@ -104,10 +104,7 @@ class HealthConnectPlugin : Plugin() {
 
         val permissions = setOf(
             HealthPermission.getWritePermission(ExerciseSessionRecord::class),
-            HealthPermission.getWritePermission(DistanceRecord::class),
-            HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-            HealthPermission.getReadPermission(DistanceRecord::class),
-            HealthPermission.getReadPermission(SpeedRecord::class)
+            HealthPermission.getWritePermission(DistanceRecord::class)
         )
         launchPermissionIntent(a, call, permissions)
     }
@@ -271,8 +268,7 @@ class HealthConnectPlugin : Plugin() {
     private val readPermissionSet: Set<String> by lazy {
         setOf(
             HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-            HealthPermission.getReadPermission(DistanceRecord::class),
-            HealthPermission.getReadPermission(SpeedRecord::class)
+            HealthPermission.getReadPermission(DistanceRecord::class)
         )
     }
 
