@@ -14,7 +14,7 @@ interface Props {
 }
 
 export default function WatchImportModal({ open, onClose, workouts, onImport, importing }: Props) {
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(workouts.map(w => w.id)));
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
   const toggle = (id: string) => {
     setSelected(prev => {

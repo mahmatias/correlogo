@@ -10,6 +10,7 @@ import androidx.health.connect.client.records.ExerciseRoute
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.Record
+import androidx.health.connect.client.records.SpeedRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.metadata.Metadata
@@ -259,6 +260,7 @@ class HealthConnectPlugin : Plugin() {
         setOf(
             HealthPermission.getReadPermission(ExerciseSessionRecord::class),
             HealthPermission.getReadPermission(DistanceRecord::class),
+            HealthPermission.getReadPermission(SpeedRecord::class),
             HealthPermission.getReadPermission(HeartRateRecord::class),
             HealthPermission.getReadPermission(StepsRecord::class),
             HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class)
@@ -275,8 +277,9 @@ class HealthConnectPlugin : Plugin() {
         scope.launch {
             try {
                 val granted = c.permissionController.getGrantedPermissions()
-                val readPerm = HealthPermission.getReadPermission(ExerciseSessionRecord::class)
-                call.resolve(JSObject().apply { put("granted", readPerm in granted) })
+                val allRequired = readPermissionSet.all { it in granted }
+                Log.d(TAG, "checkReadPermissions: allRequired=$allRequired (granted=${granted.size}, needed=${readPermissionSet.size})")
+                call.resolve(JSObject().apply { put("granted", allRequired) })
             } catch (e: Exception) {
                 Log.e(TAG, "checkReadPermissions error", e)
                 call.resolve(JSObject().apply { put("granted", false) })
@@ -320,6 +323,7 @@ class HealthConnectPlugin : Plugin() {
                 for (s in sessions) {
                     val type = s.exerciseType
                     val duration = Duration.between(s.startTime, s.endTime).seconds
+
                     val distanceKm = try {
                         val agg = c.aggregate(
                             AggregateRequest(
@@ -332,6 +336,41 @@ class HealthConnectPlugin : Plugin() {
                         Log.w(TAG, "Distance aggregate failed for session ${s.metadata.id}: ${e.message}")
                         0.0
                     }
+
+                    var avgSpeedKmh = 0.0
+                    if (distanceKm <= 0.0 && duration > 0) {
+                        try {
+                            val speedAgg = c.aggregate(
+                                AggregateRequest(
+                                    metrics = setOf(SpeedRecord.SPEED_AVG),
+                                    timeRangeFilter = TimeRangeFilter.between(s.startTime, s.endTime)
+                                )
+                            )
+                            val avgMs = speedAgg[SpeedRecord.SPEED_AVG]?.inMetersPerSecond ?: 0.0
+                            if (avgMs > 0.0) {
+                                avgSpeedKmh = avgMs * 3.6
+                                val computedDistKm = avgSpeedKmh * (duration / 3600.0)
+                                Log.d(TAG, "SpeedRecord fallback for ${s.metadata.id}: avgSpeed=${avgMs}m/s → ${avgSpeedKmh}km/h, computed distance=${computedDistKm}km")
+                                val w = JSObject().apply {
+                                    put("id", s.metadata.id)
+                                    put("exerciseType", when (type) {
+                                        ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL -> "treadmill"
+                                        else -> "running"
+                                    })
+                                    put("startTimeMs", s.startTime.toEpochMilli())
+                                    put("endTimeMs", s.endTime.toEpochMilli())
+                                    put("durationSeconds", duration)
+                                    put("distanceKm", computedDistKm)
+                                }
+                                workouts.put(w)
+                                continue
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "SpeedRecord aggregate failed for session ${s.metadata.id}: ${e.message}")
+                        }
+                    }
+
+                    Log.d(TAG, "Session ${s.metadata.id}: duration=${duration}s, distance=${distanceKm}km")
                     val w = JSObject().apply {
                         put("id", s.metadata.id)
                         put(

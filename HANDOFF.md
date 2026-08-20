@@ -1,5 +1,32 @@
 # Handoff
 
+## Session Context (2026-08-20b — Fix importação HC: permissão DistanceRecord + fallback SpeedRecord + UX)
+
+### What happened
+- **Bug report**: sessão importada do relógio (`watch-1f1bde4b-22c1-3f8a-b343-1c29312478d6`) não reconheceu tempo, velocidade e distância corretamente
+- **Root cause**: `checkReadPermissions` no Kotlin só validava `ExerciseSessionRecord`. Se `DistanceRecord` permission não estava concedida, o aggregate `DISTANCE_TOTAL` falhava silenciosamente (catch → 0.0) → distância = 0 → velocidade = 0
+- **Secondary issue**: sem fallback quando `DistanceRecord` não existe (ex: app do relógio não grava DistanceRecord para treinos de esteira)
+- **UX issues**: botão exportar-HC redundante para treinos importados; modal de importação com todos marcados
+
+### Fix applied
+1. **`checkReadPermissions`** — agora valida `readPermissionSet` inteiro (ExerciseSessionRecord + DistanceRecord + SpeedRecord + HeartRateRecord + StepsRecord + TotalCaloriesBurnedRecord). Se qualquer uma faltar, JS re-pede permissão
+2. **`readPermissionSet`** — adicionado `SpeedRecord` read permission
+3. **Fallback SpeedRecord** — quando `DistanceRecord.DISTANCE_TOTAL` = 0 e duração > 0, tenta `SpeedRecord.SPEED_AVG` → computa distância = avgSpeed(m/s) × 3.6 × (duration/3600)
+4. **Logging detalhado** — cada sessão loga duration, distance e fallback
+5. **`SessionHistory.tsx`** — sync badge HC oculto para `source === 'watch'`
+6. **`WatchImportModal.tsx`** — `new Set()` (vazio) em vez de `new Set(workouts.map(w => w.id))` — todos desmarcados por padrão
+
+### Validation
+- `npx vitest run` ✅ 104/104 (3 novos edge-case tests)
+- `npm run build` ✅ · `cap sync android` ✅ · `gradlew compileDebugKotlin` ✅
+
+### Cautions for next session
+1. **Deploy pendente**: fix Kotlin precisa de push → CI → release nova para testar no device
+2. **Re-testar importação**: após deploy, importar o treino `watch-1f1bde4b...` novamente e verificar se tempo/distância/velocidade aparecem corretos
+3. **Logs no device**: se ainda der problema, o logging detalhado no Logcat (`CorreLogo-HC`) vai dizer exatamente o que o HC retornou (distance=0, speed fallback, etc.)
+
+---
+
 ## Session Context (2026-08-20 — Fix TDZ crash "Cannot access 'Dt' before initialization")
 
 ### What happened

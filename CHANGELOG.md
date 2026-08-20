@@ -1,5 +1,39 @@
 # Changelog
 
+## [2026-08-20b] — Health Connect: fix permissão DistanceRecord + fallback SpeedRecord + UX import
+
+### Contexto
+- Usuário reportou que sessão importada (`watch-1f1bde4b...`) não reconheceu tempo, velocidade e distância corretamente
+- Dois problemas de UX na importação: botão "exportar para HC" redundante em treinos importados, e modal de importação com todos marcados por padrão
+
+### Root cause
+- **`checkReadPermissions` só validava `ExerciseSessionRecord`** (Kotlin): se o usuário tinha concedido apenas a permissão de sessão (e não de distância), o aggregate `DistanceRecord.DISTANCE_TOTAL` falhava silenciosamente → distância = 0 → velocidade = 0
+- **Sem fallback**: quando o aggregate de distância retornava 0 (permissão negada ou app do relógio não gravou `DistanceRecord`), não havia tentativa alternativa
+
+### Implementado
+
+**Fix Kotlin** (`HealthConnectPlugin.kt`):
+- `checkReadPermissions()` agora valida TODAS as permissões de leitura (`readPermissionSet`), não apenas `ExerciseSessionRecord`
+- `readPermissionSet` expandido com `SpeedRecord` read permission
+- **Fallback SpeedRecord**: quando `DistanceRecord.DISTANCE_TOTAL` retorna 0 e duração > 0, tenta `SpeedRecord.SPEED_AVG` → computa distância = velocidade × tempo
+- Logging detalhado por sessão: duração, distância, fallback aplicado
+
+**UX import** (`SessionHistory.tsx`, `WatchImportModal.tsx`):
+- Botão HC (sync/retry) oculto para sessões com `source === 'watch'` — dados já vieram do HC, exportar de volta é redundante
+- Modal de importação: exercícios vêm **desmarcados** por padrão (usuário seleciona manualmente quais importar)
+
+**Testes** (`health-connect-read.test.ts`):
+- 3 novos testes edge-case: cálculo de avgSpeedKmh, distance=0 (fallback HC), duration=0 (divisão protegida)
+- 104/104 testes passando
+
+### Validação
+- `npx vitest run` ✅ 104/104
+- `npm run build` ✅
+- `cap sync android` ✅ (9 plugins)
+- `gradlew compileDebugKotlin` ✅ BUILD SUCCESSFUL
+
+---
+
 ## [2026-08-20] — Health Connect: fix import + seleção de treinos
 
 ### Contexto

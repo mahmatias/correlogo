@@ -24,6 +24,22 @@ describe('watchWorkoutToSession', () => {
     expect(s.totalDistanceKm).toBe(3.1);
     expect(s.totalDurationSeconds).toBe(1000);
   });
+
+  it('calcula avgSpeedKmh a partir de distance e duration', () => {
+    const s = watchWorkoutToSession(wk({ distanceKm: 5, durationSeconds: 1800 }));
+    expect(s.avgSpeedKmh).toBeCloseTo(10, 1);
+  });
+
+  it('avgSpeedKmh = 0 quando distance = 0 (SpeedRecord fallback do HC)', () => {
+    const s = watchWorkoutToSession(wk({ distanceKm: 0, durationSeconds: 1800 }));
+    expect(s.avgSpeedKmh).toBe(0);
+  });
+
+  it('avgSpeedKmh = 0 quando duration = 0 (divisão protegida)', () => {
+    const s = watchWorkoutToSession(wk({ distanceKm: 3, durationSeconds: 0 }));
+    expect(s.avgSpeedKmh).toBe(0);
+    expect(s.totalDistanceKm).toBe(3);
+  });
 });
 
 describe('dedupeImportedWorkouts', () => {

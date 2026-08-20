@@ -105,10 +105,14 @@ export default function SessionHistory({ sessions, onSelectSession, onDeleteSess
                               <PendingBadge status={session.gmailSyncStatus} label="Gmail" icon={<Mail size={11} />}
                                 onClick={() => handleSync(session, 'gmail')}
                                 retrying={syncingTarget?.id === session.id && syncingTarget?.target === 'gmail'} />
-                              <SyncBadge status={session.hcSyncStatus} label="HC" icon={<Play size={11} />} />
-                              <PendingBadge status={session.hcSyncStatus} label="HC" icon={<Play size={11} />}
-                                onClick={() => handleSync(session, 'hc')}
-                                retrying={syncingTarget?.id === session.id && syncingTarget?.target === 'hc'} />
+                              {session.source !== 'watch' && (
+                                <>
+                                  <SyncBadge status={session.hcSyncStatus} label="HC" icon={<Play size={11} />} />
+                                  <PendingBadge status={session.hcSyncStatus} label="HC" icon={<Play size={11} />}
+                                    onClick={() => handleSync(session, 'hc')}
+                                    retrying={syncingTarget?.id === session.id && syncingTarget?.target === 'hc'} />
+                                </>
+                              )}
                             </>
                           )}
                         </div>
