@@ -14,7 +14,7 @@
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
 - [ ] **Validar em device — Health Connect** — pedir permissão READ real (abre a tela do HC via `requestReadHealthPermission`), importar treino do relógio e conferir badge "Relógio" + dedupe ±2min. Ver CHANGELOG 2026-08-13
-- [ ] **Deploy HC import fix (permissão + fallback)** — fix `checkReadPermissions` + SpeedRecord fallback commitado mas não deployado. Push → CI → release nova → re-importar treino `watch-1f1bde4b...` e conferir que tempo/distância/velocidade aparecem corretos. Ver CHANGELOG 2026-08-20b
+- [ ] **Validar em device — HC import (build 172+)** — fix do crash nativo no `@ActivityCallback` (assinatura errada de 3 args → correta `(call, result: ActivityResult)`, ver CHANGELOG 2026-08-20g). Conceder permissão não deve mais fechar o app; importar deve listar treinos. Conferir badge "Relógio" + dedupe ±2min no treino `watch-1f1bde4b...`
 - [ ] **Validar em device — cinta cardíaca** — quando o hardware chegar: scan 0x180D, notify 0x2A37, TTS de zona no `WorkoutTracker`, conexão simultânea com a esteira. Sem device, `MockHrTransport` roda em navegador (não-nativo)
 - [ ] **BLE: medir distância do BLE vs cálculo próprio** — comparar `metrics.totalDistanceMeters` com `speedRef × time` durante treino real para validar fallback inteligente
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
@@ -34,6 +34,16 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+---
+
+## ✅ Concluídos (Sessão 2026-08-20g — Diagnóstico CI 403 + fix crash nativo @ActivityCallback)
+
+- [x] **CI run #71 (32420447958) investigado** — falha foi `403 Forbidden` em massa do Maven Central contra IPs de runners GitHub Actions (incidente conhecido do CDN, ver CHANGELOG 2026-08-20f). Re-run passou; build 171 publicada. Nada de código
+- [x] **Crash mudo ao conceder permissão HC diagnosticado SEM adb** — logcat capturado pelo usuário em `\\plex.local\data\`; stack: `IllegalArgumentException: Wrong number of arguments; expected 3, got 2` em `Plugin.triggerActivityCallback`
+- [x] **Root cause**: assinatura do `@ActivityCallback onPermissionResult` escrita com 3 args (era Capacitor 3); Capacitor 7 invoca com `(PluginCall, ActivityResult)`; IllegalArgumentException escapa do catch do Capacitor → morte do processo
+- [x] **Fix**: assinatura corrigida para `(call, result: androidx.activity.result.ActivityResult)` + guard `data == null`; versionName 4.2; validação completa (test/build/sync/gradle ✅)
+- [ ] **Aguardando**: push → CI → release build 172 → validar no device
 
 ---
 

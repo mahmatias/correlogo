@@ -1,5 +1,56 @@
 # Changelog
 
+## [2026-08-20g] — Fix crash nativo na entrega do resultado de permissões HC (v4.2)
+
+### Contexto
+- Com as permissões finalmente sendo solicitadas corretamente (fix 2026-08-20e), o app passou a **fechar sem mensagem** ao conceder a permissão e voltar para o app (fluxo "Importar relógio")
+- Logcat capturado pelo usuário (`\\plex.local\data\logcat_2026-08-20_20-04-44.txt`) mostrou o stack completo
+
+### Root cause (confirmada por logcat)
+```
+java.lang.RuntimeException: Failure delivering result ResultInfo{who=@android:requestPermissions:, request=1435371817, result=-1 ...}
+Caused by: java.lang.IllegalArgumentException: Wrong number of arguments; expected 3, got 2
+    at com.getcapacitor.Plugin.triggerActivityCallback(Plugin.java:155)
+```
+1. O `@ActivityCallback onPermissionResult(call, activity, intent)` (fix 2026-08-20e) usou assinatura **errada** — 3 parâmetros, formato de era Capacitor 3
+2. O Capacitor 7 invoca callbacks `@ActivityCallback` por reflexão com **sempre 2 argumentos**: `(PluginCall, androidx.activity.result.ActivityResult)`
+3. `Method.invoke` lança `IllegalArgumentException` ANTES de entrar no método alvo — e o try/catch do Capacitor só captura `IllegalAccessException | InvocationTargetException`, não `IllegalArgumentException`
+4. Exceção sobe até `ActivityThread.deliverResults` → morte do processo sem diálogo (o `result=-1` = RESULT_OK: as permissões foram concedidas; o app morreu entregando o sucesso)
+
+### Implementado
+- `HealthConnectPlugin.kt`: `onPermissionResult(call, result: ActivityResult)` — assinatura correta (mesmo padrão já usado por `TreadmillBlePlugin`/`HrBlePlugin`, que estavam certos)
+- Guard para `result.data == null` → parse de conjunto vazio (evita NPE no `parseResult`)
+- Log agora inclui `resultCode`; imports órfãos (`android.app.Activity`, `android.content.Intent`) removidos
+- `versionName 4.1 → 4.2` (bugfix = minor, regra de versionamento)
+
+### Validação
+- `npm test` ✅ 104/104 · `.env.apk→.env` ✅ · `npm run build` ✅ · `cap sync android` ✅ · `gradlew assembleDebug` ✅ BUILD SUCCESSFUL (32s)
+- Aguardando: CI → release build 172 → teste no device (conceder permissão não deve mais fechar o app; importação deve listar treinos)
+
+---
+
+## [2026-08-20f] — Investigação: CI run #71 falhou (403 Maven Central)
+
+### Contexto
+- Push do commit `eb2b3ea` (fix @ActivityCallback) gerou CI run `32420447958` que falhou em 1m09s
+- Runs anteriores no mesmo dia passaram (~5m30s) com as mesmas dependências
+
+### Root cause (confirmada, não é código)
+- Gradle não resolveu dependências: **`403 Forbidden` em massa de `repo.maven.apache.org`** (dezenas de POMs transitivos do AGP 8.9.1 / google-services: asm, guava, gson, grpc, bouncycastle…)
+- Commit `eb2b3ea` só mexeu em `HealthConnectPlugin.kt` + docs — nada de build config
+- Incidente conhecido e documentado: CDN do Maven Central (Cloudflare) bloqueia faixas de IP dos runners GitHub Actions ([actions/runner#4180](https://github.com/actions/runner/issues/4180), incidente Sonatype jan/2026 — "GitHub Actions are primarily impacted")
+- Agravante nosso: workflow **não tem cache de Gradle** → toda run baixa tudo de novo → mais exposição a bloqueios transitórios
+
+### Resolução
+- `gh run rerun 32420447958 --failed` → **success** (runner novo, IP diferente)
+- Build **171** publicada no Release `latest` (APK + update-manifest.json ✅) — inclui o fix @ActivityCallback do HC
+
+### Lições / follow-up
+- Falha de rede em massa (403/429) em POMs = infra, não código: re-run antes de investigar código
+- TODO: adicionar cache de Gradle (`actions/setup-java` cache `gradle`) + mirror `repo1.maven.org` como resiliência
+
+---
+
 ## [2026-08-20e] — HC: migrar para @ActivityCallback (Capacitor 7)
 
 ### Contexto

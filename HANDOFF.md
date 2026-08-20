@@ -1,5 +1,30 @@
 # Handoff
 
+## Session Context (2026-08-20g — Fix crash nativo: assinatura errada do @ActivityCallback)
+
+### What happened
+- Permissões HC passaram a ser solicitadas corretamente (fix 2026-08-20e), mas ao CONCEDER e voltar pro app, o APK fechava sem mensagem
+- Usuário capturou logcat (`\\plex.local\data\logcat_2026-08-20_20-04-44.txt`) — stack completo obtido sem adb (compartilhamento de rede)
+- **Root cause**: `@ActivityCallback onPermissionResult(call, activity, intent)` com 3 parâmetros; Capacitor 7 invoca por reflexão com SEMPRE 2 args `(PluginCall, ActivityResult)` → `IllegalArgumentException` não capturada pelo catch do Capacitor → morte do processo em `deliverResults`
+- Detalhe perverso: `result=-1` (RESULT_OK) — permissões foram concedidas; o app morreu entregando o sucesso
+- **Lição**: `TreadmillBlePlugin`/`HrBlePlugin` já tinham a assinatura correta `(call, result: ActivityResult)` — o fix de ontem não copiou o padrão existente do próprio codebase
+
+### Fix applied
+1. `HealthConnectPlugin.kt`: `onPermissionResult(call, result: androidx.activity.result.ActivityResult)`
+2. Guard `result.data == null` → conjunto vazio (NPE-safe no `parseResult`)
+3. Log inclui `resultCode`; imports órfãos removidos
+4. `versionName 4.2` (bugfix = minor)
+
+### Validation
+- `npm test` ✅ 104/104 · build ✅ · cap sync ✅ · gradlew assembleDebug ✅
+
+### Cautions for next session
+1. **Testar no device**: conceder permissão não deve fechar o app; "Importar relógio" deve listar treinos do HC
+2. **Se readWorkouts falhar agora**: será visível como toast (JS captura) ou log `CorreLogo-HC` — o crash mudo era só o callback de permissão
+3. **Padrão para novos @ActivityCallback**: SEMPRE `(call: PluginCall, result: androidx.activity.result.ActivityResult)` — nunca `(call, activity, intent)`
+
+---
+
 ## Session Context (2026-08-20e — Migrar HC plugin para @ActivityCallback Capacitor 7)
 
 ### What happened

@@ -1,7 +1,5 @@
 package com.correlogo.app
 
-import android.app.Activity
-import android.content.Intent
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -132,17 +130,17 @@ class HealthConnectPlugin : Plugin() {
     }
 
     @ActivityCallback
-    fun onPermissionResult(call: PluginCall, activity: Activity, intent: Intent) {
+    fun onPermissionResult(call: PluginCall, result: androidx.activity.result.ActivityResult) {
         val expected = pendingPermissionExpected
         pendingPermissionExpected = null
-        val grantedPerms = permContract.parseResult(Activity.RESULT_OK, intent)
+        val grantedPerms = result.data?.let { permContract.parseResult(result.resultCode, it) } ?: emptySet()
         val granted = if (expected != null) {
             expected.all { it in grantedPerms }
         } else {
             val writePerm = HealthPermission.getWritePermission(ExerciseSessionRecord::class)
             writePerm in grantedPerms
         }
-        Log.d(TAG, "onPermissionResult: granted=$granted (expected=${expected?.size ?: "fallback"}, got=${grantedPerms.size})")
+        Log.d(TAG, "onPermissionResult: resultCode=${result.resultCode} granted=$granted (expected=${expected?.size ?: "fallback"}, got=${grantedPerms.size})")
         call.resolve(JSObject().apply { put("granted", granted) })
     }
 
