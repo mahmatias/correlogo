@@ -53,6 +53,8 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const [finishProgress, setFinishProgress] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const finishTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [bleDropToast, setBleDropToast] = useState(false);
+  const prevTreadmillConnectedRef = useRef(treadmill.connected);
   
   // GPS state
   const [coords, setCoords] = useState<{lat: number, lng: number, altitude?: number} | null>(null);
@@ -93,6 +95,16 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
 		  return () => clearTimeout(timer);
 	  }
 	}, [countdown]);
+
+  // Detect BLE drop and show reconnect toast
+  useEffect(() => {
+    if (prevTreadmillConnectedRef.current && !treadmill.connected && countdown === 0 && mode === 'treadmill') {
+      setBleDropToast(true);
+      const timer = setTimeout(() => setBleDropToast(false), 5000);
+      return () => clearTimeout(timer);
+    }
+    prevTreadmillConnectedRef.current = treadmill.connected;
+  }, [treadmill.connected, countdown, mode]);
 
   // Track workout start time
   useEffect(() => {
@@ -1004,6 +1016,19 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
           </button>
         </div>
       </div>
+
+      {/* BLE drop reconnect toast */}
+      {bleDropToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-yellow-900/90 border border-yellow-600/50 rounded-xl p-3 shadow-lg flex items-center gap-3 max-w-sm">
+          <span className="text-yellow-200 text-sm">Conexão com a esteira perdida</span>
+          <button
+            onClick={() => { setBleDropToast(false); treadmill.scan(); }}
+            className="text-yellow-100 font-semibold text-sm underline"
+          >
+            Reconectar
+          </button>
+        </div>
+      )}
 
       {isWorkoutCompleted && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/70" role="dialog" aria-modal="true" aria-label="Treino finalizado">

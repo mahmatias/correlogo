@@ -8,6 +8,7 @@
     "ignore": ["firebase.json", "**/node_modules/**"],
     "rewrites": [
       { "source": "/auth/google/callback", "function": "authCallback" },
+      { "source": "/auth/refresh", "function": "refreshAuthToken" },
       { "source": "/api/health", "function": "healthCheck" },
       { "source": "**", "destination": "/index.html" }
     ],

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bluetooth, BluetoothSearching, BluetoothConnected, Plus, Minus, X } from 'lucide-react';
+import { Bluetooth, BluetoothSearching, BluetoothConnected, Plus, Minus, X, RefreshCw } from 'lucide-react';
 import Button from './Button';
 import type { TreadmillConnection } from '../lib/use-treadmill';
 
@@ -50,14 +50,14 @@ export default function TreadmillPanel({ treadmill, targetSpeedKmh, onSpeedChang
   };
 
   return (
-    <div className="bg-bg-elevated rounded-xl p-3 space-y-3">
+    <div className={`bg-bg-elevated rounded-xl p-3 space-y-3 ${!connected && !isConnecting ? 'border border-yellow-600/50' : ''}`}>
       <div className="flex items-center justify-between">
         <button
           onClick={handleToggleConnect}
           className={`flex items-center gap-2 text-sm font-medium ${connected ? 'text-green-400' : isConnecting ? 'text-yellow-400' : 'text-text-secondary'} hover:text-text-primary transition-colors`}
         >
-          {connected ? <BluetoothConnected className="w-4 h-4" /> : isConnecting ? <BluetoothSearching className="w-4 h-4 animate-pulse" /> : <Bluetooth className="w-4 h-4" />}
-          <span>{connected ? 'Esteira conectada' : isConnecting ? 'Conectando...' : 'Conectar esteira'}</span>
+          {connected ? <BluetoothConnected className="w-4 h-4" /> : isConnecting ? <BluetoothSearching className="w-4 h-4 animate-pulse" /> : <RefreshCw className="w-4 h-4" />}
+          <span>{connected ? 'Esteira conectada' : isConnecting ? 'Conectando...' : 'Reconectar esteira'}</span>
         </button>
         {(connected || isConnecting) && (
           <button onClick={disconnect} className="text-text-secondary hover:text-red-400 transition-colors p-1">

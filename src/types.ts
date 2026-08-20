@@ -153,6 +153,7 @@ export interface ProfileData {
   state: string | null;
   photoURL: string | null;
   weightInKg: number | null;
+  registeredHrDevice?: { name: string; address: string };
   updatedAt?: number;
 }
 

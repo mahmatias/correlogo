@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
-import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar, Bluetooth, BluetoothSearching, BluetoothConnected, X, Check, Wrench } from 'lucide-react';
+import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar, Bluetooth, BluetoothSearching, BluetoothConnected, X, Check, Wrench, Heart } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { WorkoutPlan, formatDuration, formatTotalDuration, TrainingSession, getStepDurationSeconds, ActivityPoint, TrainingProgram, ProfileData, SettingsData, PrResults, WatchWorkout } from './types';
@@ -83,7 +83,19 @@ export default function App() {
   const [isLightMode, setIsLightMode] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
   const treadmill = useTreadmill();
-  const hrBelt = useHrBelt();
+  const [hrOnboardingDismissed, setHrOnboardingDismissed] = useState(() => {
+    return localStorage.getItem('correlogo:hrOnboardingDismissed') === 'true';
+  });
+  const hrBelt = useHrBelt({
+    registeredDevice: profile?.registeredHrDevice ?? null,
+    onDeviceRegistered: (device) => {
+      if (user) {
+        const updated = { ...(profile ?? {} as ProfileData), registeredHrDevice: device };
+        setDoc(doc(getDb(), 'users', user.uid, 'data', 'profile'), stripUndefined(updated), { merge: true });
+        setProfile(updated as ProfileData);
+      }
+    },
+  });
   const [treadmillMode, setTreadmillMode] = useState<TreadmillControlMode>('A');
   const [modeSelectorOpen, setModeSelectorOpen] = useState(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -127,6 +139,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updateInstallBlocked, setUpdateInstallBlocked] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [bleWarningOpen, setBleWarningOpen] = useState(false);
   const getWeekStart = (d: Date) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -142,7 +155,12 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
     setTimeout(() => setSaveFeedback(null), 3000);
   };
 
-  
+  // Auto-scan treadmill when configurator opens in treadmill mode
+  useEffect(() => {
+    if (workoutToStart?.mode === 'treadmill' && !treadmill.connected && treadmill.state === 'DISCONNECTED') {
+      treadmill.scan();
+    }
+  }, [workoutToStart?.mode, treadmill.connected, treadmill.state, treadmill.scan]);
 
   const applyThemeClass = (light?: boolean) => {
     const isLight = light ?? !window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -1128,94 +1146,155 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                         </label>
                       )}
                       {workoutToStart.mode === 'treadmill' && (
-                        <div className="bg-bg-elevated rounded-lg space-y-2">
-                          {!treadmill.connected ? (
-                            <>
-                              <button
-                                onPointerDown={startModeLongPress}
-                                onPointerUp={cancelModeLongPress}
-                                onPointerLeave={cancelModeLongPress}
-                                onPointerCancel={cancelModeLongPress}
-                                onContextMenu={(e) => e.preventDefault()}
-                                onClick={() => {
-                                  if (suppressConnectClickRef.current) {
-                                    suppressConnectClickRef.current = false;
-                                    return;
-                                  }
-                                  treadmill.scan();
-                                }}
-                                disabled={treadmill.state === 'SCANNING'}
-                                className="w-full flex items-center justify-center gap-2 p-3 rounded-lg bg-bg-surface hover:bg-bg-elevated text-text-primary transition-colors disabled:opacity-50 select-none touch-manipulation"
-                              >
-                                {treadmill.state === 'SCANNING' ? (
-                                  <BluetoothSearching size={18} className="animate-pulse" />
-                                ) : (
-                                  <Bluetooth size={18} />
-                                )}
-                                <span className="text-sm font-medium">
-                                  {treadmill.state === 'SCANNING' ? 'Escaneando...' : 'Conectar esteira Bluetooth'}
-                                </span>
-                              </button>
-                              <p className="text-[10px] text-text-muted px-1">
-                                Segure o botão por 3s para escolher o modo de conexão (atual: <strong className="text-text-secondary">{treadmillMode}</strong>)
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => setModeSelectorOpen(true)}
-                                className="w-full flex items-center justify-center gap-2 p-2 rounded-lg border border-border bg-bg-deep hover:bg-bg-elevated text-text-secondary transition-colors"
-                              >
-                                <Wrench size={14} />
-                                <span className="text-xs">Modo de conexão: <strong className="text-text-primary">{treadmillMode}</strong></span>
-                              </button>
-                              {treadmill.devices.length > 0 && (
-                                <div className="border border-border rounded-lg max-h-32 overflow-y-auto space-y-1">
-                                  {treadmill.devices.map(d => (
-                                    <button
-                                      key={d.address}
-                                      onClick={() => treadmill.connect(d.address, treadmillMode)}
-                                      disabled={treadmill.state === 'CONNECTING'}
-                                      className="w-full text-left p-2 rounded bg-bg-surface text-xs hover:bg-bg-elevated transition-colors disabled:opacity-50"
-                                    >
-                                      {d.name}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                              {treadmill.state === 'CONNECTING' && (
-                                <p className="text-xs text-yellow-400 flex items-center gap-1 px-1">
-                                  <BluetoothSearching size={14} className="animate-pulse" />
-                                  Conectando (modo {treadmillMode})...
-                                </p>
-                              )}
-                            </>
-                          ) : (
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-green-900/20 border border-green-700/30">
-                              <div className="min-w-0">
-                                <p className="text-sm text-green-400 flex items-center gap-2">
-                                  <BluetoothConnected size={16} />
-                                  <span className="font-medium">
-                                    {treadmill.connectedDeviceName ? `Conectado: ${treadmill.connectedDeviceName}` : 'Conectado'}
-                                  </span>
-                                </p>
-                                <p className="text-[10px] text-text-muted mt-1 truncate">
-                                  Modo {treadmill.mode}
-                                  {treadmill.logFile ? ` · Log: ${treadmill.logFile}` : ''}
-                                </p>
-                              </div>
-                              <button
-                                onClick={() => treadmill.disconnect()}
-                                className="text-text-secondary hover:text-red-400 transition-colors p-1"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          )}
-                          {treadmill.error && (
-                            <p className="text-danger text-xs px-1">{treadmill.error}</p>
-                          )}
-                          <p className="text-[10px] text-text-muted px-1">
-                            Se conectado, a velocidade do treino será ajustada automaticamente
+                        <div className="bg-bg-elevated rounded-lg space-y-3 p-3">
+                          <p className="text-[11px] text-text-muted">
+                            A esteira envia dados de velocidade, distância e pace automaticamente via Bluetooth.
                           </p>
+
+                          {/* Treadmill connection */}
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <Bluetooth size={14} className="text-text-secondary" />
+                              <span className="text-xs font-semibold text-text-secondary">Esteira Bluetooth</span>
+                            </div>
+                            {!treadmill.connected ? (
+                              <>
+                                <button
+                                  onPointerDown={startModeLongPress}
+                                  onPointerUp={cancelModeLongPress}
+                                  onPointerLeave={cancelModeLongPress}
+                                  onPointerCancel={cancelModeLongPress}
+                                  onContextMenu={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    if (suppressConnectClickRef.current) {
+                                      suppressConnectClickRef.current = false;
+                                      return;
+                                    }
+                                    treadmill.scan();
+                                  }}
+                                  disabled={treadmill.state === 'SCANNING'}
+                                  className="w-full flex items-center justify-center gap-2 p-3 rounded-lg bg-bg-surface hover:bg-bg-elevated text-text-primary transition-colors disabled:opacity-50 select-none touch-manipulation"
+                                >
+                                  {treadmill.state === 'SCANNING' ? (
+                                    <BluetoothSearching size={18} className="animate-pulse" />
+                                  ) : (
+                                    <Bluetooth size={18} />
+                                  )}
+                                  <span className="text-sm font-medium">
+                                    {treadmill.state === 'SCANNING' ? 'Escaneando...' : 'Conectar esteira'}
+                                  </span>
+                                </button>
+                                <p className="text-[10px] text-text-muted px-1 mt-1">
+                                  Segure por 3s para escolher o modo (atual: <strong className="text-text-secondary">{treadmillMode}</strong>)
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => setModeSelectorOpen(true)}
+                                  className="w-full flex items-center justify-center gap-2 p-2 rounded-lg border border-border bg-bg-deep hover:bg-bg-elevated text-text-secondary transition-colors mt-1"
+                                >
+                                  <Wrench size={14} />
+                                  <span className="text-xs">Modo: <strong className="text-text-primary">{treadmillMode}</strong></span>
+                                </button>
+                                {treadmill.devices.length > 0 && (
+                                  <div className="border border-border rounded-lg max-h-32 overflow-y-auto space-y-1 mt-2">
+                                    {treadmill.devices.map(d => (
+                                      <button
+                                        key={d.address}
+                                        onClick={() => treadmill.connect(d.address, treadmillMode)}
+                                        disabled={treadmill.state === 'CONNECTING'}
+                                        className="w-full text-left p-2 rounded bg-bg-surface text-xs hover:bg-bg-elevated transition-colors disabled:opacity-50"
+                                      >
+                                        {d.name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                {treadmill.state === 'CONNECTING' && (
+                                  <p className="text-xs text-yellow-400 flex items-center gap-1 px-1 mt-1">
+                                    <BluetoothSearching size={14} className="animate-pulse" />
+                                    Conectando (modo {treadmillMode})...
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <div className="flex items-center justify-between p-3 rounded-lg bg-green-900/20 border border-green-700/30">
+                                <div className="min-w-0">
+                                  <p className="text-sm text-green-400 flex items-center gap-2">
+                                    <BluetoothConnected size={16} />
+                                    <span className="font-medium">
+                                      {treadmill.connectedDeviceName ? `Conectado: ${treadmill.connectedDeviceName}` : 'Conectado'}
+                                    </span>
+                                  </p>
+                                  <p className="text-[10px] text-text-muted mt-1 truncate">
+                                    Modo {treadmill.mode}
+                                    {treadmill.logFile ? ` · Log: ${treadmill.logFile}` : ''}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => treadmill.disconnect()}
+                                  className="text-text-secondary hover:text-red-400 transition-colors p-1"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            )}
+                            {treadmill.error && (
+                              <p className="text-danger text-xs px-1 mt-1">{treadmill.error}</p>
+                            )}
+                          </div>
+
+                          {/* HR Belt connection */}
+                          <div className="border-t border-border pt-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Heart size={14} className={hrBelt.connected ? 'text-danger' : 'text-text-secondary'} />
+                              <span className="text-xs font-semibold text-text-secondary">Cinta cardíaca</span>
+                              {!hrBelt.connected && <span className="text-[10px] text-text-muted">(opcional)</span>}
+                            </div>
+
+                            {!hrOnboardingDismissed && !profile?.registeredHrDevice && !hrBelt.connected && (
+                              <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-2 mb-2">
+                                <p className="text-[11px] text-blue-300">
+                                  Uma cinta cardíaca mede seus batimentos cardíacos durante o treino. Recomendamos cadastrar para conectar automaticamente.
+                                </p>
+                                <button
+                                  onClick={() => {
+                                    setHrOnboardingDismissed(true);
+                                    localStorage.setItem('correlogo:hrOnboardingDismissed', 'true');
+                                  }}
+                                  className="text-[10px] text-blue-400 underline mt-1"
+                                >
+                                  Entendi
+                                </button>
+                              </div>
+                            )}
+
+                            {hrBelt.connected ? (
+                              <div className="flex items-center justify-between p-2 rounded-lg bg-green-900/20 border border-green-700/30">
+                                <p className="text-sm text-green-400 flex items-center gap-2">
+                                  <Heart size={14} className="text-danger" />
+                                  <span className="font-medium">{hrBelt.devices[0]?.name ?? 'Conectada'}</span>
+                                </p>
+                                <button onClick={() => hrBelt.disconnect()} className="text-[10px] text-text-muted underline">Desconectar</button>
+                              </div>
+                            ) : hrBelt.state === 'SCANNING' ? (
+                              <button className="w-full py-2 rounded-lg bg-bg-elevated text-text-muted text-xs font-medium flex items-center justify-center gap-1" disabled>
+                                <RefreshCw size={12} className="animate-spin" /> Procurando cinta…
+                              </button>
+                            ) : hrBelt.devices.length > 0 ? (
+                              <div className="space-y-1">
+                                <p className="text-[10px] text-text-muted">Conecte a cinta em modo broadcast:</p>
+                                {hrBelt.devices.map(d => (
+                                  <button key={d.address} onClick={() => hrBelt.connect(d.address, d.name)} className="w-full py-2 rounded-lg bg-accent text-white text-xs font-medium">
+                                    {d.name}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <button onClick={() => hrBelt.scan()} className="w-full py-2 rounded-lg bg-bg-surface text-text-primary text-xs font-medium">
+                                Cadastrar cinta
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -1223,7 +1302,11 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                           <Button variant="secondary" className="flex-1" onClick={() => setWorkoutToStart(null)}>Voltar</Button>
                           <Button className="flex-1" disabled={!workoutToStart.mode} onClick={() => {
                             console.log('[App.tsx] Iniciar click, mode=', workoutToStart.mode, 'simulateGps=', workoutToStart.simulateGps);
-                            confirmWorkoutMode(workoutToStart.mode as 'treadmill' | 'outdoor');
+                            if (workoutToStart.mode === 'treadmill' && !treadmill.connected) {
+                              setBleWarningOpen(true);
+                            } else {
+                              confirmWorkoutMode(workoutToStart.mode as 'treadmill' | 'outdoor');
+                            }
                           }}>
                             Iniciar
                           </Button>
@@ -1749,6 +1832,23 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                   ))}
                   <div className="flex gap-4 pt-2">
                     <Button variant="secondary" className="flex-1" onClick={() => setModeSelectorOpen(false)}>Cancelar</Button>
+                  </div>
+                </div>
+              </Modal>
+            )}
+            {bleWarningOpen && (
+              <Modal open={bleWarningOpen} onClose={() => setBleWarningOpen(false)} title="Iniciar sem esteira conectada?" role="alertdialog">
+                <div className="space-y-4">
+                  <p className="text-text-secondary text-sm text-center">
+                    Os dados de distância e velocidade serão calculados pelo app com base na velocidade que você ajustar manualmente.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <Button onClick={() => { setBleWarningOpen(false); if (workoutToStart) confirmWorkoutMode(workoutToStart.mode as 'treadmill' | 'outdoor'); }}>
+                      Continuar sem BLE
+                    </Button>
+                    <Button variant="secondary" onClick={() => setBleWarningOpen(false)}>
+                      Conectar esteira
+                    </Button>
                   </div>
                 </div>
               </Modal>

@@ -1,5 +1,50 @@
 # Changelog
 
+## [2026-08-19] — BLE Onboarding + Reconexão + Cadastro Cinta
+
+### Contexto
+- Usuário reportou esquecimento de conectar dispositivos BLE antes de treinar
+- Cinta cardíaca é pessoal (mesmo device sempre), esteira é compartilhada (varia)
+- Reconexão mid-workout não era óbvia quando BLE caía
+
+### Implementado
+
+**Cadastro de cinta cardíaca** (`types.ts`, `use-hr-belt.ts`):
+- `ProfileData.registeredHrDevice` salva `{ name, address }` da cinta
+- `useHrBelt()` aceita `registeredDevice` + `onDeviceRegistered` callback
+- Auto-connect ao dispositivo cadastrado no primeiro mount
+- Cadastro salvo no Firestore via `setDoc` com merge
+
+**Onboarding no configurador** (`App.tsx`):
+- Texto explicativo "A esteira envia dados de velocidade, distância e pace automaticamente via Bluetooth"
+- Seção organizada: Esteira Bluetooth + Cinta cardíaca (opcional)
+- Tooltip na primeira vez: "Uma cinta cardíaca mede seus batimentos cardíacos..."
+- Botão "Entendi" para dispensar tooltip (salvo em localStorage)
+
+**Auto-scan esteira** (`App.tsx`):
+- `useEffect` dispara `treadmill.scan()` ao abrir configurador em modo esteira
+- Elimina passo manual de escanear
+
+**Warning antes de iniciar sem BLE** (`App.tsx`):
+- Modal de confirmação: "Iniciar sem esteira conectada?"
+- Opções: "Continuar sem BLE" ou "Conectar esteira"
+- Aparece quando modo esteira selecionado mas sem conexão BLE
+
+**Reconexão mid-workout** (`WorkoutTracker.tsx`, `TreadmillPanel.tsx`):
+- Toast amarelo "Conexão com a esteira perdida" com botão "Reconectar"
+- Toast aparece por 5s ou até clicar
+- `TreadmillPanel`: botão "Reconectar esteira" com ícone `RefreshCw`
+- Borda amarela destaca quando não conectado
+
+### Arquivos modificados
+- `src/types.ts`: `registeredHrDevice` em `ProfileData`
+- `src/lib/use-hr-belt.ts`: auto-connect + cadastro
+- `src/App.tsx`: onboarding, auto-scan, warning modal
+- `src/components/WorkoutTracker.tsx`: toast reconexão
+- `src/components/TreadmillPanel.tsx`: botão reconectar + destaque
+
+---
+
 ## [2026-08-16] — Auditoria de vazamento de credenciais (SECURITY)
 
 ### Contexto
