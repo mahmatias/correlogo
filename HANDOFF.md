@@ -1,5 +1,30 @@
 # Handoff
 
+## Session Context (2026-08-20e — Migrar HC plugin para @ActivityCallback Capacitor 7)
+
+### What happened
+- **Bug report**: fix 2026-08-20d não resolveu — "Conectar" e "Importar" ainda retornavam "Permissão negada" imediatamente
+- **Root cause**: `handleOnActivityResult` (deprecated) provavelmente não era chamado pelo Capacitor 7 → `startActivityForResult` da Activity não encaminhava resultado pro plugin → JS retornava false
+- **Key insight**: Capacitor 7 requer `@ActivityCallback` annotation + `Plugin.startActivityForResult(call, intent, callbackName)` em vez de `Activity.startActivityForResult(intent, requestCode)`
+
+### Fix applied — reescrita completa do fluxo de permissões
+1. Removido `requestCodes=[9301]` do `@CapacitorPlugin`
+2. Removido `handleOnActivityResult` (deprecated) e `pendingPermissionCall`
+3. Novo `@ActivityCallback fun onPermissionResult(call, activity, intent)` — receives result directly from Capacitor bridge
+4. `launchPermissionIntent` agora usa `startActivityForResult(call, intent, "onPermissionResult")` (Plugin method, not Activity)
+5. `pendingPermissionExpected` mantido para validar permissões esperadas vs concedidas
+
+### Validation
+- `npm run build` ✅ · `cap sync android` ✅ · `gradlew assembleDebug` ✅
+- `npm test` ✅ 104/104
+
+### Cautions for next session
+1. **Deploy pendente**: push → CI → release → testar no device
+2. **Se ainda falhar**: pode ser Capacitor bridge interceptando activity result de forma inesperada — checar Logcat `CorreLogo-HC` para ver se `onPermissionResult` é chamado
+3. **Testar ambos fluxos**: "Conectar" no Perfil E "Importar relógio"
+
+---
+
 ## Session Context (2026-08-20d — Revert HC permissions: WRITE-only + remove SpeedRecord blocker)
 
 ### What happened

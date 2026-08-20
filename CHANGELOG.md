@@ -1,5 +1,33 @@
 # Changelog
 
+## [2026-08-20e] — HC: migrar para @ActivityCallback (Capacitor 7)
+
+### Contexto
+- Após fix 2026-08-20d, botão "Conectar" E importação continuavam retornando "Permissão negada" imediatamente
+- `handleOnActivityResult` (deprecated) provavelmente não estava sendo chamado pelo Capacitor 7
+
+### Root cause
+- **`handleOnActivityResult` deprecated** no Capacitor 7 — o resultado de `startActivityForResult` nunca chegava ao plugin
+- **`@CapacitorPlugin(requestCodes=[9301])`** com `Activity.startActivityForResult` não encaminhava o resultado corretamente
+- Resultado: `pendingPermissionCall` nunca era resolvido → JS retornava `false`
+
+### Implementado
+
+**Reescrita completa** (`HealthConnectPlugin.kt`):
+- Removido `@CapacitorPlugin(requestCodes=[9301])` — usa apenas `@CapacitorPlugin(name="HealthConnect")`
+- Removido `handleOnActivityResult` (deprecated)
+- Removido `pendingPermissionCall` — não necessário com `@ActivityCallback`
+- **`onPermissionResult`** — novo método anotado com `@ActivityCallback`, recebe `(call, activity, intent)` diretamente do Capacitor bridge
+- **`launchPermissionIntent`** — agora usa `startActivityForResult(call, intent, "onPermissionResult")` (método do Plugin, não da Activity)
+- **`pendingPermissionExpected`** — mantido para validar permissões esperadas vs concedidas
+- Logging aprimorado em cada ponto de falha
+
+**Validação**:
+- `npm run build` ✅ · `cap sync android` ✅ · `gradlew assembleDebug` ✅
+- `npm test` ✅ 104/104
+
+---
+
 ## [2026-08-20d] — HC: revert requestHcPermissions to WRITE-only + remove SpeedRecord from readPermissionSet
 
 ### Contexto

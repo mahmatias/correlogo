@@ -1,5 +1,6 @@
 package com.correlogo.app
 
+import android.app.Activity
 import android.content.Intent
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
@@ -8,11 +9,8 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseRoute
 import androidx.health.connect.client.records.ExerciseSessionRecord
-import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SpeedRecord
-import androidx.health.connect.client.records.StepsRecord
-import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -22,6 +20,7 @@ import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
+import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,18 +31,16 @@ import java.time.Instant
 import java.time.ZoneId
 import org.json.JSONArray
 
-@CapacitorPlugin(name = "HealthConnect", requestCodes = [9301])
+@CapacitorPlugin(name = "HealthConnect")
 class HealthConnectPlugin : Plugin() {
 
     companion object {
         private const val TAG = "CorreLogo-HC"
-        private const val HC_PERMISSION_REQUEST_CODE = 9301
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var client: HealthConnectClient? = null
     private val permContract = PermissionController.createRequestPermissionResultContract()
-    private var pendingPermissionCall: PluginCall? = null
     private var pendingPermissionExpected: Set<String>? = null
 
     override fun load() {
@@ -97,7 +94,7 @@ class HealthConnectPlugin : Plugin() {
     fun requestHcPermissions(call: PluginCall) {
         val a = activity
         if (a == null || !ensureClient()) {
-            Log.w(TAG, "requestHcPermissions: activity/sdk unavailable")
+            Log.w(TAG, "requestHcPermissions: activity/sdk unavailable (activity=$activity, client=$client)")
             call.resolve(JSObject().apply { put("granted", false) })
             return
         }
@@ -106,62 +103,47 @@ class HealthConnectPlugin : Plugin() {
             HealthPermission.getWritePermission(ExerciseSessionRecord::class),
             HealthPermission.getWritePermission(DistanceRecord::class)
         )
-        launchPermissionIntent(a, call, permissions)
+        launchPermissionIntent(call, permissions)
     }
 
-    @Suppress("DEPRECATION")
-    private fun launchPermissionIntent(a: android.app.Activity, call: PluginCall, permissions: Set<String>) {
+    private fun launchPermissionIntent(call: PluginCall, permissions: Set<String>) {
+        val a = activity
+        if (a == null) {
+            Log.e(TAG, "launchPermissionIntent: activity is null")
+            call.resolve(JSObject().apply { put("granted", false) })
+            return
+        }
         val intent = try {
             permContract.createIntent(a, permissions)
         } catch (e: Exception) {
-            Log.e(TAG, "createIntent failed — falling back to HC rationale", e)
-            openHcRationale(call)
+            Log.e(TAG, "createIntent failed — resolving false", e)
+            call.resolve(JSObject().apply { put("granted", false) })
             return
         }
-        pendingPermissionCall = call
         pendingPermissionExpected = permissions
-        a.runOnUiThread {
-            try {
-                Log.d(TAG, "Opening HC permissions page for package=${a.packageName}")
-                a.startActivityForResult(intent, HC_PERMISSION_REQUEST_CODE)
-            } catch (e: Exception) {
-                Log.e(TAG, "startActivityForResult failed — falling back to HC rationale", e)
-                pendingPermissionCall = null
-                pendingPermissionExpected = null
-                openHcRationale(call)
-            }
+        try {
+            Log.d(TAG, "Starting HC permission intent for ${permissions.size} permissions via @ActivityCallback")
+            startActivityForResult(call, intent, "onPermissionResult")
+        } catch (e: Exception) {
+            Log.e(TAG, "startActivityForResult failed", e)
+            pendingPermissionExpected = null
+            call.resolve(JSObject().apply { put("granted", false) })
         }
     }
 
-    @Deprecated("Use @ActivityCallback-based flow instead")
-    override fun handleOnActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.handleOnActivityResult(requestCode, resultCode, data)
-        if (requestCode != 9301) return
-        val call = pendingPermissionCall ?: return
+    @ActivityCallback
+    fun onPermissionResult(call: PluginCall, activity: Activity, intent: Intent) {
         val expected = pendingPermissionExpected
-        pendingPermissionCall = null
         pendingPermissionExpected = null
-        val grantedPerms = permContract.parseResult(resultCode, data)
+        val grantedPerms = permContract.parseResult(Activity.RESULT_OK, intent)
         val granted = if (expected != null) {
             expected.all { it in grantedPerms }
         } else {
             val writePerm = HealthPermission.getWritePermission(ExerciseSessionRecord::class)
             writePerm in grantedPerms
         }
-        Log.d(TAG, "Permission result: granted=$granted (expected=${expected?.size ?: "write-fallback"}, got=${grantedPerms.size})")
+        Log.d(TAG, "onPermissionResult: granted=$granted (expected=${expected?.size ?: "fallback"}, got=${grantedPerms.size})")
         call.resolve(JSObject().apply { put("granted", granted) })
-    }
-
-    private fun openHcRationale(call: PluginCall) {
-        try {
-            val intent = Intent("androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE")
-                .setPackage("com.google.android.apps.healthdata")
-            activity?.startActivity(intent)
-            Log.d(TAG, "Opened HC rationale as fallback")
-        } catch (e: Exception) {
-            Log.w(TAG, "No HC rationale activity available", e)
-        }
-        call.resolve(JSObject().apply { put("granted", false) })
     }
 
     @PluginMethod
@@ -296,10 +278,11 @@ class HealthConnectPlugin : Plugin() {
     fun requestReadPermissions(call: PluginCall) {
         val a = activity
         if (a == null || !ensureClient()) {
+            Log.w(TAG, "requestReadPermissions: activity/sdk unavailable")
             call.resolve(JSObject().apply { put("granted", false) })
             return
         }
-        launchPermissionIntent(a, call, readPermissionSet)
+        launchPermissionIntent(call, readPermissionSet)
     }
 
     @PluginMethod
@@ -355,7 +338,7 @@ class HealthConnectPlugin : Plugin() {
                             if (avgMs > 0.0) {
                                 avgSpeedKmh = avgMs * 3.6
                                 val computedDistKm = avgSpeedKmh * (duration / 3600.0)
-                                Log.d(TAG, "SpeedRecord fallback for ${s.metadata.id}: avgSpeed=${avgMs}m/s → ${avgSpeedKmh}km/h, computed distance=${computedDistKm}km")
+                                Log.d(TAG, "SpeedRecord fallback for ${s.metadata.id}: avgSpeed=${avgMs}m/s -> ${avgSpeedKmh}km/h, computed distance=${computedDistKm}km")
                                 val w = JSObject().apply {
                                     put("id", s.metadata.id)
                                     put("exerciseType", when (type) {
