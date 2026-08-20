@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
 import { Play, RefreshCw, CheckCircle, Circle, Trash2, BarChart2, Clipboard, ChevronUp, ChevronDown, Rocket, Calendar as CalendarIcon, Calendar, Bluetooth, BluetoothSearching, BluetoothConnected, X, Check, Wrench, Heart } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
@@ -86,16 +86,6 @@ export default function App() {
   const [hrOnboardingDismissed, setHrOnboardingDismissed] = useState(() => {
     return localStorage.getItem('correlogo:hrOnboardingDismissed') === 'true';
   });
-  const hrBelt = useHrBelt({
-    registeredDevice: profile?.registeredHrDevice ?? null,
-    onDeviceRegistered: (device) => {
-      if (user) {
-        const updated = { ...(profile ?? {} as ProfileData), registeredHrDevice: device };
-        setDoc(doc(getDb(), 'users', user.uid, 'data', 'profile'), stripUndefined(updated), { merge: true });
-        setProfile(updated as ProfileData);
-      }
-    },
-  });
   const [treadmillMode, setTreadmillMode] = useState<TreadmillControlMode>('A');
   const [modeSelectorOpen, setModeSelectorOpen] = useState(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -140,6 +130,17 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
   const [updateInstallBlocked, setUpdateInstallBlocked] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [bleWarningOpen, setBleWarningOpen] = useState(false);
+  const handleHrDeviceRegistered = useCallback((device: { name: string; address: string }) => {
+    if (user) {
+      const updated = { ...(profile ?? {} as ProfileData), registeredHrDevice: device };
+      setDoc(doc(getDb(), 'users', user.uid, 'data', 'profile'), stripUndefined(updated), { merge: true });
+      setProfile(updated as ProfileData);
+    }
+  }, [user, profile]);
+  const hrBelt = useHrBelt({
+    registeredDevice: profile?.registeredHrDevice ?? null,
+    onDeviceRegistered: handleHrDeviceRegistered,
+  });
   const getWeekStart = (d: Date) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);

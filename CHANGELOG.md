@@ -43,6 +43,9 @@
 - `src/components/WorkoutTracker.tsx`: toast reconexão
 - `src/components/TreadmillPanel.tsx`: botão reconectar + destaque
 
+### Bugfix (2026-08-20)
+- **"Cannot access 'Dt' before initialization"** — TDZ crash em runtime. `profile` (const via useState) era acessado no call de `useHrBelt()` (linha 89) antes da declaração (linha 129). Fix: movido `useHrBelt` para após todas as declarações de estado que ele depende (`profile`, `user`); `onDeviceRegistered` extraído como `useCallback` para estabilidade de referência.
+
 ---
 
 ## [2026-08-16] — Auditoria de vazamento de credenciais (SECURITY)

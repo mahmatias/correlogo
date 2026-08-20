@@ -1,5 +1,23 @@
 # Handoff
 
+## Session Context (2026-08-20 — Fix TDZ crash "Cannot access 'Dt' before initialization")
+
+### What happened
+- **Bug report**: "Cannot access 'Dt' before initialization" — ReferenceError em runtime no build de produção (minificado). O app crashava ao carregar.
+- **Root cause identificada**: Em `App.tsx`, `const hrBelt = useHrBelt({ registeredDevice: profile?.registeredHrDevice ?? null, ... })` (linha 89) acessava `profile` antes da declaração `const [profile, setProfile] = useState<ProfileData | null>(null)` (linha 129). No bundle minificado, `profile` é manglado como `Dt`. No runtime, `const`/`let` no topo de uma função ficam no TDZ (Temporal Dead Zone) até sua declaração — acessar antes lança `ReferenceError`.
+- **Fix aplicado**:
+  1. Movido o bloco `useHrBelt(...)` para **depois** de todas as declarações de `useState` que ele depende (`profile`, `user`, `bleWarningOpen`).
+  2. Extraído o callback `onDeviceRegistered` como `handleHrDeviceRegistered` com `useCallback([user, profile])` — evita recriação do objeto `options` a cada render, o que causava `connect` instável no hook.
+  3. Adicionado `useCallback` ao import de `react`.
+- **Validação**: `npm run build` ✅, `npx vitest run` 101/101 ✅.
+
+### Cautions for next session
+1. **Deploy pendente**: o fix está commitado mas não deployado (web ou APK). Fazer push para main para disparar CI → release nova.
+2. **Feature BLE incompleta**: onboarding + auto-scan + warning + reconexão foram implementados mas nunca testados em device real com a correção do TDZ.
+3. **Próximos passos do TODO.md**: medição BLE real da esteira (velocidade, pace, calorias), comparação com dados do app.
+
+---
+
 ## Session Context (2026-08-16 — Auditoria de vazamento de credenciais + purge + rotação concluída)
 
 ### What happened

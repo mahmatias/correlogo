@@ -18,6 +18,7 @@
 - [ ] **BLE: medir distância do BLE vs cálculo próprio** — comparar `metrics.totalDistanceMeters` com `speedRef × time` durante treino real para validar fallback inteligente
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
 - [ ] Foto do perfil — exibição com problemas (dívida técnica)
+- [ ] **Deploy BLE onboarding features** — fix TDZ feito, build+test passam, mas ainda não deployado (push para main dispara CI → release nova)
 
 ### Média
 - [ ] Dados PII (gênero, data nascimento) — coletados mas nunca utilizados
@@ -32,6 +33,14 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+---
+
+## ✅ Concluídos (Sessão 2026-08-20 — Fix TDZ crash "Cannot access 'Dt' before initialization")
+
+- [x] **Root cause identificada** — `profile` (const via `useState`) era acessado no call de `useHrBelt()` (linha 89 de `App.tsx`) antes da declaração (linha 129). No bundle minificado, `profile` → `Dt`. `const`/`let` no TDZ lança `ReferenceError` em runtime.
+- [x] **Fix aplicado** — movido `useHrBelt` para após todas as declarações de estado (`profile`, `user`, `bleWarningOpen`); callback `onDeviceRegistered` extraído como `useCallback` para estabilidade de referência.
+- [x] **Validação** — `npm run build` ✅, `npx vitest run` 101/101 ✅. Commit + CHANGELOG + HANDOFF + TODO atualizados.
 
 ---
 
