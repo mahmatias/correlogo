@@ -3,7 +3,7 @@ import type { TrainingSession, WatchWorkout } from '../types';
 const DEDUPE_WINDOW_MS = 2 * 60 * 1000;
 
 export function dedupeImportedWorkouts(existing: TrainingSession[], workouts: WatchWorkout[]): WatchWorkout[] {
-  return workouts.filter(w => {
+  const result = workouts.filter(w => {
     if (existing.some(s => s.id === `watch-${w.id}`)) return false;
     const wStart = w.startTimeMs;
     return !existing.some(s => {
@@ -11,6 +11,10 @@ export function dedupeImportedWorkouts(existing: TrainingSession[], workouts: Wa
       return Math.abs(sStart - wStart) <= DEDUPE_WINDOW_MS;
     });
   });
+  if (result.length < workouts.length) {
+    console.log(`[watch-import] dedup: ${workouts.length} → ${result.length} (${workouts.length - result.length} filtered)`);
+  }
+  return result;
 }
 
 export function watchWorkoutToSession(w: WatchWorkout): TrainingSession {

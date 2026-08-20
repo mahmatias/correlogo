@@ -42,6 +42,7 @@ import { sendWorkoutToStravaViaEmail, handleGmailWebCallback } from './lib/gmail
 import { checkForUpdate, downloadApkAndInstall, canInstallApk, openInstallSettings, type UpdateInfo } from './lib/update-checker';
 import { initNotificationChannel, requestNotificationPermission, scheduleWorkoutReminder, cancelWorkoutReminder, rescheduleWorkoutReminder, rescheduleAllReminders } from './lib/notifications';
 import UpdatePrompt from './components/UpdatePrompt';
+import WatchImportModal from './components/WatchImportModal';
 import { onAuthStateChanged, User, signOut, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection, query, getDocs, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
 
@@ -130,6 +131,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
   const [updateInstallBlocked, setUpdateInstallBlocked] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [bleWarningOpen, setBleWarningOpen] = useState(false);
+  const [pendingWatchWorkouts, setPendingWatchWorkouts] = useState<WatchWorkout[] | null>(null);
   const handleHrDeviceRegistered = useCallback((device: { name: string; address: string }) => {
     if (user) {
       const updated = { ...(profile ?? {} as ProfileData), registeredHrDevice: device };
@@ -902,7 +904,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
       return;
     }
     const granted = await checkReadHealthPermissions();
-    if (granted === false) {
+    if (granted !== true) {
       const ok = await requestReadHealthPermission();
       if (!ok) {
         showFeedback('error', 'Permissão negada. Autorize o Health Connect no Perfil.');
@@ -918,14 +920,28 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
         showFeedback('success', 'Nenhum treino novo para importar.');
         return;
       }
-      const newSessions = toAdd.map(w => watchWorkoutToSession(w));
+      setPendingWatchWorkouts(toAdd);
+    } catch (e) {
+      console.error('[import] Erro ao buscar treinos:', e);
+      showFeedback('error', 'Falha ao buscar treinos do Health Connect.');
+    } finally {
+      setImportingWatch(false);
+    }
+  };
+
+  const confirmWatchImport = async (selected: WatchWorkout[]) => {
+    if (!user || selected.length === 0) return;
+    setImportingWatch(true);
+    try {
+      const newSessions = selected.map(w => watchWorkoutToSession(w));
       const updated = [...newSessions, ...sessions];
       setSessions(updated);
       localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
       for (const s of newSessions) {
         setDoc(doc(getDb(), 'users', user.uid, 'sessions', s.id), stripUndefined(s)).catch(() => {});
       }
-      showFeedback('success', `${toAdd.length} treino${toAdd.length > 1 ? 's' : ''} importado${toAdd.length > 1 ? 's' : ''} do relógio!`);
+      setPendingWatchWorkouts(null);
+      showFeedback('success', `${selected.length} treino${selected.length > 1 ? 's' : ''} importado${selected.length > 1 ? 's' : ''} do relógio!`);
     } catch (e) {
       console.error('[import] Erro ao importar treinos:', e);
       showFeedback('error', 'Falha ao importar treinos do Health Connect.');
@@ -1853,6 +1869,15 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                   </div>
                 </div>
               </Modal>
+            )}
+            {pendingWatchWorkouts && (
+              <WatchImportModal
+                open={!!pendingWatchWorkouts}
+                onClose={() => setPendingWatchWorkouts(null)}
+                workouts={pendingWatchWorkouts}
+                onImport={confirmWatchImport}
+                importing={importingWatch}
+              />
             )}
           </>
         )}

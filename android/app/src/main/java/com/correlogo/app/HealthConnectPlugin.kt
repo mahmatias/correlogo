@@ -315,25 +315,31 @@ class HealthConnectPlugin : Plugin() {
                 val sessions = c.readRecords(request).records
                     .sortedByDescending { it.startTime }
                     .take(50)
+                Log.d(TAG, "readWorkouts: ${sessions.size} sessions found in HC (types: ${sessions.map { it.exerciseType }.distinct()})")
                 val workouts = JSONArray()
                 for (s in sessions) {
                     val type = s.exerciseType
-                    if (type != ExerciseSessionRecord.EXERCISE_TYPE_RUNNING &&
-                        type != ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL
-                    ) continue
                     val duration = Duration.between(s.startTime, s.endTime).seconds
-                    val agg = c.aggregate(
-                        AggregateRequest(
-                            metrics = setOf(DistanceRecord.DISTANCE_TOTAL),
-                            timeRangeFilter = TimeRangeFilter.between(s.startTime, s.endTime)
+                    val distanceKm = try {
+                        val agg = c.aggregate(
+                            AggregateRequest(
+                                metrics = setOf(DistanceRecord.DISTANCE_TOTAL),
+                                timeRangeFilter = TimeRangeFilter.between(s.startTime, s.endTime)
+                            )
                         )
-                    )
-                    val distanceKm = (agg[DistanceRecord.DISTANCE_TOTAL]?.inMeters ?: 0.0) / 1000.0
+                        (agg[DistanceRecord.DISTANCE_TOTAL]?.inMeters ?: 0.0) / 1000.0
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Distance aggregate failed for session ${s.metadata.id}: ${e.message}")
+                        0.0
+                    }
                     val w = JSObject().apply {
                         put("id", s.metadata.id)
                         put(
                             "exerciseType",
-                            if (type == ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL) "treadmill" else "running"
+                            when (type) {
+                                ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL -> "treadmill"
+                                else -> "running"
+                            }
                         )
                         put("startTimeMs", s.startTime.toEpochMilli())
                         put("endTimeMs", s.endTime.toEpochMilli())

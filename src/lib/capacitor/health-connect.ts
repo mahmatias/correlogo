@@ -81,6 +81,7 @@ export async function readWorkoutsFromHealthConnect(startMs: number, endMs: numb
     const available = await isHealthConnectAvailable();
     if (!available) return [];
     const res = await HealthConnect.readWorkouts({ startMs, endMs });
+    console.log(`[health-connect] readWorkouts: ${(res.workouts || []).length} workouts returned from HC`);
     return (res.workouts || []) as WatchWorkout[];
   } catch (e) {
     console.warn('[health-connect] readWorkouts failed:', e);

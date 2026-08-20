@@ -1,5 +1,45 @@
 # Changelog
 
+## [2026-08-20] — Health Connect: fix import + seleção de treinos
+
+### Contexto
+- Usuário reportou que treinos gravados no relógio e visíveis no Health Connect não eram importados — "Nenhum treino novo para importar"
+- Permissões já estavam concedidas
+
+### Root cause
+- **Kotlin plugin filtrava por exercise type**: `readWorkouts()` só aceitava `EXERCISE_TYPE_RUNNING` (1) e `EXERCISE_TYPE_RUNNING_TREADMILL` (2). Treinos do tipo `OTHER_WORKOUT` (0), `WALKING` (3) etc. eram silenciosamente descartados — o HC app mostrava mas o Corre Logo filtrava
+- **Permissão null-check incorreto**: `checkReadHealthPermissions()` retornava `null` em caso de erro; `null === false` é `false` → dialog de permissão era pulado
+
+### Implementado
+
+**Fix Kotlin** (`HealthConnectPlugin.kt`):
+- Removido filtro de exercise type — agora aceita TODOS os tipos de treino
+- Tipo mapeado: `RUNNING_TREADMILL` → "treadmill", todos os outros → "running"
+- Aggregate de distância envolvido em try-catch per-session (uma falha não mata toda a importação)
+- Logging: `${sessions.size} sessions found in HC (types: ...)` para diagnóstico
+
+**Fix TS** (`App.tsx`):
+- `checkReadHealthPermissions() !== true` (não mais `=== false`) — trata `null` como "precisa pedir permissão"
+
+**Seleção de treinos** (`WatchImportModal.tsx`, `App.tsx`):
+- Botão "Importar relógio" agora abre modal com lista de treinos não-importados
+- Cada treino mostra: data, hora, distância, duração, velocidade média, tag "Esteira" quando aplicável
+- Checkboxes com "Selecionar todos" / "Desmarcar todos"
+- Usuário escolhe quais importar antes de confirmar
+- Dedup continua funcionando (só mostra treinos novos)
+
+**Diagnóstico** (`health-connect.ts`, `watch-import.ts`):
+- `console.log` em `readWorkoutsFromHealthConnect` e `dedupeImportedWorkouts` para debugging
+
+### Arquivos modificados
+- `android/app/src/main/java/com/correlogo/app/HealthConnectPlugin.kt`
+- `src/App.tsx`
+- `src/lib/capacitor/health-connect.ts`
+- `src/lib/watch-import.ts`
+- `src/components/WatchImportModal.tsx` (novo)
+
+---
+
 ## [2026-08-19] — BLE Onboarding + Reconexão + Cadastro Cinta
 
 ### Contexto
