@@ -59,7 +59,32 @@ export const authCallback = onRequest({ secrets: [WEB_CLIENT_SECRET] }, async (r
   }
 });
 
+// Origens que podem chamar as funções de token via browser/WebView.
+// O APK roda em https://localhost (androidScheme) — sem ACAO o fetch morre no CORS.
+const ALLOWED_ORIGINS = new Set([
+  "https://localhost",
+  "capacitor://localhost",
+  "https://correlogo.web.app",
+  "http://localhost:3000",
+]);
+
+function applyCors(req: { headers: Record<string, string | string[] | undefined> }, res: { set: (k: string, v: string) => void }): boolean {
+  const origin = req.headers.origin as string | undefined;
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return false;
+  res.set("Access-Control-Allow-Origin", origin);
+  res.set("Vary", "Origin");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  return true;
+}
+
 export const refreshAuthToken = onRequest({ secrets: [WEB_CLIENT_SECRET] }, async (req, res) => {
+  applyCors(req, res);
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+
   const { refresh_token } = req.body;
   if (!refresh_token) {
     res.status(400).json({ error: "refresh_token required" });

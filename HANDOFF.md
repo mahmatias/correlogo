@@ -1,5 +1,30 @@
 # Handoff
 
+## Session Context (2026-08-20k — Fix token Gmail (CORS) + back button morto)
+
+### What happened
+1. **Token Gmail expirava "a cada x horas"** → re-login constante
+   - Root cause [Certain]: Cloud Function `refreshAuthToken` sem headers CORS; APK origina de `https://localhost` → preflight OPTIONS falha → refresh **sempre** falhou no APK (funcionava só na web, same-origin). Access token ~1h morria sem renovação
+2. **Back button não fechava telas nem saía com duplo toque**
+   - Root cause [Certain]: `useBackHandler` usava `window.CapacitorApp` — global inexistente no Capacitor, nunca atribuído → listener `backButton` NUNCA registrado em build alguma; todo o sistema de contextos do App.tsx era código morto
+
+### Fix applied
+1. `functions/src/index.ts`: `applyCors()` com allowlist (`https://localhost`, `capacitor://localhost`, `correlogo.web.app`, `localhost:3000`) + OPTIONS 204; **deployado em prod** e verificado ao vivo (204 + ACAO)
+2. `gmailApi.ts`: log quando refresh falha
+3. `useBackHandler.ts`: reescrito com `App.addListener('backButton')` (@capacitor/app); double-tap exit mantido + toast via callback `onExitPrompt`
+4. `App.tsx`: dedupe de registros (`signup-modal`, `program-review`), contextos novos (`watch-import`, `ble-warning`, `month-calendar`), toast de saída
+5. versionName 4.6
+
+### Validation
+- functions tsc ✅ · npm test 113/113 ✅ · build ✅ · cap sync ✅ · gradle ✅ · deploy functions ✅ · preflight CORS ao vivo ✅
+
+### Cautions for next session
+1. **Testar no device**: (a) conectar Gmail → usar export Strava → aguardar >1h → exportar de novo SEM re-login; se falhar, procurar `[gmailApi] refresh falhou` no logcat; (b) back deve fechar modais/telas; duplo-back na home mostra toast e sai na segunda
+2. Refresh tokens do Google para apps em modo "Testing" no Console expiram em 7 dias mesmo com refresh funcionando — se o re-login voltar a ocorrer semanalmente, publicar o consent screen (status "In production")
+3. `window.CapacitorApp` não existe — não usar como padrão; API correta é `import { App } from '@capacitor/app'`
+
+---
+
 ## Session Context (2026-08-20j — Fix export Strava de treino importado: GPX vazio → TCX)
 
 ### What happened

@@ -464,7 +464,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
   }, []);
 
 // Back button handler centralizado via hook
-  const { register } = useBackHandler();
+  const { register } = useBackHandler(() => showFeedback('success', 'Pressione voltar novamente para sair'));
 
   // Registrar contexts de back button por prioridade
   useEffect(() => {
@@ -480,7 +480,6 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
     if (planToUncomplete) unregisters.push(register('uncomplete-plan', 100, () => setPlanToUncomplete(null), () => planToUncomplete));
     if (reschedulePlanId) unregisters.push(register('reschedule-plan', 100, () => setReschedulePlanId(null), () => reschedulePlanId));
     if (programToReview) unregisters.push(register('program-review', 100, () => setProgramToReview(null), () => programToReview));
-    if (showSignup) unregisters.push(register('signup-modal', 100, () => setShowSignup(false), () => showSignup));
 
     // Prioridade 80: Painéis/estados expansíveis
     if (selectedSession) unregisters.push(register('session-summary', 80, () => setSelectedSession(null), () => selectedSession));
@@ -488,11 +487,10 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
     if (workoutToStart) unregisters.push(register('workout-start', 80, () => setWorkoutToStart(null), () => workoutToStart));
     if (isEditing) unregisters.push(register('editing', 80, () => setIsEditing(false), () => isEditing));
     if (showGenerator) unregisters.push(register('generator', 80, () => setShowGenerator(false), () => showGenerator));
-    if (programToReview) unregisters.push(register('program-review', 80, () => setProgramToReview(null), () => programToReview));
+    if (pendingWatchWorkouts) unregisters.push(register('watch-import', 80, () => setPendingWatchWorkouts(null), () => pendingWatchWorkouts));
+    if (bleWarningOpen) unregisters.push(register('ble-warning', 80, () => setBleWarningOpen(false), () => bleWarningOpen));
+    if (showMonthCalendar) unregisters.push(register('month-calendar', 80, () => setShowMonthCalendar(false), () => showMonthCalendar));
     if (activeTab !== 'treinos') unregisters.push(register('tab-nav', 80, () => setActiveTab('treinos'), () => activeTab !== 'treinos'));
-
-    // Prioridade 10: Exit app (double-tap)
-    // O hook já trata o double-tap para exit quando não há contexts ativos
 
     return () => { unregisters.forEach(u => u()); };
   }, [
@@ -511,6 +509,9 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
     workoutToStart,
     isEditing,
     showGenerator,
+    pendingWatchWorkouts,
+    bleWarningOpen,
+    showMonthCalendar,
     activeTab,
   ]);
 

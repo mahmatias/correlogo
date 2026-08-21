@@ -38,6 +38,15 @@
 
 ---
 
+## ✅ Concluídos (Sessão 2026-08-20k — Fix token Gmail (CORS) + back button morto, v4.6)
+
+- [x] **Token Gmail expirando**: root cause = `refreshAuthToken` sem CORS (APK origina de `https://localhost` → preflight falha → refresh nunca funcionou no APK). Fix: allowlist de origens + OPTIONS na Function, **deployado em prod** e verificado ao vivo; log de diagnóstico no cliente
+- [x] **Back button morto**: root cause = `window.CapacitorApp` global inexistente → listener `backButton` nunca registrado em build alguma. Fix: hook reescrito com `App.addListener` (@capacitor/app); double-tap exit + toast; registros dedupe + contextos novos (`watch-import`, `ble-warning`, `month-calendar`)
+- [x] **Validação** — functions tsc ✅ · npm test 113/113 ✅ · build ✅ · cap sync ✅ · gradle ✅ · deploy functions ✅
+- [ ] **Aguardando**: push → CI → release build 177 → testar refresh >1h sem re-login + navegação back
+
+---
+
 ## ✅ Concluídos (Sessão 2026-08-20j — Fix export Strava de treino importado, v4.5)
 
 - [x] **Retorno do device (build 174)**: import HC FUNCIONANDO ✅. Novo bug: export do treino do relógio pro Strava rejeitado — "Time information is missing from file" em `activity.gpx`

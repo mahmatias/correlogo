@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-08-20k] — Fix token Gmail expirando + back button morto (v4.6)
+
+### 1. Token Gmail: refresh nunca funcionou no APK (CORS)
+- **Root cause [Certain]**: `refreshAuthToken` (Cloud Function) não retornava headers CORS; o APK roda em origem `https://localhost` (androidScheme) → fetch para `correlogo.web.app/auth/refresh` é cross-origin → preflight OPTIONS sem resposta válida → refresh sempre falhava silenciosamente → access token (~1h) morria sem renovação → re-login. Mesma classe do bug do auto-update v3.0.2
+- **Fix**: `applyCors()` com allowlist de origens (`https://localhost`, `capacitor://localhost`, `correlogo.web.app`, `localhost:3000`) + handler OPTIONS 204; deployado em prod (preflight verificado ao vivo: 204 + ACAO)
+- Cliente: log de diagnóstico quando refresh falha (`[gmailApi] refresh falhou:`)
+- Nota: token "permanente" não existe no OAuth Google — o correto é refresh_token de longa duração renovando automaticamente, que agora funciona
+
+### 2. Back button Android: listener nunca registrado
+- **Root cause [Certain]**: `useBackHandler` escutava `window.CapacitorApp.addListener(...)` — global que **não existe** no Capacitor (nunca atribuído em lugar nenhum) → listener de `backButton` jamais registrado → botão back ficava sem tratamento (comportamento padrão do sistema), todos os contextos de modal eram código morto
+- **Fix**: hook reescrito com a API real (`App.addListener('backButton')` de `@capacitor/app`, já dependência); double-tap para sair mantido e agora com toast "Pressione voltar novamente para sair" via callback `onExitPrompt`
+- App.tsx: removidos registros duplicados (`signup-modal` ×2, `program-review` ×2 prioridades) e adicionados contextos faltantes (`pendingWatchWorkouts`, `bleWarningOpen`, `showMonthCalendar`)
+- `versionName 4.5 → 4.6`
+
+### Validação
+- functions `tsc` ✅ · `npm test` ✅ 113/113 · build ✅ · cap sync ✅ · gradle assembleDebug ✅ · `firebase deploy --only functions` ✅ · preflight CORS ao vivo ✅
+
+---
+
 ## [2026-08-20j] — Fix export Strava de treino do relógio: GPX vazio → TCX com track sintético (v4.5)
 
 ### Contexto

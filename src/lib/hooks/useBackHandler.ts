@@ -1,4 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 interface BackContext {
   id: string;
@@ -7,9 +9,11 @@ interface BackContext {
   condition?: () => boolean;
 }
 
-export function useBackHandler() {
+export function useBackHandler(onExitPrompt?: () => void) {
   const contextsRef = useRef<BackContext[]>([]);
   const lastBackRef = useRef(0);
+  const exitPromptRef = useRef(onExitPrompt);
+  exitPromptRef.current = onExitPrompt;
 
   const register = useCallback((
     id: string,
@@ -32,65 +36,39 @@ export function useBackHandler() {
   }, []);
 
   useEffect(() => {
-    let listenerAdded = false;
+    if (!Capacitor.isNativePlatform()) return;
 
-    const handleBackButton = () => {
+    const handleBackButton = (): void => {
       const now = Date.now();
       const activeContexts = contextsRef.current.filter(c => !c.condition || c.condition());
 
-      // Verificar double-tap para sair (prioridade mais baixa)
-      const exitContext = activeContexts.find(c => c.id === 'app-exit');
-      if (activeContexts.length === 0 || (activeContexts.length === 1 && exitContext)) {
+      // Sem contexto ativo (ou só o de exit): double-tap para sair
+      const onlyExit = activeContexts.length === 1 && activeContexts[0].id === 'app-exit';
+      if (activeContexts.length === 0 || onlyExit) {
         if (now - lastBackRef.current < 2000) {
-          if (window.CapacitorApp?.exitApp) {
-            window.CapacitorApp.exitApp();
-          }
+          void CapApp.exitApp();
         } else {
           lastBackRef.current = now;
-          // Toast será mostrado pelo contexto de exit
-          if (exitContext) exitContext.handler();
+          exitPromptRef.current?.();
         }
-        return true;
+        return;
       }
 
       // Processar contexto de maior prioridade
       const topContext = activeContexts[0];
-      if (topContext) {
-        const result = topContext.handler();
-        if (result !== false) {
-          lastBackRef.current = 0; // reset double-tap timer
-          return true;
-        }
+      const result = topContext.handler();
+      if (result !== false) {
+        lastBackRef.current = 0; // reset double-tap timer
       }
-
-      return false;
     };
 
-    // @ts-ignore - Capacitor global
-    if (window.CapacitorApp?.addListener) {
-      // @ts-ignore
-      window.CapacitorApp.addListener('backButton', handleBackButton);
-      listenerAdded = true;
-    }
+    let sub: { remove: () => void } | null = null;
+    CapApp.addListener('backButton', handleBackButton).then(s => { sub = s; });
 
     return () => {
-      if (listenerAdded) {
-        // @ts-ignore
-        window.CapacitorApp.removeListener('backButton', handleBackButton);
-      }
+      sub?.remove();
     };
   }, []);
 
   return { register, unregister };
-}
-
-// Tipos globais para Capacitor
-declare global {
-  interface Window {
-    CapacitorApp?: {
-      addListener: (event: 'backButton', handler: () => void) => Promise<{ remove: () => void }>;
-      removeListener: (event: 'backButton', handler: () => void) => void;
-      exitApp: () => void;
-    };
-  }
 }

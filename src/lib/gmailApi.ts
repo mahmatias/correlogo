@@ -164,7 +164,10 @@ async function refreshAccessToken(refreshToken: string): Promise<string | null> 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn('[gmailApi] refresh falhou:', res.status, await res.text().catch(() => ''));
+      return null;
+    }
     const data = await res.json();
     return data.access_token || null;
   } catch {
