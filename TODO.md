@@ -14,7 +14,8 @@
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
 - [ ] **Validar em device — Health Connect** — pedir permissão READ real (abre a tela do HC via `requestReadHealthPermission`), importar treino do relógio e conferir badge "Relógio" + dedupe ±2min. Ver CHANGELOG 2026-08-13
-- [ ] **Validar em device — HC import (build 174+)** — três fixes empilhados: (1) crash no `@ActivityCallback` (2026-08-20g); (2) fonte da verdade no callback (2026-08-20h); (3) **root cause definitivo: `READ_DISTANCE` não declarado no manifesto** — permissão de saúde não declarada é ingrantível, então o conjunto `{READ_EXERCISE, READ_DISTANCE}` nunca fechava (2026-08-20i). No device: "Importar relógio" deve pedir o toggle novo (Distância) → conceder → listar treinos. Conferir badge "Relógio" + dedupe ±2min no treino `watch-1f1bde4b...`. Se falhar, exportar logcat (`checkReadPermissions`/`onPermissionResult`)
+- [ ] **Validar em device — export Strava de treino importado (build 175+)** — fix GPX vazio: formato agora por presença de GPS (`hasGpsData`), não por modo; TCX sintetiza trackpoints quando `points:[]` (ver CHANGELOG 2026-08-20j). Re-exportar o treino do relógio pro Strava e conferir aceite
+- [ ] **Validar em device — HC import** — ✅ FUNCIONANDO desde build 174 (root cause: `READ_DISTANCE` ausente do manifesto, 2026-08-20i). Falta apenas marcar como concluído após confirmar uso contínuo
 - [ ] **Validar em device — cinta cardíaca** — quando o hardware chegar: scan 0x180D, notify 0x2A37, TTS de zona no `WorkoutTracker`, conexão simultânea com a esteira. Sem device, `MockHrTransport` roda em navegador (não-nativo)
 - [ ] **BLE: medir distância do BLE vs cálculo próprio** — comparar `metrics.totalDistanceMeters` com `speedRef × time` durante treino real para validar fallback inteligente
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
@@ -34,6 +35,16 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+---
+
+## ✅ Concluídos (Sessão 2026-08-20j — Fix export Strava de treino importado, v4.5)
+
+- [x] **Retorno do device (build 174)**: import HC FUNCIONANDO ✅. Novo bug: export do treino do relógio pro Strava rejeitado — "Time information is missing from file" em `activity.gpx`
+- [x] **Root cause**: formato por `mode` (outdoor→GPX) + sessão importada sem points → `generateGPX` emitia trkseg vazio (trkpt exige lat/lon) → zero `<time>`
+- [x] **Fix**: `hasGpsData()` decide GPX vs TCX; `generateTCX` sintetiza 21 trackpoints interpolados quando não há pontos; 9 testes novos; versionName 4.5
+- [x] **Validação** — npm test 113/113 ✅ · build ✅
+- [ ] **Aguardando**: push → CI → release build 175 → re-exportar pro Strava
 
 ---
 

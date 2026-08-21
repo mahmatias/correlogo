@@ -1,5 +1,27 @@
 # Handoff
 
+## Session Context (2026-08-20j — Fix export Strava de treino importado: GPX vazio → TCX)
+
+### What happened
+- Build 174 resolveu o import HC ✅. Novo bug no passo seguinte: export do treino do relógio pro Strava (Gmail → stravaupload@gotoes.org) rejeitado — "Time information is missing from file" em `activity.gpx`
+- **Root cause**: formato escolhido por `mode` (`treadmill`→TCX, senão GPX); watch-import é `mode:'outdoor'` com `points:[]` (import não busca rota) → `generateGPX` emitia `<trkseg>` vazio (trkpt exige lat/lon por spec) → zero `<time>` → Strava recusa
+
+### Fix applied
+1. `exportUtils.ts`: novo `hasGpsData(session)` — escolha por presença real de lat/lon nos points
+2. `gmailApi.ts`: `hasGpsData(session)` ? GPX : TCX (substitui checagem por modo)
+3. `generateTCX`: com `points:[]`, sintetiza 21 Trackpoints interpolando tempo/distância (TCX aceita sem Position)
+4. 9 testes novos; versionName 4.5
+
+### Validation
+- `npm test` ✅ 113/113 · `.env.apk→.env` + build ✅
+
+### Cautions for next session
+1. **Testar**: re-exportar o treino do relógio pro Strava — agora vai como `activity.tcx`; Strava deve aceitar (totais da volta + track sintético com Time/Distance)
+2. Se Strava recusar TCX sem Position, alternativa: sintetizar pontos também com Speed extension ou usar formato TCX com mais metadados — log do GOTOES ajuda
+3. Treinos ao vivo (WorkoutTracker) continuam GPX quando têm GPS real — comportamento mantido e coberto por teste
+
+---
+
 ## Session Context (2026-08-20i — Root cause definitivo: READ_DISTANCE ausente do manifesto)
 
 ### What happened

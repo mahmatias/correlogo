@@ -1,15 +1,41 @@
 import { TrainingSession } from '../types';
 
+export const hasGpsData = (session: TrainingSession): boolean =>
+    session.points.some(p => p.lat !== undefined && p.lon !== undefined);
+
+const SYNTHETIC_TRACK_STEPS = 20;
+
+const generateSyntheticTrackPoints = (session: TrainingSession): string => {
+    const start = new Date(session.date).getTime();
+    const durationMs = session.totalDurationSeconds * 1000;
+    const totalMeters = session.totalDistanceKm * 1000;
+    let points = '';
+    for (let i = 0; i <= SYNTHETIC_TRACK_STEPS; i++) {
+        const frac = i / SYNTHETIC_TRACK_STEPS;
+        const time = new Date(start + durationMs * frac).toISOString();
+        const dist = Math.round(totalMeters * frac);
+        points += `
+          <Trackpoint>
+            <Time>${time}</Time>
+            <DistanceMeters>${dist}</DistanceMeters>
+          </Trackpoint>`;
+    }
+    return points;
+};
+
 export const generateTCX = (session: TrainingSession): string => {
     const startTime = new Date(session.date).toISOString();
     let trackPoints = '';
-    
-    session.points.forEach(p => {
-        let position = '';
-        if (session.mode === 'outdoor' && p.lat !== undefined && p.lon !== undefined) {
-            position = `<Position><LatitudeDegrees>${p.lat}</LatitudeDegrees><LongitudeDegrees>${p.lon}</LongitudeDegrees>${p.altitude !== undefined ? `<AltitudeMeters>${p.altitude.toFixed(1)}</AltitudeMeters>` : ''}</Position>`;
-        }
-        trackPoints += `
+
+    if (session.points.length === 0) {
+        trackPoints = generateSyntheticTrackPoints(session);
+    } else {
+        session.points.forEach(p => {
+            let position = '';
+            if (session.mode === 'outdoor' && p.lat !== undefined && p.lon !== undefined) {
+                position = `<Position><LatitudeDegrees>${p.lat}</LatitudeDegrees><LongitudeDegrees>${p.lon}</LongitudeDegrees>${p.altitude !== undefined ? `<AltitudeMeters>${p.altitude.toFixed(1)}</AltitudeMeters>` : ''}</Position>`;
+            }
+            trackPoints += `
           <Trackpoint>
             <Time>${new Date(new Date(session.date).getTime() + p.timestampSeconds * 1000).toISOString()}</Time>
             <DistanceMeters>${Math.round(p.distanceKm * 1000)}</DistanceMeters>
@@ -20,7 +46,8 @@ export const generateTCX = (session: TrainingSession): string => {
               </ns3:TPX>
             </Extensions>
           </Trackpoint>`;
-    });
+        });
+    }
 
     return `<?xml version='1.0' encoding='UTF-8'?>
 <TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"

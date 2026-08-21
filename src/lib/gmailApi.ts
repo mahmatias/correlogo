@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App as CapApp } from '@capacitor/app';
 import { isNative } from './capacitor/platform';
-import { generateTCX, generateGPX } from './exportUtils';
+import { generateTCX, generateGPX, hasGpsData } from './exportUtils';
 import type { TrainingSession } from '../types';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -272,11 +272,13 @@ export async function sendWorkoutToStravaViaEmail(session: TrainingSession): Pro
   const token = await getValidAccessToken();
   if (!token) return { success: false, error: 'Conecte o Gmail para enviar ao Strava.' };
 
-  if (session.mode === 'treadmill') {
-    const tcx = generateTCX(session);
-    return sendMessage(token, buildMimeMessage(tcx, 'activity.tcx', 'application/vnd.garmin.tcx+xml'));
-  } else {
+  // GPX exige trkpt com lat/lon — sessões sem GPS (esteira, import do relógio)
+  // vão de TCX, que aceita Trackpoint só com Time/Distance
+  if (hasGpsData(session)) {
     const gpx = generateGPX(session);
     return sendMessage(token, buildMimeMessage(gpx, 'activity.gpx', 'application/gpx+xml'));
+  } else {
+    const tcx = generateTCX(session);
+    return sendMessage(token, buildMimeMessage(tcx, 'activity.tcx', 'application/vnd.garmin.tcx+xml'));
   }
 }

@@ -1,5 +1,27 @@
 # Changelog
 
+## [2026-08-20j] — Fix export Strava de treino do relógio: GPX vazio → TCX com track sintético (v4.5)
+
+### Contexto
+- Import HC funcionou (build 174 ✅). Ao exportar o treino do relógio pro Strava (via Gmail → stravaupload@gotoes.org), Strava rejeitou: "Time information is missing from file" em `activity.gpx`
+
+### Root cause [Certain]
+- `sendWorkoutToStravaViaEmail` escolhia formato por **modo** (`treadmill` → TCX, senão GPX); sessão importada tem `mode: 'outdoor'` → GPX
+- Sessões importadas do relógio têm `points: []` (o import não busca rota do HC) e `generateGPX` só emite `<trkpt>` com lat/lon → `<trkseg>` vazio, zero `<time>` no arquivo
+- GPX por spec exige coordenada em todo trkpt — formato fundamentalmente incapaz de representar treino sem GPS
+
+### Implementado
+- `hasGpsData(session)` em `exportUtils.ts`: escolha de formato por **presença real de GPS** (`points` com lat/lon), não por modo — outdoor sem rota e esteira vão TCX
+- `generateTCX`: quando `points.length === 0`, sintetiza 21 trackpoints interpolando tempo/distância (TCX aceita Trackpoint sem Position) — garante a informação de tempo que o Strava exige
+- 9 testes novos (`export-utils.test.ts`): hasGpsData, TCX sintético, TCX/GPX com GPS inalterados
+- `versionName 4.4 → 4.5`
+
+### Validação
+- `npm test` ✅ 113/113 · `.env.apk→.env` + `npm run build` ✅
+- Aguardando: CI → release build 175 → re-exportar treino do relógio pro Strava
+
+---
+
 ## [2026-08-20i] — Fix definitivo "permissão negada": READ_DISTANCE ausente do manifesto (v4.4)
 
 ### Contexto
