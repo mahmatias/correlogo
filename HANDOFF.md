@@ -1,5 +1,30 @@
 # Handoff
 
+## Session Context (2026-08-20h — Fix "permissão negada" apesar de concedida)
+
+### What happened
+- Build 172 no device: crash sumiu ✅, mas "Conectar"/"Importar" ainda reportavam "Permissão negada" com permissões JÁ concedidas
+- **Análise do SDK**: sources do connect-client 1.1.0 (Google Maven) mostram que `HealthPermissionsRequestContract` delega por versão do Android:
+  - Android 14+ (`UPSIDE_DOWN_CAKE`): `HealthPermissionsRequestModuleContract` → embrulha `RequestMultiplePermissions` da plataforma (extras `android.content.pm.extra.REQUEST_PERMISSIONS_*`)
+  - Android 13-: `HealthPermissionsRequestAppContract` → protocolo próprio do APK HC com parcelables Proto
+- Logcat anterior (`act=android.content.pm.action.REQUEST_PERMISSIONS`) prova que o device está no caminho plataforma
+- **Root cause [Likely]**: `onPermissionResult` decidia o grant pelo payload do Intent via `permContract.parseResult(resultCode, intent)`; se o formato dos extras não bater exatamente (quirk OneUI/módulo HC), parseResult devolve conjunto vazio → `granted=false` mesmo concedendo. Ambos os fluxos (WRITE e READ) usam o mesmo callback → ambos envenenados
+
+### Fix applied
+1. `onPermissionResult`: **`getGrantedPermissions()` como fonte da verdade** — re-consulta o estado real de grants pós-diálogo dentro de `scope.launch`; `parseResult` mantido apenas como fallback se client indisponível
+2. Log agora indica a fonte usada: `source=getGrantedPermissions|parseResult`
+3. `versionName 4.2 → 4.3`
+
+### Validation
+- `gradlew assembleDebug` ✅ BUILD SUCCESSFUL · TS sem mudanças (npm test/build não re-executados)
+
+### Cautions for next session
+1. **Testar no device (build 173)**: conceder permissão deve retornar granted=true; importar deve listar treinos
+2. **Se AINDA reportar negada**: exportar logcat e olhar a linha `onPermissionResult ... source=getGrantedPermissions granted=false` — isso significaria que o próprio `getGrantedPermissions()` está mentindo (problema SDK/device, caminho diferente); se `source=parseResult`, client estava null (investigar ensureClient)
+3. **Padrão @ActivityCallback** segue `(call: PluginCall, result: androidx.activity.result.ActivityResult)` — ver 2026-08-20g
+
+---
+
 ## Session Context (2026-08-20g — Fix crash nativo: assinatura errada do @ActivityCallback)
 
 ### What happened

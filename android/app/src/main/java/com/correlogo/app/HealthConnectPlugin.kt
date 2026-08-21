@@ -133,15 +133,26 @@ class HealthConnectPlugin : Plugin() {
     fun onPermissionResult(call: PluginCall, result: androidx.activity.result.ActivityResult) {
         val expected = pendingPermissionExpected
         pendingPermissionExpected = null
-        val grantedPerms = result.data?.let { permContract.parseResult(result.resultCode, it) } ?: emptySet()
-        val granted = if (expected != null) {
-            expected.all { it in grantedPerms }
-        } else {
-            val writePerm = HealthPermission.getWritePermission(ExerciseSessionRecord::class)
-            writePerm in grantedPerms
+        scope.launch {
+            try {
+                // Fonte da verdade: re-consulta o estado real de grants (o payload do
+                // Intent de resultado varia por versão do Android/OneUI e pode vir vazio)
+                val grantedPerms = client?.permissionController?.getGrantedPermissions()
+                val granted = if (grantedPerms != null) {
+                    val needed = expected ?: setOf(HealthPermission.getWritePermission(ExerciseSessionRecord::class))
+                    needed.all { it in grantedPerms }
+                } else {
+                    val parsed = result.data?.let { permContract.parseResult(result.resultCode, it) } ?: emptySet()
+                    val needed = expected ?: setOf(HealthPermission.getWritePermission(ExerciseSessionRecord::class))
+                    needed.all { it in parsed }
+                }
+                Log.d(TAG, "onPermissionResult: resultCode=${result.resultCode} granted=$granted (expected=${expected?.size ?: "fallback"}, source=${if (grantedPerms != null) "getGrantedPermissions" else "parseResult"})")
+                call.resolve(JSObject().apply { put("granted", granted) })
+            } catch (e: Exception) {
+                Log.e(TAG, "onPermissionResult error", e)
+                call.resolve(JSObject().apply { put("granted", false) })
+            }
         }
-        Log.d(TAG, "onPermissionResult: resultCode=${result.resultCode} granted=$granted (expected=${expected?.size ?: "fallback"}, got=${grantedPerms.size})")
-        call.resolve(JSObject().apply { put("granted", granted) })
     }
 
     @PluginMethod

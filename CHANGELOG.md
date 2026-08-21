@@ -1,5 +1,27 @@
 # Changelog
 
+## [2026-08-20h] — Fix "permissão negada" apesar de concedida (v4.3)
+
+### Contexto
+- Build 172 parou o crash, mas o app continuava reportando "Permissão negada" mesmo com permissões concedidas no Health Connect
+
+### Root cause ([Likely] — confirmar por log se persistir)
+- `onPermissionResult` decidia o grant pelo **payload do Intent de resultado** (`permContract.parseResult`)
+- O formato desse payload **varia por versão**: Android 14+ usa o contrato da plataforma (`RequestMultiplePermissions`, extras `android.content.pm.extra.REQUEST_PERMISSIONS_*`); Android 13- usa protocolo próprio do APK HC com parcelables Proto (fonte: sources do connect-client 1.1.0, `HealthPermissionsRequestContract`)
+- Logcat anterior mostrou `act=android.content.pm.action.REQUEST_PERMISSIONS` → device está no caminho plataforma; se os extras não baterem com o esperado (quirk OneUI/módulo HC), `parseResult` devolve conjunto vazio → `granted=false` com permissão concedida
+- Como `requestHcPermissions` (WRITE) e `requestReadPermissions` (READ) usam o mesmo callback, ambos os fluxos ("Conectar" e "Importar") eram envenenados
+
+### Implementado
+- `onPermissionResult`: **`getGrantedPermissions()` como fonte da verdade** (re-consulta o estado real pós-diálogo) em vez de confiar no payload; `parseResult` mantido só como fallback se client indisponível
+- Log indica a fonte usada (`source=getGrantedPermissions|parseResult`) para diagnóstico
+- `versionName 4.2 → 4.3`
+
+### Validação
+- `gradlew assembleDebug` ✅ BUILD SUCCESSFUL · TS sem mudanças
+- Aguardando: CI → release build 173 → teste no device
+
+---
+
 ## [2026-08-20g] — Fix crash nativo na entrega do resultado de permissões HC (v4.2)
 
 ### Contexto
