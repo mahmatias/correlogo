@@ -14,7 +14,7 @@
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
 - [ ] **Validar em device — Health Connect** — pedir permissão READ real (abre a tela do HC via `requestReadHealthPermission`), importar treino do relógio e conferir badge "Relógio" + dedupe ±2min. Ver CHANGELOG 2026-08-13
-- [ ] **Validar em device — HC import (build 173+)** — dois fixes empilhados: (1) crash nativo no `@ActivityCallback` corrigido (assinatura `(call, result: ActivityResult)`, ver CHANGELOG 2026-08-20g); (2) "permissão negada" apesar de concedida — `onPermissionResult` agora usa `getGrantedPermissions()` como fonte da verdade em vez do payload do Intent (ver CHANGELOG 2026-08-20h). Conceder permissão não deve fechar o app nem reportar negada; importar deve listar treinos. Conferir badge "Relógio" + dedupe ±2min no treino `watch-1f1bde4b...`. Se ainda falhar: exportar logcat e procurar `source=` na linha `onPermissionResult`
+- [ ] **Validar em device — HC import (build 174+)** — três fixes empilhados: (1) crash no `@ActivityCallback` (2026-08-20g); (2) fonte da verdade no callback (2026-08-20h); (3) **root cause definitivo: `READ_DISTANCE` não declarado no manifesto** — permissão de saúde não declarada é ingrantível, então o conjunto `{READ_EXERCISE, READ_DISTANCE}` nunca fechava (2026-08-20i). No device: "Importar relógio" deve pedir o toggle novo (Distância) → conceder → listar treinos. Conferir badge "Relógio" + dedupe ±2min no treino `watch-1f1bde4b...`. Se falhar, exportar logcat (`checkReadPermissions`/`onPermissionResult`)
 - [ ] **Validar em device — cinta cardíaca** — quando o hardware chegar: scan 0x180D, notify 0x2A37, TTS de zona no `WorkoutTracker`, conexão simultânea com a esteira. Sem device, `MockHrTransport` roda em navegador (não-nativo)
 - [ ] **BLE: medir distância do BLE vs cálculo próprio** — comparar `metrics.totalDistanceMeters` com `speedRef × time` durante treino real para validar fallback inteligente
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
@@ -34,6 +34,15 @@
 - [ ] Re-exportação após fechar summary (U14) — reavaliar no estado atual
 
 ---
+
+---
+
+## ✅ Concluídos (Sessão 2026-08-20i — Root cause definitivo: READ_DISTANCE ausente do manifesto, v4.4)
+
+- [x] **Build 173 não mudou o sintoma** — "Permissão negada" persistia com permissões concedidas
+- [x] **Auditoria do manifesto** — `android.permission.health.READ_DISTANCE` NÃO declarado; `readPermissionSet` exige `{READ_EXERCISE, READ_DISTANCE}` → permissão não declarada é ingrantível (Android 13/14+) → nega para sempre
+- [x] **Fix**: uses-permission adicionado ao manifesto; versionName 4.4; `gradlew assembleDebug` ✅
+- [ ] **Aguardando**: push → CI → release build 174 → validar no device (diálogo deve pedir toggle Distância)
 
 ---
 

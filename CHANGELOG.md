@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-08-20i] — Fix definitivo "permissão negada": READ_DISTANCE ausente do manifesto (v4.4)
+
+### Contexto
+- Build 173 (fonte da verdade no callback) não mudou o sintoma: app continua reportando "Permissão negada" com permissões concedidas no HC
+
+### Root cause [Certain]
+- `AndroidManifest.xml` não declarava `android.permission.health.READ_DISTANCE` — mas o `readPermissionSet` exige `{READ_EXERCISE, READ_DISTANCE}`
+- Permissão de saúde **não declarada no manifesto não pode ser concedida** pela plataforma (Android 13 e 14+): o HC nunca a concede, então `readPermissionSet.all { it in granted }` é sempre `false`
+- Explica todos os sintomas desde 13/08: usuário concede tudo que aparece no HC ("conectado" ✅), mas o import sempre nega (o 1 perm do conjunto é ingrantível)
+- Os fixes anteriores eram bugs reais (crash do callback, payload do Intent) mas empilhados sobre este
+
+### Implementado
+- `<uses-permission android:name="android.permission.health.READ_DISTANCE" />` adicionado ao manifesto
+- `versionName 4.3 → 4.4`
+
+### Validação
+- `gradlew assembleDebug` ✅ BUILD SUCCESSFUL
+- Aguardando: CI → release build 174 → device deve pedir o toggle novo (Distância) na próxima solicitação; conceder → importar
+
+---
+
 ## [2026-08-20h] — Fix "permissão negada" apesar de concedida (v4.3)
 
 ### Contexto

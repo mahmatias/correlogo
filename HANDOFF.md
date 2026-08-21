@@ -1,5 +1,28 @@
 # Handoff
 
+## Session Context (2026-08-20i — Root cause definitivo: READ_DISTANCE ausente do manifesto)
+
+### What happened
+- Build 173 (getGrantedPermissions como fonte da verdade) não mudou o sintoma: "Permissão negada" com permissões concedidas
+- Auditoria do `AndroidManifest.xml` revelou: **`android.permission.health.READ_DISTANCE` não declarado** — mas `readPermissionSet` exige `{READ_EXERCISE, READ_DISTANCE}`
+- Permissão de saúde não declarada no manifesto é ingrantível pela plataforma (13 e 14+) → o conjunto nunca fica completo → nega para sempre, independente do que o usuário conceder no HC
+- Explica TODA a história desde 13/08 (três bugs empilhados: handleOnActivityResult morto → assinatura errada do callback → manifesto incompleto)
+
+### Fix applied
+1. `<uses-permission android:name="android.permission.health.READ_DISTANCE" />` no AndroidManifest.xml
+2. `versionName 4.3 → 4.4`
+
+### Validation
+- `gradlew assembleDebug` ✅ BUILD SUCCESSFUL · TS sem mudanças
+
+### Cautions for next session
+1. **Testar build 174**: ao tocar "Importar relógio", o diálogo HC deve aparecer pedindo o toggle NOVO (Distância) — os outros já estão concedidos; conceder → importação deve listar treinos
+2. **Se ainda falhar AGORA sim o logcat é decisivo**: linhas `checkReadPermissions ... granted=N` e `onPermissionResult ... source=... granted=...` discriminam as hipóteses restantes
+3. **Lição**: ao mudar `readPermissionSet`/`requestHcPermissions`, auditar o manifesto na mesma mudança — permissões de saúde exigem declaração prévia
+4. READ_HEART_RATE/READ_STEPS/READ_TOTAL_CALORIES/READ_SLEEP declarados mas não solicitados em runtime (uso futuro) — não afetam o fluxo atual
+
+---
+
 ## Session Context (2026-08-20h — Fix "permissão negada" apesar de concedida)
 
 ### What happened
