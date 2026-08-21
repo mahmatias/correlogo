@@ -16,9 +16,9 @@
 - `npm test` ✅ 113/113 · `.env.apk→.env` + build ✅
 
 ### Cautions for next session
-1. **Testar**: re-exportar o treino do relógio pro Strava — agora vai como `activity.tcx`; Strava deve aceitar (totais da volta + track sintético com Time/Distance)
-2. Se Strava recusar TCX sem Position, alternativa: sintetizar pontos também com Speed extension ou usar formato TCX com mais metadados — log do GOTOES ajuda
-3. Treinos ao vivo (WorkoutTracker) continuam GPX quando têm GPS real — comportamento mantido e coberto por teste
+1. ✅ **VALIDADO pelo usuário (build 176)**: export do treino do relógio aceito pelo Strava — caso encerrado
+2. Treinos ao vivo (WorkoutTracker) continuam GPX quando têm GPS real — comportamento mantido e coberto por teste
+3. Se um dia o Strava reclamar do TCX sintético (pace linear), considerar sintetizar com Speed extension ou buscar rota real do HC no import
 
 ---
 

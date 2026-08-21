@@ -19,7 +19,7 @@
 ### Validação
 - `npm test` ✅ 113/113 · `.env.apk→.env` + `npm run build` ✅
 - Nota: commit `766cd19` saiu como build 175 mas o bump do versionName ficou para trás (manifest veio 4.4); bump aplicado em seguida — release de validação é a **build 176 (v4.5)**
-- Aguardando: CI → release build 176 → re-exportar treino do relógio pro Strava
+- ✅ **CONFIRMADO pelo usuário**: export do treino do relógio aceito pelo Strava na build 176
 
 ---
 

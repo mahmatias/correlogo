@@ -13,9 +13,9 @@
 - [ ] **Figurinha no Stories — dívida técnica (nova abordagem)** — usuário estudando como outros apps fazem (a Meta parece exigir processo/asset específico além do PNG transparente). Investigar alternativas: `MediaSharePlugin` do Capacitor (intent nativo `com.instagram.share.ADD_TO_STORY`), share sheet nativo do Android, ou plugin `@capacitor/share` com MIME correto
 - [ ] **AGENTS.md desatualizado** — seção "Production Infrastructure" ainda descreve EC2/PM2/Nginx/`correlogo.sytes.net`, mas AWS foi desativada (hoje: Firebase Hosting + Cloud Functions + Firestore). Reescrever para refletir stack atual
 - [ ] **Alinhar deps Capacitor** — `@capacitor/app@8.1.0`/`@capacitor/browser@8.0.3` exigem core 8, projeto está no core 7.6.7 (invalid no `npm ls`). Reverter para v7 ou migrar tudo para v8
-- [ ] **Validar em device — Health Connect** — pedir permissão READ real (abre a tela do HC via `requestReadHealthPermission`), importar treino do relógio e conferir badge "Relógio" + dedupe ±2min. Ver CHANGELOG 2026-08-13
-- [ ] **Validar em device — export Strava de treino importado (build 176+)** — fix GPX vazio: formato agora por presença de GPS (`hasGpsData`), não por modo; TCX sintetiza trackpoints quando `points:[]` (ver CHANGELOG 2026-08-20j). Re-exportar o treino do relógio pro Strava e conferir aceite
-- [ ] **Validar em device — HC import** — ✅ FUNCIONANDO desde build 174 (root cause: `READ_DISTANCE` ausente do manifesto, 2026-08-20i). Falta apenas marcar como concluído após confirmar uso contínuo
+- [x] **Validar em device — Health Connect** — ✅ superado pelos itens acima (import confirmado na build 174+, export Strava na 176)
+- [x] **Validar em device — export Strava de treino importado** — ✅ CONFIRMADO pelo usuário (build 176): TCX com track sintético aceito pelo Strava. Ver CHANGELOG 2026-08-20j
+- [x] **Validar em device — HC import** — ✅ CONFIRMADO pelo usuário (build 174+): permissões + importação funcionando. Root cause era `READ_DISTANCE` ausente do manifesto (2026-08-20i)
 - [ ] **Validar em device — cinta cardíaca** — quando o hardware chegar: scan 0x180D, notify 0x2A37, TTS de zona no `WorkoutTracker`, conexão simultânea com a esteira. Sem device, `MockHrTransport` roda em navegador (não-nativo)
 - [ ] **BLE: medir distância do BLE vs cálculo próprio** — comparar `metrics.totalDistanceMeters` com `speedRef × time` durante treino real para validar fallback inteligente
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
@@ -44,7 +44,7 @@
 - [x] **Root cause**: formato por `mode` (outdoor→GPX) + sessão importada sem points → `generateGPX` emitia trkseg vazio (trkpt exige lat/lon) → zero `<time>`
 - [x] **Fix**: `hasGpsData()` decide GPX vs TCX; `generateTCX` sintetiza 21 trackpoints interpolados quando não há pontos; 9 testes novos; versionName 4.5
 - [x] **Validação** — npm test 113/113 ✅ · build ✅
-- [ ] **Aguardando**: push → CI → release build 175 → re-exportar pro Strava
+- [x] **CONFIRMADO pelo usuário (build 176)** — export do treino do relógio aceito pelo Strava ✅
 
 ---
 
