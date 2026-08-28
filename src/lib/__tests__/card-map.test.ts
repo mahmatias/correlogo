@@ -64,7 +64,7 @@ describe('tilesFor / tileUrl', () => {
 
   it('monta URL CARTO dark_all com subdomínio a/b/c/d', () => {
     const url = tileUrl({ x: 24272, y: 37185, z: 16, left: 0, top: 0 });
-    expect(url).toMatch(/^https:\/\/[abcd]\.basemaps\.cartocdn\.com\/dark_all\/16\/24272\/37185\.png$/);
+    expect(url).toMatch(/^https:\/\/[abcd]\.basemaps\.cartocdn\.com\/dark_all\/16\/24272\/37185\.png(\?key=.*)?$/);
   });
 });
 

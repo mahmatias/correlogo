@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-08-28b] — CARTO: mapa do ShareCard sem key + causa raiz do overlay persistente no APK
+
+### 1. Mapa do card de compartilhamento (`card-map.ts`) nunca teve a key
+- **Problema**: overlay "API KEY REQUIRED" também no card de compartilhamento / resumo. `card-map.ts` (`tileUrl`) montava URL `dark_all` **sem nenhum `?key=`** — só o `MapComponent` tinha sido corrigido na `2026-08-28a`
+- **Fix**: `tileUrl()` agora injeta `?key=${VITE_CARTO_API_KEY}` (mesma env do `MapComponent`). Teste `card-map.test.ts` atualizado para aceitar query string
+
+### 2. Causa raiz do overlay persistente no APK: secret `ENV_FILE` desatualizado na CI
+- **Problema**: mesmo com a key no `MapComponent`, o APK 178 continuava mostrando overlay no treino/resumo — o build da CI cria o `.env` a partir do **secret `ENV_FILE`** do GitHub (`.github/workflows/firebase-deploy.yml:35`), **não** do `.env.apk` local. O secret não tinha `VITE_CARTO_API_KEY` → o bundle do APK ficou sem key
+- **Fix**: atualizado `ENV_FILE` com o `.env.apk` completo (35-char key inclusa). Validação HTTP confirmou: key funciona (tile 200, hash diferente do tile watermarked) e CARTO **não valida domínio por Origin** (localhost / web.app / :3000 retornam o mesmo tile limpo)
+- `.gitignore`: adicionado `Logs/` (dumps de debug nativos FTMS não commitados)
+
 ## [2026-08-28a] — CARTO key + TTS/AudioFocus (duplo + volume) + Strava auto-sync
 
 ### 1. CARTO basemaps: API key obrigatória (grátis)

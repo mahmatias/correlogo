@@ -22,10 +22,17 @@ Três correções entregues a pedido do usuário (investigações completas + im
 - `npm run build` ✅ · 113 testes ✅ · `gradlew assembleDebug` ✅ (plugin Kotlin compila)
 - `.env.apk` → `.env` copiado antes do build (regra AGENTS.md)
 
+### Sessão 2026-08-28b (follow-up CARTO): causa raiz do overlay persistente no APK
+- **`card-map.ts` nunca teve a key** → mapa do card de compartilhamento (e resumo via ShareCard) mostrava overlay mesmo após corrigir o `MapComponent`. Fix: `tileUrl()` agora injeta `?key=${VITE_CARTO_API_KEY}`; teste `card-map.test.ts` atualizado
+- **Causa raiz REAL do overlay "durante o treino/resumo" no APK 178**: o build da CI cria o `.env` a partir do **secret `ENV_FILE`** (`firebase-deploy.yml:35`), NÃO do `.env.apk` local. O secret não tinha `VITE_CARTO_API_KEY` → o bundle do APK ficou sem key, mesmo estando no `.env.apk` local
+- **Fix**: secret `ENV_FILE` atualizado com o `.env.apk` completo (35-char key). Validação HTTP: key funciona (tile 200, hash ≠ tile watermarked) e CARTO **não valida domínio por Origin** (localhost / web.app / :3000 retornam o mesmo tile limpo) — domínio informado (`localhost`) é apenas informativo
+- **`Logs/`** (dumps FTMS nativos) adicionado ao `.gitignore`
+
 ### Cautions for next session
-1. **Testar no device**: (a) TTS — falar 2+ comandos seguidos no mesmo instante (duplo?) e verificar se a música restaura o volume ao final; (b) Strava — salvar relatório e confirmar que o email vai automático e o badge fica verde/sincronizado sem clique manual; (c) CARTO — mapa sem watermark
-2. **Pendente**: se o Strava ainda não enviar no automático, procurar `[strava] auto-send rejected:` / `[strava] send failed:` no logcat — causa do reject exata é [Guessing], a robustez cobre exceção/timing
-3. **Não commitado**: key CARTO só no `.env.apk` (ignorado pelo git) — não commitá-la
+1. **Testar no device (build nova)**: (a) TTS — falar 2+ comandos seguidos no mesmo instante (duplo?) e verificar se a música restaura o volume ao final; (b) Strava — salvar relatório e confirmar que o email vai automático e o badge fica verde/sincronizado sem clique manual; (c) CARTO — mapa sem watermark em **treino, resumo E card de compartilhamento**
+2. **CRÍTICO — manter o secret `ENV_FILE` sincronizado**: toda vez que `.env.apk` mudar (novas `VITE_*`), rodar `gh secret set ENV_FILE -b <base64 do .env.apk>`. O `.env.apk` local NÃO atualiza a CI sozinho. Sem isso, bundlers no APK ficam sem as vars
+3. **Pendente**: se o Strava ainda não enviar no automático, procurar `[strava] auto-send rejected:` / `[strava] send failed:` no logcat — causa do reject exata é [Guessing], a robustez cobre exceção/timing
+4. **Não commitado**: key CARTO só no `.env.apk` (ignorado pelo git) — não commitá-la
 
 ---
 

@@ -28,6 +28,7 @@ export interface RouteShape {
 const MAX_LAT = 85.05112878;
 const TILE = 256;
 const SUBDOMAINS = 'abcd';
+const CARTO_KEY = (import.meta.env.VITE_CARTO_API_KEY as string | undefined) ?? '';
 
 export function projectLatLon(lat: number, lon: number): { x: number; y: number } {
   const clamped = Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
@@ -84,7 +85,7 @@ export function tilesFor(view: MapView): TileRef[] {
 
 export function tileUrl(t: TileRef): string {
   const sub = SUBDOMAINS[(t.x + t.y) & 3];
-  return `https://${sub}.basemaps.cartocdn.com/dark_all/${t.z}/${t.x}/${t.y}.png`;
+  return `https://${sub}.basemaps.cartocdn.com/dark_all/${t.z}/${t.x}/${t.y}.png${CARTO_KEY ? `?key=${CARTO_KEY}` : ''}`;
 }
 
 export function routeShape(points: GeoPoint[], view: MapView): RouteShape {
