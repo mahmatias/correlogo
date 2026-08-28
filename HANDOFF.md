@@ -29,9 +29,9 @@ Três correções entregues a pedido do usuário (investigações completas + im
 - **`Logs/`** (dumps FTMS nativos) adicionado ao `.gitignore`
 
 ### Cautions for next session
-1. **Testar no device (build nova)**: (a) TTS — falar 2+ comandos seguidos no mesmo instante (duplo?) e verificar se a música restaura o volume ao final; (b) Strava — salvar relatório e confirmar que o email vai automático e o badge fica verde/sincronizado sem clique manual; (c) CARTO — mapa sem watermark em **treino, resumo E card de compartilhamento**
+1. **Testar no device (build 179)**: CARTO ✅ FIXED e Strava auto-sync ✅ FIXED já confirmados pelo usuário. **Só falta TTS/AudioFocus** — falar 2+ comandos seguidos no mesmo instante (duplo?) e verificar se a música restaura o volume ao final
 2. **CRÍTICO — manter o secret `ENV_FILE` sincronizado**: toda vez que `.env.apk` mudar (novas `VITE_*`), rodar `gh secret set ENV_FILE -b <base64 do .env.apk>`. O `.env.apk` local NÃO atualiza a CI sozinho. Sem isso, bundlers no APK ficam sem as vars
-3. **Pendente**: se o Strava ainda não enviar no automático, procurar `[strava] auto-send rejected:` / `[strava] send failed:` no logcat — causa do reject exata é [Guessing], a robustez cobre exceção/timing
+3. **Pendente**: Strava — se voltar a falhar no automático, procurar `[strava] auto-send rejected:` / `[strava] send failed:` no logcat — causa do reject exata é [Guessing], a robustez cobre exceção/timing
 4. **Não commitado**: key CARTO só no `.env.apk` (ignorado pelo git) — não commitá-la
 
 ---

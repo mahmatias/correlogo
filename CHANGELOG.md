@@ -11,6 +11,9 @@
 - **Fix**: atualizado `ENV_FILE` com o `.env.apk` completo (35-char key inclusa). Validação HTTP confirmou: key funciona (tile 200, hash diferente do tile watermarked) e CARTO **não valida domínio por Origin** (localhost / web.app / :3000 retornam o mesmo tile limpo)
 - `.gitignore`: adicionado `Logs/` (dumps de debug nativos FTMS não commitados)
 
+### 3. Validação no device (build 179)
+- **CARTO ✅ FIXED** e **Strava auto-sync ✅ FIXED** — confirmados pelo usuário. **TTS/AudioFocus** (duplo + volume da música) aguarda reteste no device (registrado em TODO.md)
+
 ## [2026-08-28a] — CARTO key + TTS/AudioFocus (duplo + volume) + Strava auto-sync
 
 ### 1. CARTO basemaps: API key obrigatória (grátis)
