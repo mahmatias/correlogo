@@ -1,5 +1,34 @@
 # Handoff
 
+## Session Context (2026-08-28a — CARTO key + TTS/AudioFocus + Strava auto-sync)
+
+### What happened
+Três correções entregues a pedido do usuário (investigações completas + implementação + build validado):
+
+1. **CARTO basemaps "API KEY REQUIRED"**
+   - Causa raiz [Certain]: CARTO exige key nos tiles raster (`basemaps.cartocdn.com`); grátis até 5M req/mês
+   - Fix: `VITE_CARTO_API_KEY` (build-time) injetada como `?key=` nas URLs light/dark em `MapComponent.tsx`. Key do usuário preenchida no `.env.apk` (não commitado). Documentada no `.env.example`
+   - Endereço de solicitação: `https://carto.com/basemaps/apikey/`
+
+2. **TTS duplo (segundo corta primeiro) + música nunca volta o volume**
+   - Causa raiz [Certain]: `speak()` concorrentes + `AudioFocusPlugin.kt` sobrescrevendo o único `audioFocusRequest` → balanceamento de foco quebra
+   - Fix: `voice.ts` fila serial (`queueChain`) + `AudioFocusPlugin.kt` contador de referência (`focusRefCount`, `synchronized`)
+
+3. **Strava auto-sync: status órfão/vermelho, email só via clique manual**
+   - Causa raiz [Likely]: auto-send fire-and-forget com `.then` sem `.catch` → promise reject = status nunca escrito; status volta via ref global `latestSessionIdRef.current`
+   - Fix: `markAsCompleted` retorna `newSession`; `WorkoutTracker` captura `savedSessionId` e passa a `onGmailSyncResult(sessionId, status)` (assinatura mudou); `.catch` + `console.warn`
+
+### Validation
+- `npm run build` ✅ · 113 testes ✅ · `gradlew assembleDebug` ✅ (plugin Kotlin compila)
+- `.env.apk` → `.env` copiado antes do build (regra AGENTS.md)
+
+### Cautions for next session
+1. **Testar no device**: (a) TTS — falar 2+ comandos seguidos no mesmo instante (duplo?) e verificar se a música restaura o volume ao final; (b) Strava — salvar relatório e confirmar que o email vai automático e o badge fica verde/sincronizado sem clique manual; (c) CARTO — mapa sem watermark
+2. **Pendente**: se o Strava ainda não enviar no automático, procurar `[strava] auto-send rejected:` / `[strava] send failed:` no logcat — causa do reject exata é [Guessing], a robustez cobre exceção/timing
+3. **Não commitado**: key CARTO só no `.env.apk` (ignorado pelo git) — não commitá-la
+
+---
+
 ## Session Context (2026-08-20l — Brainstorming voz com tela apagada: spec aprovado)
 
 ### What happened

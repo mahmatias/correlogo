@@ -851,6 +851,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
             pendingHcSyncRef.current = null;
             pendingGmailSyncRef.current = null;
         }
+        return newSession;
     }
   }
 
@@ -1363,9 +1364,8 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                           setDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionId), { hcSyncStatus: status }, { merge: true }).catch(() => {});
                       }
                   }}
-                  onGmailSyncResult={(status) => {
+                  onGmailSyncResult={(sessionId, status) => {
                       if (!user) return;
-                      const sessionId = latestSessionIdRef.current;
                       if (!sessionId) {
                           pendingGmailSyncRef.current = status;
                           return;

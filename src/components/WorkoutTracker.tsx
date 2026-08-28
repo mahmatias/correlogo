@@ -25,20 +25,20 @@ interface Props {
       distanceKm: number, 
       timeSeconds: number,
       mode: 'treadmill' | 'outdoor'
-  }) => void;
+  }) => TrainingSession | undefined | Promise<TrainingSession | undefined>;
   totalWorkoutTime: number;
   isFreeTraining?: boolean;
   simulateGps?: boolean;
   key?: string;
   onSyncResult?: (status: SyncStatus) => void;
-  onGmailSyncResult?: (status: SyncStatus) => void;
+  onGmailSyncResult?: (sessionId: string, status: SyncStatus) => void;
   showFeedback?: (type: 'success' | 'error', message: string) => void;
   treadmill: TreadmillConnection;
   profile?: ProfileData | null;
   hrBelt: HrBeltConnection;
 }
 
-export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime, isFreeTraining, simulateGps, onSyncResult, showFeedback, treadmill, profile, hrBelt }: Props) {
+export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, totalWorkoutTime, isFreeTraining, simulateGps, onSyncResult, onGmailSyncResult, showFeedback, treadmill, profile, hrBelt }: Props) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedRef = useRef(0);
@@ -766,7 +766,11 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
         }))
         : undefined,
     };
-    markAsCompleted(plan.id, { points: pointsRef.current, distanceKm: dist, timeSeconds: elapsedSeconds, mode });
+    const savedSession = await markAsCompleted(plan.id, { points: pointsRef.current, distanceKm: dist, timeSeconds: elapsedSeconds, mode });
+    // The real session id (Firestore doc id or local-* fallback) is created
+    // inside markAsCompleted. Capture it here so the async Strava upload can
+    // report its status back to the exact session — never via a global ref.
+    const savedSessionId = savedSession?.id ?? plan.id;
     setSyncStatus('syncing');
     const result = await exportWorkoutToHealthConnect(exportData);
     setSyncStatus(result.success ? 'synced' : 'failed');
@@ -774,22 +778,29 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     if (onSyncResult) onSyncResult(result.status);
 
     const stravaSession: TrainingSession = {
-      id: plan.id, planId: plan.id, planName: plan.name,
+      id: savedSessionId, planId: plan.id, planName: plan.name,
       planSteps: plan.steps,
       date: new Date(sessionStartTimeRef.current).toISOString(),
       mode, totalDurationSeconds: elapsedRef.current,
       totalDistanceKm: distRef.current, avgSpeedKmh: speedRef.current,
-      completed: true, points: pointsRef.current,
+      completed: true, points: pointsRef.current ?? [],
     };
+    // Fire-and-forget, but always settle: if sendWorkoutToStravaViaEmail ever
+    // rejects, the status would be left orphaned ('pending' forever) and the
+    // email silently dropped. Catch + log + report 'failed' so the user can
+    // retry from the history entry.
     sendWorkoutToStravaViaEmail(stravaSession).then(sr => {
       const gmailStatus: SyncStatus = sr.success ? 'synced' : (sr.error ? 'failed' : 'pending');
-      if (onGmailSyncResult) onGmailSyncResult(gmailStatus);
+      if (onGmailSyncResult) onGmailSyncResult(savedSessionId, gmailStatus);
       if (sr.success) {
         showFeedback?.('success', 'Atividade enviada ao Strava!');
       } else if (sr.error && sr.error !== 'Apenas dispositivo nativo') {
         console.warn('[strava] send failed:', sr.error);
         showFeedback?.('error', `Strava: ${sr.error}`);
       }
+    }).catch(e => {
+      console.warn('[strava] auto-send rejected:', e);
+      if (onGmailSyncResult) onGmailSyncResult(savedSessionId, 'failed');
     });
 
     onStop();

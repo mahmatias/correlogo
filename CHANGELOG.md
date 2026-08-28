@@ -1,6 +1,33 @@
 # Changelog
 
-## [2026-08-20l] — Brainstorming: voz com tela apagada (spec, sem implementação)
+## [2026-08-28a] — CARTO key + TTS/AudioFocus (duplo + volume) + Strava auto-sync
+
+### 1. CARTO basemaps: API key obrigatória (grátis)
+- **Problema**: `basemaps.cartocdn.com` (raster `light_all`/`dark_all`) passou a exigir API key → watermark "API KEY REQUIRED" sobre o mapa
+- **Causa raiz [Certain]**: CARTO introduziu key obrigatória nos raster (e future proof p/ vector); sem ela o mapa funciona mas com aviso
+- **Fix**: `VITE_CARTO_API_KEY` lida em build time e injetada como `?key=` nas URLs de light/dark no `MapComponent.tsx`. Key gratuita preenchida no `.env.apk` (não commitado); documentada no `.env.example`
+
+### 2. TTS duplo (segundo corta o primeiro) + música nunca restaura volume
+- **Problema**: múltiplos `speak()` no mesmo tick (KM + meio-volta + metade do treino) rodam concorrentes → segundo corta o primeiro e o volume da música fica preso em duck (não volta)
+- **Causa raiz [Certain]**: `voice.ts` (nativo) fazia `requestFocus`→`speak`→`abandonFocus` em paralelo por chamada, e o `AudioFocusPlugin.kt` sobrescrevia o único `audioFocusRequest` → balanceamento de foco quebrava
+- **Fix** (2 partes complementares):
+  - `voice.ts`: **fila serial** (`queueChain`) — o próximo `speak()` só roda quando o anterior termina; `stopSpeaking()` zera a fila
+  - `AudioFocusPlugin.kt`: **contador de referência** (`focusRefCount`) com `synchronized` — só request no 0→1 e só abandon no 1→0
+
+### 3. Strava auto-sync: status órfão / email não enviado no automático
+- **Problema**: ao salvar o relatório, HC fica verde mas Gmail fica vermelho; o email só era enviado ao clicar manualmente no histórico
+- **Causa raiz [Likely]**: `sendWorkoutToStravaViaEmail` era chamado fire-and-forget com `.then` **sem `.catch`** → se a promise rejeitasse, status nunca era escrito ('pending'/vermelho eterno) e o email era silenciosamente descartado; além disso o status voltava via ref global `latestSessionIdRef.current`
+- **Fix**:
+  - `markAsCompleted` agora **retorna** o `newSession`; `WorkoutTracker` captura o `savedSessionId` real no momento da chamada e o passa ao `onGmailSyncResult(sessionId, status)` — elimina a dependência do ref global
+  - `.catch` no auto-send + `console.warn` → sempre resolve, status nunca órfão
+- Devido ao diagnóstico não ter runtime log, a causa exata do reject fica [Guessing]; a robustez cobre tanto exceção quanto timing
+
+### Validação
+- `npm run build` ✓ · 113 testes ✓ · `gradlew assembleDebug` ✓ (plugin Kotlin compila)
+- `.env.apk` → `.env` copiado antes do build (regra AGENTS.md)
+
+---
+
 
 ### Contexto
 - Usuário reportou que, em modo esteira, ao desligar a tela (timeout ou botão power) o TTS/coaching de voz para; ao desbloquear, timer/distância retomam corretos
