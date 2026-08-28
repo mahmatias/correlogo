@@ -21,6 +21,7 @@
 - [ ] Botão Nav Back — quando modal de treino manual está aberto, back deve fechar modal (não app)
 - [ ] Foto do perfil — exibição com problemas (dívida técnica)
 - [ ] **Deploy BLE onboarding features** — fix TDZ feito, build+test passam, mas ainda não deployado (push para main dispara CI → release nova)
+- [ ] **Voz com tela apagada — CoachingService nativo (BIG)** — spec aprovado em `docs/superpowers/specs/2026-08-20-coaching-nativo-voz-tela-apagada-design.md`. Motor de coaching 100% em Kotlin (`CoachingService` + `CoachingEngine` + `CoachingPlugin`), TTS nativo, esteira+outdoor, JS para de falar em Android. AGUARDA implementação (entrega futura, tem outras alterações na sessão). Também como tarefa futura: PiP durante treino (cenário "usar outro app")
 
 ### Média
 - [ ] Dados PII (gênero, data nascimento) — coletados mas nunca utilizados

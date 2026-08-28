@@ -1,5 +1,30 @@
 # Handoff
 
+## Session Context (2026-08-20l — Brainstorming voz com tela apagada: spec aprovado)
+
+### What happened
+- Usuário explicou que quer PiP durante treinos, mas o problema real que o incomoda é a voz parar com a tela desligada
+- Brainstorming completo resultou num **spec aprovado** (NÃO implementado):
+  `docs/superpowers/specs/2026-08-20-coaching-nativo-voz-tela-apagada-design.md`
+
+### Decisões do design
+- Motor de coaching 100% nativo em Kotlin (`CoachingService` foreground + `CoachingEngine` testável + `CoachingPlugin` Capacitor)
+- Service domina TODA a voz em Android (tela acesa ou apagada); JS para de falar no Android (mantém web)
+- JS dirige a UI como hoje; service só fala; evento `coachingState` para re-sync da UI ao desbloquear
+- Escopo: esteira + outdoor; TTS nativo (`android.speech.tts.TextToSpeech`) no service; `PARTIAL_WAKE_LOCK`
+- Trade-off aceito: motor duplicado (JS p/ UI + Kotlin p/ voz) — dívida documentada
+
+### Próximos passos para a sessão que implementar
+1. Escrever plano (`writing-plans`)
+2. Implementar `CoachingService`/`CoachingEngine`/`CoachingPlugin` + refactor de `WorkoutTracker.tsx`/`App.tsx`/`voice.ts`
+3. Manifest: `foregroundServiceType` (specialUse vs connectedDevice — decidir), `FOREGROUND_SERVICE*`, `WAKE_LOCK`
+4. Validar build completo (AGENTS.md) + testes Kotlin do `CoachingEngine`
+
+### Cautela
+- Esta tarefa NÃO deve ser implementada na sessão atual se houver outras alterações pendentes — registrada em `TODO.md` como alta prioridade para entrega futura
+
+---
+
 ## Session Context (2026-08-20k — Fix token Gmail (CORS) + back button morto)
 
 ### What happened

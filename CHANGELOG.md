@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-08-20l] — Brainstorming: voz com tela apagada (spec, sem implementação)
+
+### Contexto
+- Usuário reportou que, em modo esteira, ao desligar a tela (timeout ou botão power) o TTS/coaching de voz para; ao desbloquear, timer/distância retomam corretos
+
+### Causa raiz identificada
+- WebView/JS é suspenso quando a atividade pausa com a tela desligada; o timer nativo (`TrackingService`) e o BLE (`TreadmillBleService`) continuam vivos, mas o JS que decide QUANDO falar morre
+
+### Decisão (apenas design, NÃO implementado)
+- Motor de coaching 100% nativo (`CoachingService` + `CoachingEngine` + `CoachingPlugin`) em Kotlin
+- Service domina toda a voz em Android (JS para de falar); JS continua dono da UI
+- Escopo: esteira + outdoor; TTS nativo no service; `PARTIAL_WAKE_LOCK`
+- Spec: `docs/superpowers/specs/2026-08-20-coaching-nativo-voz-tela-apagada-design.md`
+
+### Entregue nesta sessão
+- Spec aprovado + registrado em `TODO.md` (tarefa pendente de alta prioridade)
+- **Nenhum código de implementação** (há outras alterações pendentes na sessão)
+
+---
+
 ## [2026-08-20k] — Fix token Gmail expirando + back button morto (v4.6)
 
 ### 1. Token Gmail: refresh nunca funcionou no APK (CORS)
