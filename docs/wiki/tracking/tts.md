@@ -22,43 +22,39 @@ Voice.ts (Queue) → Capacitor TTS Plugin → Native TTS
 
 ---
 
-## Voice.ts - Queue System
+## Voice.ts - Serial Queue (`queueChain`)
+
+> **2026-08-28**: a fila foi reescrita como **promise serial** (`queueChain`). O bug anterior: múltiplos `speak()` no mesmo tick rodavam em paralelo → segundo cortava o primeiro, e o `AudioFocus` request/abandon sobrepostos quebrava o duck (volume nunca voltava). Agora cada utterance roda **após** a anterior terminar, e o `requestFocus`/`abandonFocus` de uma só entram após a outra ter liberado.
 
 ```typescript
 // src/lib/capacitor/voice.ts
-interface QueueItem {
-  text: string;
-  priority: boolean;  // true = clear queue
-  resolve: () => void;
-}
+let queueChain: Promise<void> = Promise.resolve();
 
-const queue: QueueItem[] = [];
-let isSpeaking = false;
-
-export async function speak(text: string, priority = false) {
-  return new Promise<void>(resolve => {
-    queue.push({ text, priority, resolve });
-    if (priority) queue.splice(0, queue.length - 1);
-    processQueue();
+export async function speak(text: string, lang = 'pt-BR') {
+  if (!isNative()) { speakWeb(text, lang); return; }
+  const run = queueChain.then(async () => {
+    try {
+      await TextToSpeech.stop();              // zera a fila do TTS nativo
+      await AudioFocus.requestFocus();        // duck (música -80%)
+      await TextToSpeech.speak({ text, lang, rate: 1.0 }); // resolve no onDone
+      await AudioFocus.abandonFocus().catch(() => {});     // volta o volume
+    } catch (e) {
+      console.warn('[voice] native TTS error:', e);
+      AudioFocus.abandonFocus().catch(() => {});
+    }
   });
+  queueChain = run.catch(() => {});   // erro de um não trava os seguintes
+  return run;
 }
 
-async function processQueue() {
-  if (isSpeaking || queue.length === 0) return;
-  isSpeaking = true;
-  const { text, resolve } = queue.shift()!;
-  
-  try {
-    await TextToSpeech.speak({ text, lang: 'pt-BR', rate: 1.0 });
-    await requestAudioFocus(); // Kotlin
-  } finally {
-    await abandonAudioFocus(); // Kotlin
-    isSpeaking = false;
-    resolve();
-    processQueue();
-  }
+export function stopSpeaking() {
+  TextToSpeech.stop().catch(() => {});
+  AudioFocus.abandonFocus().catch(() => {});
+  queueChain = Promise.resolve();     // descarta a fila pendente
 }
 ```
+
+`stopSpeaking()` zera a fila — um utterance cancelado não deixa a chain segurando foco nem bloqueando o próximo lote.
 
 ---
 
@@ -70,7 +66,7 @@ async function processQueue() {
 // WorkoutTracker.tsx
 const announceStep = (step: WorkoutStep, index: number) => {
   const type = stepTypeLabels[step.type]; // "Aquecimento", "Corrida", etc.
-  speak(`${type}. ${formatDuration(step.durationSeconds)}.`, true);
+  speak(`${type}. ${formatDuration(step.durationSeconds)}.`);
 };
 ```
 
@@ -79,7 +75,7 @@ const announceStep = (step: WorkoutStep, index: number) => {
 ```typescript
 // WorkoutTracker.tsx - a cada tick
 if (lapProgress >= 0.5 && !halfLapAnnouncedRef.current) {
-  speak("Chegamos na metade dessa volta!", true);
+  speak("Chegamos na metade dessa volta!");
   halfLapAnnouncedRef.current = true;
 }
 ```
@@ -88,7 +84,7 @@ if (lapProgress >= 0.5 && !halfLapAnnouncedRef.current) {
 
 ```typescript
 if (totalProgress >= 0.5 && !halfWorkoutAnnouncedRef.current) {
-  speak("Chegamos na metade do treino!", true);
+  speak("Chegamos na metade do treino!");
   halfWorkoutAnnouncedRef.current = true;
 }
 ```
@@ -97,11 +93,11 @@ if (totalProgress >= 0.5 && !halfWorkoutAnnouncedRef.current) {
 
 ```typescript
 // Última etapa completa
-speak("Exercício concluído, parabéns!", true);
+speak("Exercício concluído, parabéns!");
 setIsExtended(true); // Modo livre
 
 // User pressiona "Finalizar"
-speak("Agora é só olhar seu relatório", true);
+speak("Agora é só olhar seu relatório");
 showSaveModal();
 ```
 
@@ -109,56 +105,61 @@ showSaveModal();
 
 ## Audio Focus (Kotlin)
 
+> **2026-08-28**: o plugin agora mantém um **contador de referência** (`focusRefCount`) com `synchronized`. Só o primeiro `requestFocus` (0→1) pede foco ao sistema e só o último `abandonFocus` (1→0) libera — chamadas sobrepostas nunca desbalanceiam o duck (que era a causa do volume da música nunca voltar).
+
 ```kotlin
 // AudioFocusPlugin.kt
 class AudioFocusPlugin : Plugin() {
-    private var audioManager: AudioManager? = null
-    private var focusRequest: AudioFocusRequest? = null
+    private var audioFocusRequest: AudioFocusRequest? = null;
+    private var focusRefCount: Int = 0;    // request 0->1 pede foco; abandon 1->0 libera
+    private val focusLock = Any();
 
     @PluginMethod
-    fun requestAudioFocus(call: PluginCall) {
-        audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-        
-        focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-            .setOnAudioFocusChangeListener { focusChange ->
-                when (focusChange) {
-                    AudioManager.AUDIOFOCUS_LOSS -> abandonFocus()
-                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {}
-                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {}
-                    AudioManager.AUDIOFOCUS_GAIN -> {}
-                }
+    fun requestFocus(call: PluginCall) {
+        synchronized(focusLock) {
+            if (focusRefCount == 0) {
+                val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    .setAudioAttributes(AudioAttributes.Builder()
+                        .setUsage(USAGE_ASSISTANCE_SONIFICATION)
+                        .setContentType(CONTENT_TYPE_SPEECH).build())
+                    .build();
+                audioFocusRequest = request;
+                audioManager.requestAudioFocus(request);
             }
-            .build()
-        
-        val result = audioManager!!.requestAudioFocus(focusRequest!!)
-        call.resolve(JSObject().put("granted", result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED))
+            focusRefCount++;
+        }
+        call.resolve();
     }
 
     @PluginMethod
     fun abandonFocus(call: PluginCall) {
-        audioManager?.abandonAudioFocusRequest(focusRequest)
-        call.resolve()
+        synchronized(focusLock) {
+            if (focusRefCount > 0) focusRefCount--;
+            if (focusRefCount == 0) {
+                audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it); audioFocusRequest = null; }
+            }
+        }
+        call.resolve();
     }
 }
 ```
 
-### Request Timing
+### Request Timing (serial)
 
 ```
 speak(text)
-    │
+    │  (encadeado em queueChain — só roda após o anterior terminar)
     ▼
-requestAudioFocus()  →  AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
-    │                     (música baixa ~80%)
+TextToSpeech.stop()       → zera fila do TTS nativo
     ▼
-TTS.speak()  (Promise resolve no onDone)
-    │
+AudioFocus.requestFocus() → focusRefCount 0->1 → duck (música -80%)
     ▼
-onUtteranceComplete  →  abandonAudioFocus()
-    │                     (música volta normal)
+TTS.speak()  (Promise resolve no onDone de UMA utterance)
     ▼
-resolve()
+AudioFocus.abandonFocus() → focusRefCount 1->0 → música volta normal
 ```
+
+Como a fila é **serial**, nunca há dois `speak` com foco no ar — um utterance termina e libera o foco antes do próximo pedir. Assim, o duck sempre é desfeito e a música restaura o volume.
 
 ### Configuração Crítica
 
@@ -201,10 +202,10 @@ if (!isNative()) {
 | Sintoma | Causa | Fix |
 |---------|-------|-----|
 | TTS repete "Parabéns" | `spokenCompletionRef` missing | Adicionar ref guard |
-| Volume música não volta | `setWillPauseWhenDucked(true)` | Remover / usar `MAY_DUCK` |
+| Volume música não volta | request/abandon de foco sobrepostos (chamadas concorrentes) | Fila serial `queueChain` + `focusRefCount` no plugin (2026-08-28) |
+| TTS duplo (segundo corta primeiro) | `speak()` concorrentes no mesmo tick | Fila serial `queueChain` (`speak` enfileirado, não paralelo) |
 | TTS não fala (APK) | Permissão `QUERY_ALL_PACKAGES` | Adicionar no Manifest |
-| TTS corta no meio | `utterance.onend` não dispara | Usar `onDone` nativo / timeout fallback |
-| Fila trava | `isSpeaking` não reseta | `finally { isSpeaking = false }` |
+| Fila trava | erro de um utterance quebra a chain | `queueChain = run.catch(() => {})` por utterance |
 
 ---
 
@@ -223,18 +224,19 @@ if (!isNative()) {
 
 ---
 
-## Queue Priority Examples
+## Ordem de Anúncios (serial — fila FIFO)
+
+A fila é **FIFO**: anúncios disparados no mesmo tick entram na ordem e são falados um após o outro (não se cortam).
 
 ```typescript
-// Prioridade alta (corta fila)
-await speak("Cuidado! Obstáculo à frente!", true);
-
-// Prioridade normal (entra na fila)
-await speak("Corrida", false);
-await speak("Dois minutos", false);
-await speak("Caminhada", false);
+speak("Corrida");
+speak("Dois minutos");
+speak("Caminhada");
+// Fala "Corrida" → "Dois minutos" → "Caminhada", em sequência
 ```
+
+Para cancelar/pular o restante, use `stopSpeaking()` (zera a fila e libera o foco).
 
 ---
 
-*Última revisão: 2026-07-29*
+*Última revisão: 2026-08-28 (fila serial `queueChain` + `AudioFocusPlugin` com `focusRefCount`)*

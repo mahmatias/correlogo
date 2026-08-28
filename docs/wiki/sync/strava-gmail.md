@@ -248,42 +248,58 @@ export function generateGPX(session: TrainingSession): string {
 
 ## Auto-Send Integration
 
+> **2026-08-28 (fix)**: o auto-send era fire-and-forget com `.then` **sem `.catch`** — se a promise rejeitasse (ex: token 401, rede), o status ficava órfão ('pending' vermelho) e o email era silenciosamente descartado; e o status voltava ao relatório via ref global `latestSessionIdRef.current` (frágil). Agora o **verdadeiro `sessionId`** (doc Firestore ou `local-*`) é capturado do `markAsCompleted` e o auto-send **sempre se resolve** (`.then` + `.catch`), reportando `synced`/`failed`/`pending` de volta para a sessão exata via `onGmailSyncResult(sessionId, status)`.
+
 ### 1. On Save (WorkoutTracker.tsx)
 
 ```typescript
-const handleSaveAndSync = async () => {
-  // ... HC export ...
-  
-  // Auto-send Strava
-  const stravaSession: TrainingSession = {
-    id: plan.id, planId: plan.id, planName: plan.name,
-    date: new Date(sessionStartTimeRef.current).toISOString(),
-    mode, totalDurationSeconds: elapsedRef.current,
-    totalDistanceKm: distRef.current, avgSpeedKmh: speedRef.current,
-    completed: true, points: pointsRef.current,
-  };
-  
-  sendWorkoutToStravaViaEmail(stravaSession).then(r => {
-    if (!r.success && r.error) console.warn('[Strava] send failed:', r.error);
-  });
-  
-  onStop();
+const savedSession = await markAsCompleted(plan.id, {
+  points: pointsRef.current, distanceKm: dist, timeSeconds: elapsedSeconds, mode,
+});
+// O id real da sessão (doc Firestore ou local-*) é criado DENTRO de markAsCompleted.
+// Capturá-lo aqui permite que o upload assíncrono ao Strava reporte o status
+// de volta para a sessão EXATA — nunca via ref global.
+const savedSessionId = savedSession?.id ?? plan.id;
+setSyncStatus('syncing');
+const result = await exportWorkoutToHealthConnect(exportData);
+setSyncStatus(result.success ? 'synced' : 'failed');
+if (onSyncResult) onSyncResult(result.status);
+
+const stravaSession: TrainingSession = {
+  id: savedSessionId, planId: plan.id, planName: plan.name,
+  planSteps: plan.steps,
+  date: new Date(sessionStartTimeRef.current).toISOString(),
+  mode, totalDurationSeconds: elapsedRef.current,
+  totalDistanceKm: distRef.current, avgSpeedKmh: speedRef.current,
+  completed: true, points: pointsRef.current ?? [],
 };
+// Fire-and-forget, mas SEMPRE resolve:
+sendWorkoutToStravaViaEmail(stravaSession)
+  .then(sr => {
+    const gmailStatus: SyncStatus = sr.success ? 'synced' : (sr.error ? 'failed' : 'pending');
+    if (onGmailSyncResult) onGmailSyncResult(savedSessionId, gmailStatus);
+    if (sr.success) showFeedback?.('success', 'Atividade enviada ao Strava!');
+    else if (sr.error && sr.error !== 'Apenas dispositivo nativo') {
+      console.warn('[strava] send failed:', sr.error);
+      showFeedback?.('error', `Strava: ${sr.error}`);
+    }
+  })
+  .catch(e => {
+    console.warn('[strava] auto-send rejected:', e);
+    if (onGmailSyncResult) onGmailSyncResult(savedSessionId, 'failed'); // nunca deixa status órfão
+  });
 ```
 
 ### 2. On Retry (App.tsx)
 
 ```typescript
-onExportSession={async (session) => {
-  const result = await exportWorkoutToHealthConnect(exportData);
-  
-  // Also send to Strava
-  const stravaResult = await sendWorkoutToStravaViaEmail(session);
-  
-  if (stravaResult.success) showFeedback('success', 'Enviado ao Strava!');
-  else if (stravaResult.error) showFeedback('error', `Strava: ${stravaResult.error}`);
+onGmailSyncResult={(sessionId, status) => {
+  // Atualiza o badge do histórico/summary da sessão `sessionId`
+  // (em vez de confiar em latestSessionIdRef)
 }}
 ```
+
+> **Logcat**: em falha no automático, procurar `[strava] auto-send rejected:` (reject da promise) ou `[strava] send failed:` (erro tratado) — confirma se é token, rede ou formato.
 
 ---
 
@@ -362,7 +378,8 @@ async function sendMessage(token: string, raw: string) {
 | `403 Insufficient Permission` | Scope `gmail.send` não concedido | Re-auth com `prompt=consent` |
 | `Invalid MIME` | Boundary/encoding errado | Validar `base64url` + `\r\n` |
 | `Daily limit exceeded` | 100 emails/dia limite Gmail API | Rate limit / batch |
+| Status órfão (`pending` eterno) no auto-sync | promise reject sem `.catch` (pré-2026-08-28) | `.catch` + `.then` sempre reportando `onGmailSyncResult(sessionId, status)` |
 
 ---
 
-*Última revisão: 2026-07-29*
+*Última revisão: 2026-08-28 (auto-send com `.catch` + status por `sessionId` real, sem ref global)*

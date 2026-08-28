@@ -142,6 +142,27 @@ Solução: camadas explícitas no JSX:
 
 ---
 
+## Mapa (Variante C) — Tiles CARTO
+
+O mapa estático da variante C (e do resumo) é montado por `card-map.ts` (`tilesFor`/`tileUrl`) usando tiles Web Mercator `dark_all` 816×816 **sem Leaflet**.
+
+> **2026-08-28 (fix CARTO)**: `tileUrl()` **não tinha** a API key — o overlay "API KEY REQUIRED" aparecia no card de compartilhamento e no resumo mesmo depois de corrigir o `MapComponent`. Agora injeta `?key=${VITE_CARTO_API_KEY}`:
+
+```typescript
+// src/lib/card-map.ts
+const CARTO_KEY = (import.meta.env.VITE_CARTO_API_KEY as string | undefined) ?? '';
+
+export function tileUrl(t: TileRef): string {
+  const sub = SUBDOMAINS[(t.x + t.y) & 3];
+  return `https://${sub}.basemaps.cartocdn.com/dark_all/${t.z}/${t.x}/${t.y}.png${CARTO_KEY ? `?key=${CARTO_KEY}` : ''}`;
+}
+```
+
+- A key fica no `.env.apk` (via `VITE_CARTO_API_KEY`) e precisa ser sincronizada no secret `ENV_FILE` da CI (ver `env-vars.md` / ADR-011).
+- Carregamento dos tiles como `<img>` (CORS-friendly para dom-to-image).
+
+---
+
 ## Integração no SessionSummary
 
 ```tsx
@@ -216,4 +237,4 @@ const cardCaptureRef = useRef<HTMLDivElement>(null);
 
 ---
 
-*Última atualização: 2026-07-30*
+*Última atualização: 2026-08-28 (key CARTO no `card-map.ts`)*

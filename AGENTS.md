@@ -26,6 +26,7 @@
 ## Build Validation
 - Sempre execute `npm run build` para certificar-se de que correções e atualizações estão funcionando e isentas de erros de sintaxe ou de importação.
 - **Antes de qualquer build**, copie `.env.apk` → `.env` (`Copy-Item -Path ".env.apk" -Destination ".env" -Force`). O `.env.apk` é a única fonte de verdade para o Firebase **prod** (`correlogo-prod`). **Nunca** copie `.env.dev` para `.env` — isso quebra o APK e o site em produção. `.env` nunca deve ser commitado.
+- **Sincronizar o secret `ENV_FILE` da CI**: o build da CI (`firebase-deploy.yml:35`) cria o `.env` a partir do secret `ENV_FILE` do GitHub, **não** do `.env.apk` local. **Toda vez que `.env.apk` mudar** (nova `VITE_*` ou valor), rodar: `gh secret set ENV_FILE -b ( [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Get-Content ".env.apk" -Raw))) )`. Esquecer disso = variável some do APK/site em produção (ex: overlay CARTO no build 178). Ver `docs/wiki/build/env-vars.md` + `docs/wiki/roadmap/decisions.md` (ADR-011).
 
 ## UI & Component Patterns
 - **Button component**: Use `<Button variant="primary|secondary|ghost|danger" size="sm|md|lg">` em vez de `<button>` raw.

@@ -279,4 +279,26 @@ Após a migração para Firebase (ADR-007/008), a instância EC2 (`correlogo.syt
 
 ---
 
-*Última revisão: 2026-07-31*
+## ADR-011: Secret `ENV_FILE` é a fonte das `VITE_*` na CI (sincronizar com `.env.apk`)
+
+**Status**: ✅ Aceito  
+**Data**: 2026-08-28
+
+### Contexto
+O build da CI (`firebase-deploy.yml:35`) cria o `.env` a partir do **secret `ENV_FILE`** do GitHub (`base64 -d <<< "${{ secrets.ENV_FILE }}" > .env`), **não** do `.env.apk` local. Ao adicionar a `VITE_CARTO_API_KEY` apenas no `.env.apk`, o bundler do APK compilado pela CI ficou sem a variável — a key existia nos builds locais, mas não no APK → overlay "API KEY REQUIRED" persistente no device (build 178).
+
+### Decisão
+O `.env.apk` é o **source de verdade** das variáveis de produção, e o secret `ENV_FILE` do GitHub **deve ser sincronizado** a cada mudança no `.env.apk`:
+
+```powershell
+gh secret set ENV_FILE -b ( [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Get-Content ".env.apk" -Raw))) )
+```
+
+### Consequências
+- ✅ Uma única fonte de verdade (`.env.apk`); o build local e o da CI ficam idênticos
+- ⚠️ **Obrigação processual**: esquecer de sincronizar = variável some do APK/site em produção (bug silencioso). Documentado em `env-vars.md` e `AGENTS.md`
+- ✅ Debugável post-mortem: se uma `VITE_*` não refletir no APK, o primeiro suspeito é o secret desatualizado
+
+---
+
+*Última revisão: 2026-08-28*

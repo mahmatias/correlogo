@@ -4,6 +4,25 @@
 
 ---
 
+## v4.6 (versionCode 179) — 2026-08-28b
+**CARTO basemaps: causa raiz do overlay persistente (secret ENV_FILE) + mapa do card sem key**
+
+### Fixed
+- **Overlay "API KEY REQUIRED" (causa raiz real [Certain])**: o build da CI cria o `.env` a partir do **secret `ENV_FILE`** do GitHub, **não** do `.env.apk` local. O secret não tinha `VITE_CARTO_API_KEY` → o bundle do APK ficava sem a key, mesmo com ela presente no `.env.apk`. **Fix**: secret `ENV_FILE` sincronizado com o `.env.apk` (ver [env-vars.md](../build/env-vars.md) para o procedimento). **Confirmado pelo usuário: FIXED** (treino + resumo + card).
+- **Mapa do card de compartilhamento (`card-map.ts`)**: `tileUrl()` nunca teve a key (só o `MapComponent` tinha). **Fix**: `?key=${VITE_CARTO_API_KEY}` injetado + teste atualizado.
+- Validação HTTP: a key funciona e o CARTO **não valida domínio por Origin** (localhost / web.app / :3000 retornam o mesmo tile limpo) — o domínio informado no formulário é informativo.
+- `.gitignore`: adicionado `Logs/` (dumps FTMS nativos).
+
+## v4.6 (versionCode 178) — 2026-08-28a
+**CARTO key + TTS/AudioFocus (duplo + volume) + Strava auto-sync**
+
+### Fixed
+- **TTS duplo (segundo corta o primeiro) + música nunca restaura o volume** [Certain]: `speak()` concorrentes + `AudioFocusPlugin.kt` sobrescrevendo o único `audioFocusRequest`. **Fix**: `voice.ts` fila serial (`queueChain`) + `AudioFocusPlugin.kt` contador de referência (`focusRefCount` + `synchronized`). **Aguardando reteste** no device.
+- **Strava auto-sync: status órfão/vermelho, email só via clique manual** [Likely]: auto-send fire-and-forget com `.then` sem `.catch` → reject nunca escrevia status; status voltava via ref global. **Fix**: `markAsCompleted` retorna `newSession`; `WorkoutTracker` passa `savedSessionId` a `onGmailSyncResult(sessionId, status)`; `.catch` + `console.warn`. **Confirmado pelo usuário: FIXED**.
+- **CARTO**: key injetada no `MapComponent` (treino/resumo) — complementada na 179 (ver acima).
+
+---
+
 ## v3.4 (versionCode 135) — 2026-07-31
 **Sticker de verdade — PNG transparente (só texto) + intent do Instagram conforme spec**
 

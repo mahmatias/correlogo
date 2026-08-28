@@ -34,7 +34,28 @@ VITE_FIREBASE_MEASUREMENT_ID=
 
 # Google OAuth Web Client (usado por web + APK via Chrome Custom Tab)
 VITE_GOOGLE_WEB_CLIENT_ID=985879764466-kd0plotbh6349qrniqv09enasnajst1i.apps.googleusercontent.com
+
+# CARTO basemaps (API key para tiles raster light_all/dark_all)
+VITE_CARTO_API_KEY=
 ```
+
+> **CARTO key (2026-08-28)**: a CARTO passou a exigir key nos tiles raster (`basemaps.cartocdn.com`) — sem ela aparece o watermark "API KEY REQUIRED". Key gratuita em `https://carto.com/basemaps/apikey/`. A key é injetada em **duas** URLs: `MapComponent.tsx` (mapa do treino/resumo) e `card-map.ts`/`tileUrl` (card de compartilhamento). Não é vinculada a domínio (Origins valem; domínio informado no formulário é informativo).
+
+---
+
+## ⚠️ CRÍTICO: a CI builda com o secret `ENV_FILE`, não com seu `.env.apk` local
+
+O build da CI (`firebase-deploy.yml`) cria o `.env` a partir do **secret `ENV_FILE`** do GitHub (`base64 -d <<< "${{ secrets.ENV_FILE }}" > .env`), **NÃO** do `.env.apk` local. Por isso, editar só o `.env.apk` **não atualiza o bundler no APK/site**.
+
+**Toda vez que `.env.apk` mudar** (nova `VITE_*` ou valor), rodar:
+
+```powershell
+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Get-Content ".env.apk" -Raw))) | Out-String
+# copie o base64 e rode (ou faça direto):
+gh secret set ENV_FILE -b ( [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Get-Content ".env.apk" -Raw))) )
+```
+
+Sem sincronizar o secret, o bundler no APK fica sem as novas variáveis — foi exatamente o que causou o overlay do CARTO persistente no APK 178 (a key estava no `.env.apk` local, mas o secret não tinha a `VITE_CARTO_API_KEY`).
 
 ---
 
@@ -189,6 +210,7 @@ android/app/google-services.json
 | Cloud Function 500 | `GOOGLE_CLIENT_SECRET` errado | Verificar `functions/.env` |
 | CI build fail (missing .env) | `ENV_FILE` secret não configurado | Configurar no GitHub Secrets |
 | CI build fail (missing google-services.json) | `GOOGLE_SERVICES_B64` secret não configurado | Configurar no GitHub Secrets |
+| APK sem `VITE_*` nova (ex: overlay CARTO) | secret `ENV_FILE` desatualizado | `gh secret set ENV_FILE -b <base64 do .env.apk>` e rebuild |
 
 ---
 
