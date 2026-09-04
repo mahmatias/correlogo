@@ -30,6 +30,7 @@ import { useHrBelt } from './lib/use-hr-belt';
 import { useBackHandler } from './lib/hooks/useBackHandler';
 import { getAuth, getDb } from './lib/firebase';
 import { applySessionToRecords, emptyRecords, readRecords, saveRecords, recomputeRecords, backfillRecords, type Records } from './lib/records';
+import { buildCacheSessions } from './lib/sessionCache';
 import { dedupeImportedWorkouts, watchWorkoutToSession } from './lib/watch-import';
 import { downloadIcal } from './lib/ical';
 import { keepAwake, allowSleep } from './lib/capacitor/wakeLock';
@@ -132,6 +133,19 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
   const [updating, setUpdating] = useState(false);
   const [bleWarningOpen, setBleWarningOpen] = useState(false);
   const [pendingWatchWorkouts, setPendingWatchWorkouts] = useState<WatchWorkout[] | null>(null);
+
+  // Grava o cache de sessões no localStorage de forma segura: reduz os points
+  // das sessões antigas (downsample) e limita a contagem, para o quota do
+  // WebView nunca estourar. Sessões local-* (pendentes de sync) preservadas.
+  const persistSessions = useCallback((next: TrainingSession[]) => {
+    if (!user) return;
+    try {
+      localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(buildCacheSessions(next)));
+    } catch (e) {
+      console.warn('Falha ao gravar cache de sessões no localStorage:', e);
+    }
+  }, [user]);
+
   const handleHrDeviceRegistered = useCallback((device: { name: string; address: string }) => {
     if (user) {
       const updated = { ...(profile ?? {} as ProfileData), registeredHrDevice: device };
@@ -281,7 +295,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
           const before: TrainingSession[] = beforeRaw ? JSON.parse(beforeRaw) : [];
           localSessionsToSync = before.filter(s => s.id.startsWith('local-'));
           setSessions(remoteSessions);
-          localStorage.setItem(localSessionsKey, JSON.stringify(remoteSessions));
+          persistSessions(remoteSessions);
 
           if (settingsDoc.exists() && typeof settingsDoc.data().isDarkMode === 'boolean') {
             const remoteDarkMode = settingsDoc.data().isDarkMode;
@@ -334,7 +348,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
               if (!updated.find(s => s.id === docRef.id)) {
                 updated.unshift({ ...sess, id: docRef.id });
               }
-              localStorage.setItem(localSessionsKey, JSON.stringify(updated));
+              persistSessions(updated);
               setSessions(updated);
             } catch { /* tenta na próxima inicialização */ }
           }
@@ -708,7 +722,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
             await batch.commit();
             
             setSessions(sessionsToKeep);
-            localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(sessionsToKeep));
+            persistSessions(sessionsToKeep);
 
             const recs = await readRecords(user.uid);
             if (recs) {
@@ -750,7 +764,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                 await deleteDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionToDelete.id));
                 const updatedSessions = sessions.filter(si => si.id !== sessionToDelete.id);
                 setSessions(updatedSessions);
-                localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updatedSessions));
+                persistSessions(updatedSessions);
                 const recs = await readRecords(user.uid);
                 if (recs) {
                     const next = recomputeRecords(updatedSessions, recs);
@@ -825,7 +839,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
 
         setSessions(s => {
           const updated = [newSession, ...s];
-          localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+          persistSessions(updated);
           return updated;
         });
         setSelectedSession({ ...newSession, prResults });
@@ -839,7 +853,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                 let updated = [...prev];
                 if (hcPending) updated = updated.map(s => s.id === sid ? { ...s, hcSyncStatus: hcPending } : s);
                 if (gmailPending) updated = updated.map(s => s.id === sid ? { ...s, gmailSyncStatus: gmailPending } : s);
-                localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                persistSessions(updated);
                 return updated;
             });
             if (!sid.startsWith('local-')) {
@@ -938,7 +952,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
       const newSessions = selected.map(w => watchWorkoutToSession(w));
       const updated = [...newSessions, ...sessions];
       setSessions(updated);
-      localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+      persistSessions(updated);
       for (const s of newSessions) {
         setDoc(doc(getDb(), 'users', user.uid, 'sessions', s.id), stripUndefined(s)).catch(() => {});
       }
@@ -1357,7 +1371,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                       }
                       setSessions(prev => {
                           const updated = prev.map(s => s.id === sessionId ? { ...s, hcSyncStatus: status } : s);
-                          localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                          persistSessions(updated);
                           return updated;
                       });
                       if (!sessionId.startsWith('local-')) {
@@ -1372,7 +1386,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                       }
                       setSessions(prev => {
                           const updated = prev.map(s => s.id === sessionId ? { ...s, gmailSyncStatus: status } : s);
-                          localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                          persistSessions(updated);
                           return updated;
                       });
                       if (!sessionId.startsWith('local-')) {
@@ -1645,7 +1659,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                       const updated = sessions.filter(si => si.id !== sessionId);
                       setSessions(updated);
                       if (user) {
-                        localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                        persistSessions(updated);
                         if (!sessionId.startsWith('local-')) {
                           deleteDoc(doc(getDb(), 'users', user.uid, 'sessions', sessionId)).catch(() => {});
                         }
@@ -1693,7 +1707,7 @@ const [activeTab, setActiveTab] = useState<TabId>('treinos');
                                 let updated = [...prev];
                                 if (hcResult) updated = updated.map(s => s.id === session.id ? { ...s, hcSyncStatus: hcResult!.status } : s);
                                 if (gmailResult) updated = updated.map(s => s.id === session.id ? { ...s, gmailSyncStatus: gmailResult!.success ? 'synced' as const : 'failed' as const } : s);
-                                localStorage.setItem(`correlogo:sessions:${user.uid}`, JSON.stringify(updated));
+                                persistSessions(updated);
                                 return updated;
                             });
                             if (!session.id.startsWith('local-')) {

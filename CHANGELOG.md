@@ -1,6 +1,26 @@
 # Changelog
 
-## [2026-08-28b] — CARTO: mapa do ShareCard sem key + causa raiz do overlay persistente no APK
+## [2026-09-04] — localStorage quota excedida: cache de sessões com downsample dos points GPS
+
+### Problema
+- Erro `Failed to execute 'setItem' on 'Storage': ...exceeded the quota` ao gravar `correlogo:sessions:{uid}`. O cache do Android WebView tem quota ~5MB.
+
+### Causa raiz [Certain]
+- O cache guarda **o array inteiro de sessões** (com `points` GPS do trail do mapa). O principal vilão **não** é o crescimento ilimitado do array (o load já sobrescreve com `limit(50)` do Firestore), e sim o **tamanho dos `points`**: ~1 ponto/seg por corrida outdoor ≈ 3.600 pontos/sessão ≈ ~288KB → 50 sessões outdoor ≈ ~14MB ≫ 5MB de quota.
+- O UID com espaço (`...qsqG 3`) reportado no erro é artefato do log/toast — `user.uid` vem direto do Firebase (sem concatenação) e não tem espaço. Não é a causa [Certain].
+
+### Fix (design aprovado pelo usuário: cache limitado + local-*)
+- Novo `src/lib/sessionCache.ts` (puro e testável):
+  - `downsamplePoints(points, max)`: reduz para ≤ max amostras uniformemente, preservando 1º/último ponto.
+  - `buildCacheSessions(sessions, opts)`: sessões `local-*` (pendentes de sync) sempre com points **completos**; as `MAX_RECENT_FULL` (5) mais recentes com points completos; demais com downsample (200 pontos); teto de `MAX_CACHE_SESSIONS` (50) no total.
+- `src/App.tsx`: função central `persistSessions(next)` (usa `buildCacheSessions` + `setItem` com try/catch para nunca crashar) substituindo **11 pontos** de gravação direta do `localStorage` (markAsCompleted ×2, load remoteSessions, sync loop ×1, delete plano, uncomplete, watch import, hcSync, gmailSync, delete sessão, export statuses).
+- Leitura no mount (`getItem`) preservada para UI instantânea/offline e sessões `local-*`.
+
+### Validação
+- `npm run build` ✓ · 6 testes novos em `src/lib/__tests__/sessionCache.test.ts` ✓
+- **Nota**: `npm run lint` (tsc) já falha no baseline do repo (erros pré-existentes não relacionados à mudança) — AGENTS.md usa `npm run build` como gate.
+
+
 
 ### 1. Mapa do card de compartilhamento (`card-map.ts`) nunca teve a key
 - **Problema**: overlay "API KEY REQUIRED" também no card de compartilhamento / resumo. `card-map.ts` (`tileUrl`) montava URL `dark_all` **sem nenhum `?key=`** — só o `MapComponent` tinha sido corrigido na `2026-08-28a`

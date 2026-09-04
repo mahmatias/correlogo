@@ -1,5 +1,26 @@
 # Handoff
 
+## Session Context (2026-09-04 — localStorage quota: cache de sessões com downsample dos points GPS)
+
+### What happened
+Investigação completa (systematic-debugging) do erro `localStorage quota exceeded` ao gravar `correlogo:sessions:{uid}`.
+
+### Root cause [Certain]
+- O cache guarda o array inteiro de sessões com os `points` GPS (trail do mapa). O vilão é o **tamanho dos points** (1 corrida outdoor 1h ≈ 288KB; 50 sessões ≈ 14MB ≫ quota ~5MB do WebView), não o crescimento ilimitado do array — o load já sobrescreve com `limit(50)` do Firestore.
+- UID com espaço no erro (`...qsqG 3`) é artefato de log, não causa real [Certain].
+
+### Fix (design aprovado: cache limitado + local-*)
+- `src/lib/sessionCache.ts`: `downsamplePoints` + `buildCacheSessions` — `local-*` e as 5 recentes com points completos; demais com downsample (200); teto de 50 sessões.
+- `src/App.tsx`: função `persistSessions(next)` (com try/catch) substituiu **11** gravações diretas no localStorage de sessões.
+
+### Validation
+- `npm run build` ✅ · 6 testes novos (`sessionCache.test.ts`) ✅
+- `npm run lint` falha no **baseline** do repo (erros pré-existentes não relacionados) — AGENTS.md usa `npm run build` como gate.
+
+### Follow-up
+- Build do APK ainda **não** validado no device (fix é só de web/localStorage). Push para `main` dispara CI.
+
+
 ## Session Context (2026-08-28a — CARTO key + TTS/AudioFocus + Strava auto-sync)
 
 ### What happened

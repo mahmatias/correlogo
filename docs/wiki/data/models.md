@@ -192,11 +192,11 @@ users/{uid}/
 | Dado | Local | Firestore | Sync |
 |------|-------|-----------|------|
 | Plans | `correlogo:plans:{uid}` | `users/{uid}/plans` | Merge (local + remote) |
-| Sessions | `correlogo:sessions:{uid}` | `users/{uid}/sessions` | `local-*` prefix → upload |
+| Sessions | `correlogo:sessions:{uid}` | `users/{uid}/sessions` | `local-*` prefix → upload; cache com downsample dos points (2026-09-04) |
 | Profile | `correlogo:profile:{uid}` | `users/{uid}/data/profile` | Last write wins |
 | Settings | `correlogo:settings:{uid}` | `users/{uid}/data/settings` | Last write wins |
 | Dark Mode | `correlogo:darkMode:{uid}` | - | Local only |
 
 ---
 
-*Última revisão: 2026-07-29*
+*Última revisão: 2026-09-04*

@@ -4,6 +4,17 @@
 
 ---
 
+## v4.6 (versionCode 180 pendente) — 2026-09-04
+**localStorage quota: cache de sessões com downsample dos points GPS**
+
+### Fixed
+- **Erro `localStorage exceeded the quota` ao gravar `correlogo:sessions:{uid}`** — cache do array de sessões com os `points` GPS (trail do mapa) estourava o quota ~5MB do WebView Android.
+- **Causa raiz [Certain]**: o tamanho dos `points` (1 outdoor 1h ≈ 288KB; 50 sessões ≈ 14MB ≫ 5MB), não o crescimento do array (haja vista o load sobrescrever com `limit(50)`).
+- **Fix**: nova função central `persistSessions` (`App.tsx`) → `buildCacheSessions`/`downsamplePoints` (`src/lib/sessionCache.ts`): `local-*` e as 5 recentes com points completos; demais com downsample (≤200 pontos uniformes); teto de 50 sessões; `setItem` em try/catch (nunca crasha).
+- Firestore continua sendo `source of truth` com points completos.
+
+---
+
 ## v4.6 (versionCode 179) — 2026-08-28b
 **CARTO basemaps: causa raiz do overlay persistente (secret ENV_FILE) + mapa do card sem key**
 

@@ -20,8 +20,19 @@ Mount → ler localStorage → UI imediata
 | Key | Dados |
 |-----|-------|
 | `correlogo:plans:{uid}` | Planos do usuário |
-| `correlogo:sessions:{uid}` | Sessões de treino (limit 50) |
+| `correlogo:sessions:{uid}` | Sessões de treino (limit 50, ver downsample abaixo) |
 | `correlogo:darkMode:{uid}` | Preferência de tema |
+
+## Cache de Sessões — downsample dos points GPS (2026-09-04)
+
+O cache de sessões guarda o array de sessões com os `points` GPS (trail do mapa), que dominam o tamanho do JSON. Com quota ~5MB do WebView, 50 sessões outdoor longas estouravam (`exceeded the quota`). Toda gravação do cache agora passa por `persistSessions` → `buildCacheSessions` (`src/lib/sessionCache.ts`):
+
+- Sessões `local-*` (pendentes de sync): sempre mantidas com points **completos**
+- 5 sessões mais recentes: points completos
+- Demais: points reduzidos por `downsamplePoints` (≤ 200 amostras uniformes, preservando 1º/último)
+- Teto de 50 sessões no cache
+
+Leitura no mount preservada (UI instantânea + offline); o Firestore sempre salva os points completos (`source of truth`).
 
 ## Sincronização
 
@@ -45,5 +56,6 @@ Mount → ler localStorage → UI imediata
 | Arquivo | Papel |
 |---------|-------|
 | `src/lib/firebase.ts` | Firestore init + offline persistence |
+| `src/lib/sessionCache.ts` | `downsamplePoints` + `buildCacheSessions` (limita/cacheia sessões) |
 | `src/App.tsx:188-312` | Cache read + Firestore merge + sync loops |
 | `src/App.tsx:637-641` | `writeBatch` para deleções em cascata |

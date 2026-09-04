@@ -57,6 +57,7 @@
 ## Persistence & Sync
 - **LocalStorage cache**: Always read from localStorage first for instant UI, then Firestore as source of truth.
   - Keys: `correlogo:plans:{uid}`, `correlogo:sessions:{uid}`, `correlogo:darkMode:{uid}`
+  - **Sessions cache (quota ~5MB)**: toda gravação via `persistSessions` → `buildCacheSessions` (`src/lib/sessionCache.ts`) — `local-*` e as 5 recentes com points completos; demais com downsample (≤200 pontos); teto de 50. Evita `localStorage exceeded the quota` com trails GPS.
 - **Offline resilience**: Firestore queries wrapped in `Promise.race` with 5s timeout. On failure, app runs from localStorage.
 - **Sync**: Sessions with `local-*` prefix IDs are auto-uploaded to Firestore on next successful connection. Plans are merged (local + remote).
 - **Verify** Firestore synchronization for user-specific data by using explicit `[timing]` logs during development.
