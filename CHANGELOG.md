@@ -1,6 +1,42 @@
 # Changelog
 
-## [2026-09-04] — localStorage quota excedida: cache de sessões com downsample dos points GPS
+## [2026-09-04c] — 8-c esteira: velocidade REAL reportada + auto-pause por telemetria + instrumentação
+
+### Contexto
+Fase de implementação do grill do modo esteira BLE. Decisão 8-c (aprovada em grill): registrar a velocidade **real** reportada pela esteira (FTMS) nos pontos do treino, com auto-pause por velocidade reportada (9-a) e instrumentação de telemetria (P7).
+
+### Implementação
+- **`TelemetryTracker`** (`src/lib/treadmill-telemetry.ts`): novo campo `speedAverageKmh` no `summary()` — média aritmética das velocidades reais reportadas (para `avgSpeedKmh` dos exports). 8 testes (2 novos) em `treadmill-telemetry.test.ts`.
+- **`WorkoutTracker.tsx`**:
+  - `treadmill.speedKmh` é o **ALVO** (sobrescrito por `treadmill.setSpeed()` em `use-treadmill.ts:167`); o valor real fica em `treadmill.metrics.instantSpeedKmh`. Espelhamos `metrics`/`connected` em refs (`treadmillMetricsRef`/`treadmillConnectedRef`) para ler dentro dos intervals de 1s sem recriá-los.
+  - Helper `recordedSpeedKmh()`: velocidade real quando conectado; fallback ao alvo (`speedRef`) sem BLE ou antes do 1º frame (B2).
+  - Os 3 pontos de gravação de `ActivityPoint.speedKmh` (native timer, interval treadmill+native, interval treadmill web) agora usam `recordedSpeedKmh()`.
+  - `avgSpeedKmh` dos exports (HealthConnect + Strava) usa `telemetryAvgSpeedKmh()` (média real; fallback ao alvo).
+  - **Auto-pause esteira (9-a)**: efeito lê a velocidade real reportada — < 1.0 km/h por 5s pausa; > 3.0 km/h resume (espelha o outdoor GPS, linhas 196-209, mas via FTMS). Pausa manual respeitada (via `isPausedRef`).
+  - Tela/TTS/marquee **inalteradas** (continuam exibindo o alvo — B-a1).
+- **Telemetria acumulada** (P7): `telemetryTrackerRef` grava todos os frames FTMS do treino; `handleSaveAndSync` loga `[telemetry] resumo esteira:` com frames, presença/monotonicidade do odômetro, delta em metros, min/max/média de velocidade — para validar a telemetria real da esteira antes de habilitar a distância-odômetro (design B).
+
+### Validação
+- `npm run test`: 16 arquivos / **127 testes** passando (8 de telemetry, 2 novos) ✓
+- `npm run build` (com `.env.apk` → `.env`): ✓
+- **Pendente**: teste no device com a esteira real para confirmar P7 (telemetria) e calibrar B/B2/B-a (odômetro vs cálculo próprio).
+
+### Problema
+- Ao carregar `correlogo.web.app`, o app mostrava "Algo deu errado — Cannot access 'Dt' before initialization" (broken white screen no login). O ErrorBoundary capturava um `ReferenceError` (TDZ) no render inicial do `App`.
+
+### Causa raiz [Certain]
+- **A web publicada estava num bundle MUITO antigo** (`assets/index-C6_C6ut3.js`) que continha o bug de ordenação/minificação TDZ (`Dt = t.unstable_requestPaint` — módulo do React Scheduler referenciado antes de inicializar durante o render de `App`).
+- Esse bundle antigo **nem tinha a CARTO key** (`cb1_`) nem "Estiramento"/"relatório" — era pré-muitas features.
+- **A CI jamais publica a web**: `.github/workflows/firebase-deploy.yml` só faz build web → APK → upload do APK (App Distribution + GitHub Release). **Não existe `firebase deploy --only hosting`** no workflow → o site só mudaria por deploy manual, que não era feito há muito tempo.
+- O build local do commit atual (`42b5352`, bundle `index-1NwXddBv.js`) **não tem o bug** — o login monta sem erro. O TDZ já não existe no código atual; estava apenas no bundle velho publicado.
+
+### Fix
+- `npm run build` com `.env.apk` → `.env` (prod) e **deploy manual** `firebase deploy --only hosting:correlogo` (site `correlogo`, public dir `dist/`).
+- Verificado no ar: `correlogo.web.app` agora serve `index-1NwXddBv.js` + `index-DUErBI2p.css` (mesmos hashes do build local `42b5352`), página de login monta **sem ReferenceError** (capturado via CDP/headless Chrome).
+
+### Validação
+- `npm run build` ✓ · deploy ✓ · tela de login renderiza ✓ (captura headless pós-deploy: sem `ReferenceError`, `user=false`, auth OK)
+- **Pendente**: validação manual dos fluxos web pós-login (gerador, edição de treinos/rearranjo de dias, relatórios/estatísticas). Decisão do usuário: **não** adicionar deploy web à CI por enquanto — fica registrado como pendência (ver TODO) para manter a web sob controle manual.
 
 ### Problema
 - Erro `Failed to execute 'setItem' on 'Storage': ...exceeded the quota` ao gravar `correlogo:sessions:{uid}`. O cache do Android WebView tem quota ~5MB.

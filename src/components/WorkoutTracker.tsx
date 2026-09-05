@@ -10,6 +10,8 @@ import type { WorkoutExport, SyncStatus } from '../lib/capacitor/health-connect'
 import { sendWorkoutToStravaViaEmail } from '../lib/gmailApi';
 import TreadmillPanel from './TreadmillPanel';
 import type { TreadmillConnection } from '../lib/use-treadmill';
+import { TelemetryTracker } from '../lib/treadmill-telemetry';
+import type { TreadmillMetrics } from '../lib/ftms-protocol';
 import type { HrBeltConnection } from '../lib/use-hr-belt';
 import { estimateHrMax, hrZone, zoneColor, zoneLabel, type HrZone } from '../lib/hr-zones';
 import type { ProfileData } from '../types';
@@ -269,7 +271,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       // Accumulate point
       const newPoint: ActivityPoint = {
         timestampSeconds: elapsed,
-        speedKmh: speedRef.current,
+        speedKmh: recordedSpeedKmh(),
         distanceKm: distRef.current,
         stepIndex: stepIndexRef.current,
       };
@@ -345,7 +347,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
             // Only accumulate points + pace history (time/distance handled by native timer)
             const newPoint: ActivityPoint = {
                 timestampSeconds: elapsedRef.current,
-                speedKmh: speedRef.current,
+                speedKmh: recordedSpeedKmh(),
                 distanceKm: distRef.current,
                 stepIndex: stepIndexRef.current,
             };
@@ -391,7 +393,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
           // Accumulate point
           const newPoint: ActivityPoint = {
               timestampSeconds: elapsedRef.current,
-              speedKmh: speedRef.current,
+              speedKmh: recordedSpeedKmh(),
               distanceKm: distRef.current,
               stepIndex: stepIndexRef.current,
           };
@@ -497,10 +499,83 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const isAutoPausedRef = useRef(false); // true when auto-pause triggered (not manual)
   const lastMovementTimeRef = useRef(Date.now()); // last time GPS detected movement
 
+  // --- 8-c: telemetria da esteira (velocidade REAL reportada via FTMS) ---
+  // `treadmill.speedKmh` é o ALVO (é sobrescrito por `treadmill.setSpeed()`);
+  // o valor real reportado pela esteira fica em `treadmill.metrics.instantSpeedKmh`.
+  // Espelhamos metrics/connected em refs para ler dentro dos intervals de 1s
+  // (que não são re-criados a cada frame) e acumulamos tudo no TelemetryTracker.
+  const telemetryTrackerRef = useRef<TelemetryTracker | null>(null);
+  if (!telemetryTrackerRef.current) telemetryTrackerRef.current = new TelemetryTracker();
+  const treadmillMetricsRef = useRef<TreadmillMetrics | null>(null);
+  const treadmillConnectedRef = useRef(treadmill.connected);
+  const lastTreadmillMoveTimeRef = useRef(Date.now()); // last time treadmill reported movement
+
+  useEffect(() => {
+    treadmillMetricsRef.current = treadmill.metrics;
+    treadmillConnectedRef.current = treadmill.connected;
+  }, [treadmill.metrics, treadmill.connected]);
+
+  // Instrumentação (P7): acumula todos os frames FTMS recebidos da esteira.
+  useEffect(() => {
+    if (mode !== 'treadmill' || !treadmillConnectedRef.current || !treadmillMetricsRef.current) return;
+    telemetryTrackerRef.current?.record(treadmillMetricsRef.current);
+  }, [treadmill.metrics, treadmill.connected, mode]);
+
   const speak = (text: string, force = false) => {
     if (!force && (isFreeTraining || isExtended)) return;
     voiceSpeak(text, 'pt-BR');
   };
+
+  // Velocidade REAL reportada pela esteira quando conectada (8-c/B-a1).
+  // Fallback ao alvo (speedRef) apenas sem BLE ou antes do primeiro frame FTMS.
+  // Tela/TTS continuam exibindo o ALVO (speedRef/currentSpeed) — B-a1.
+  const recordedSpeedKmh = (): number => {
+    const m = treadmillMetricsRef.current;
+    if (treadmillConnectedRef.current && m) return m.instantSpeedKmh;
+    return speedRef.current;
+  };
+
+  // Média real da velocidade reportada pela esteira (para exports HC/Strava).
+  const telemetryAvgSpeedKmh = (): number => {
+    const t = telemetryTrackerRef.current;
+    if (t && t.count > 0) {
+      const avg = t.summary().speedAverageKmh;
+      if (avg > 0) return avg;
+    }
+    return speedRef.current;
+  };
+
+  // Auto-pause da esteira por velocidade reportada (9-a): < 1.0 km/h por 5s
+  // pausa; > 3.0 km/h resume. Espelha o comportamento outdoor (GPS), mas lê a
+  // velocidade REAL vinda do FTMS. Pausa manual é sempre respeitada.
+  useEffect(() => {
+    if (mode !== 'treadmill') return;
+    if (countdown > 0 || !treadmillConnectedRef.current || !treadmillMetricsRef.current) return;
+    const speed = treadmillMetricsRef.current.instantSpeedKmh;
+
+    if (isAutoPausedRef.current) {
+      if (speed > 3.0) {
+        isAutoPausedRef.current = false;
+        setIsPaused(false);
+        lastTreadmillMoveTimeRef.current = Date.now();
+        speak("Continuando o Treino", true);
+      }
+      return;
+    }
+
+    if (isPausedRef.current) return; // pausa manual não é sobrescrita
+
+    if (speed >= 1.0) {
+      lastTreadmillMoveTimeRef.current = Date.now();
+      return;
+    }
+
+    if (Date.now() - lastTreadmillMoveTimeRef.current > 5000) {
+      isAutoPausedRef.current = true;
+      setIsPaused(true);
+      speak("Pausando o Treino", true);
+    }
+  }, [treadmill.metrics, treadmill.connected, mode, countdown]);
 
   const hrMax = estimateHrMax(profile?.dob ?? null);
   const liveHr = hrBelt.connected && hrBelt.bpm ? hrBelt.bpm : null;
@@ -749,13 +824,30 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   };
 
   const handleSaveAndSync = async () => {
+    // Instrumentação (P7): revela a qualidade da telemetria FTMS do treino
+    // (odômetro presente/monotônico? velocidade reportada bate com o alvo?).
+    if (mode === 'treadmill') {
+      const t = telemetryTrackerRef.current;
+      if (t && t.count > 0) {
+        const s = t.summary();
+        console.info('[telemetry] resumo esteira:', {
+          frames: s.frameCount,
+          hasOdometer: s.hasDistance,
+          distanceFrames: s.distanceFrames,
+          odometerDeltaMeters: s.distanceDeltaMeters,
+          minSpeedKmh: s.minSpeedKmh,
+          maxSpeedKmh: s.maxSpeedKmh,
+          avgReportedSpeedKmh: s.speedAverageKmh,
+        });
+      }
+    }
     const exportData: WorkoutExport = {
       startTime: sessionStartTimeRef.current,
       endTime: Date.now(),
       durationSeconds: elapsedRef.current,
       distanceKm: distRef.current,
       exerciseType: mode === 'treadmill' ? 'treadmill' : 'running',
-      avgSpeedKmh: speedRef.current,
+      avgSpeedKmh: telemetryAvgSpeedKmh(),
       route: mode === 'outdoor' ? pointsRef.current
         .filter(p => p.lat && p.lon)
         .map(p => ({
@@ -782,7 +874,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       planSteps: plan.steps,
       date: new Date(sessionStartTimeRef.current).toISOString(),
       mode, totalDurationSeconds: elapsedRef.current,
-      totalDistanceKm: distRef.current, avgSpeedKmh: speedRef.current,
+      totalDistanceKm: distRef.current, avgSpeedKmh: telemetryAvgSpeedKmh(),
       completed: true, points: pointsRef.current ?? [],
     };
     // Fire-and-forget, but always settle: if sendWorkoutToStravaViaEmail ever

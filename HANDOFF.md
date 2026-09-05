@@ -1,6 +1,46 @@
 # Handoff
 
-## Session Context (2026-09-04 — localStorage quota: cache de sessões com downsample dos points GPS)
+## Session Context (2026-09-04c — 8-c esteira BLE: velocidade real reportada + auto-pause por telemetria + instrumentação)
+
+### What happened
+Implementação do escopo 8-c (aprovado em grill): registrar velocidade **real** reportada (não o alvo), auto-pause por velocidade reportada (9-a), instrumentação de telemetria (P7).
+
+### Key implementation points
+- `treadmill.speedKmh` é o ALVO (`use-treadmill.ts:167` sobrescreve no `setSpeed`); o real é `treadmill.metrics.instantSpeedKmh`.
+- Refs espelhadas de `metrics`/`connected` para os intervals de 1s (que não re-criam); `recordedSpeedKmh()` usa real quando conectado, fallback ao alvo.
+- 3 points `speedKmh` + 2 `avgSpeedKmh` (HealthConnect/Strava) trocados para o real.
+- Auto-pause esteira: < 1.0 km/h por 5s pausa, > 3.0 resume (FTMS); pausa manual respeitada.
+- Tela/TTS inalterados (B-a1). `TelemetryTracker` ganhou `speedAverageKmh`.
+- Log `[telemetry] resumo esteira:` no `handleSaveAndSync` (P7).
+
+### Validation
+- `npm run test`: 127 testes ✓ (8 telemetry, 2 novos) · `npm run build` ✓
+
+### Follow-up
+- Validar no device (esteira real): qualidade do dado FTMS (P7), calibrar B/B2/B-a (odômetro vs cálculo próprio) — pending.
+- Web já re-deployada manualmente (2026-09-04b) — decisão do usuário: CI NÃO publica web por enquanto.
+- Docs do 8-c: CHANGELOG `2026-09-04c`; commit pendente (aguarda OK do usuário, working tree: CHANGELOG/HANDOFF/TODO + 8-c files).
+
+### What happened
+`correlogo.web.app` mostrava "Algo deu errado — Cannot access 'Dt' before initialization" no load. Diagnóstico + correção publicada.
+
+### Root cause [Certain]
+- A web servia um bundle **antigo** (`index-C6_C6ut3.js`) com bug TDZ (módulo React Scheduler `Dt` referenciado antes de inicializar durante render do `App`, no boot — até no login).
+- Bundle antigo não tinha CARTO key nem features recentes → deploy de muitos commits atrás.
+- **CI nunca publica a web**: `firebase-deploy.yml` builda o web (para o APK) mas **não** roda `firebase deploy --only hosting`. Site só mudaria manualmente.
+- Build atual (`42b5352`, `index-1NwXddBv.js`) **não tem o bug** (verificado localmente).
+
+### Fix
+- Rebuild com `.env.apk` (prod) + `firebase deploy --only hosting:correlogo`.
+- No ar: `correlogo.web.app` serve `index-1NwXddBv.js`/`DUErBI2p.css`, login monta sem `ReferenceError`.
+
+### Validation
+- `npm run build` ✓ · deploy ✓ · captura headless pós-deploy: página de login renderiza, sem erro.
+
+### Follow-up
+- **Usuário valida manualmente** os fluxos web pós-login (gerador, edição/rearranjo de dias, relatórios/estatísticas).
+- **Decisão do usuário**: NÃO adicionar deploy web à CI agora — queda registrada em TODO. Risco: se o build web quebrar, a web fica no bundle velho até deploy manual de novo.
+- Trabalho 8-c (esteira: velocidade real + auto-pause + instrumentação telemetria) está em `git stash` `wip-8c-treadmill` — a retomar.
 
 ### What happened
 Investigação completa (systematic-debugging) do erro `localStorage quota exceeded` ao gravar `correlogo:sessions:{uid}`.
