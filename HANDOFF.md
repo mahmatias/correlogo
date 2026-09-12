@@ -1,6 +1,39 @@
 # Handoff
 
-## Session Context (2026-09-04c — 8-c esteira BLE: velocidade real reportada + auto-pause por telemetria + instrumentação)
+## Session Context (2026-09-12b — CI: GitHub Release `latest` recriado + notes a cada build)
+
+### What happened
+O release `latest` ficava com `publishedAt` antigo ("2 meses atrás") porque `gh release upload --clobber` não renova a data. Alterado o `firebase-deploy.yml` para recriar o release a cada build (delete + create) com notes completas (Build #, versionName, commit, data UTC + `RELEASE_NOTES.txt`).
+
+### Key implementation points
+- Body das notes gerado em `/tmp/release-notes-body.md` dentro do step.
+- `gh release delete latest --yes 2>/dev/null || true` + `gh release create latest --title "Latest" --notes-file ...` sempre (sem condicional de existência).
+- URL `releases/download/latest/app-release.apk` e `update-manifest.json` seguem estáveis; tag `latest` continua forçada para HEAD.
+- Trade-off aceito: contador de downloads zera a cada build.
+
+### Validation
+- YAML parseado (`python yaml.safe_load`) ✓.
+- Efeito visível a partir do **próximo push em main** (pedido: não recriar releases anteriores).
+
+## Session Context (2026-09-12 — esteira read-only: telemetria real como fonte da verdade + distância híbrida)
+
+### What happened
+Após o usuário validar a telemetria FTMS (8-c), as esteiras dele não aceitam controle via BLE (Control not permitted). Design aprovado em brainstorming (HÍDRIDO, 2 perguntas): card da esteira read-only; distância por odômetro com fallback p/ integração de velocidade; barra grande read-only conectada / editável desconectada (fallback manual).
+
+### Key implementation points
+- `src/lib/treadmill-distance.ts` (novo): `HybridDistance` — odômetro monotônico = delta real do odômetro; 1º frame semeia baseline; frame sem odômetro ou regressão > 0,5 m (jitter) cai p/ integração `v×dt`; regressão real = troca permanente. 12 testes.
+- `WorkoutTracker`: native tick + interval web acumulam distância via `hybridDistRef.advance(currentDistanceFrame(dt))`; `lapDistRef` acumulada (era `lapElapsed×dPerSec`); `currentDistanceFrame` só passa odômetro quando CONECTADO; mirror effect alimenta `speedRef` com velocidade real; barra ± disabled conectada; removidos `treadmill.setSpeed` no start/transição (não controlável; gerava erro).
+- `TreadmillPanel`: read-only — speed + incline reais (`metrics.instantSpeedKmh`/`instantaneousInclinePercent`), sem controles, sem props `targetSpeedKmh/onSpeedChange/onInclineChange`.
+- `recordedSpeedKmh`/exports/auto-pause 9-a: inalterados.
+
+### Validation
+- `npm run test`: 139 testes ✓ (12 novos) · `npm run build` (.env.apk→.env) ✓
+- **SEM commit** (pedido do usuário no fim da sessão). Working tree: 3 arquivos alterados + 2 novos + mock.
+- **Pendente device**: odômetro monotônico em frames 1s? distância híbrida ≈ display da esteira?
+
+### Follow-up
+- Validar no device com a esteira real; se o odômetro não for monotônico, o fallback p/ integração cobre.
+- `mockups/workout-tela-treino.html`: variação "conectada" ainda mostra controles ± (pré-read-only) — atualizar se quiser documentar o novo estado.
 
 ### What happened
 Implementação do escopo 8-c (aprovado em grill): registrar velocidade **real** reportada (não o alvo), auto-pause por velocidade reportada (9-a), instrumentação de telemetria (P7).

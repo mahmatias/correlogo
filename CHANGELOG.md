@@ -1,6 +1,40 @@
 # Changelog
 
-## [2026-09-04c] — 8-c esteira: velocidade REAL reportada + auto-pause por telemetria + instrumentação
+## [2026-09-12] — esteira read-only: telemetria real como fonte da verdade (distância híbrida odômetro + velocidade)
+
+### Contexto
+Após o usuário validar a telemetria FTMS no device (8-c), confirmou-se que as esteiras do usuário **não aceitam controle** via FTMS (Control not permitted). Decisão de design (brainstorming): o card da esteira vira **read-only** (mostra só a velocidade e a inclinação reais reportadas) e o app assume os dados FTMS como fonte da verdade do treino — velocidade real alimenta distância, pace chart, steps por distância e KM TTS. Distância por estratégia **híbrida**: odômetro (`totalDistanceMeters`) quando presente e monotônico; fallback para integração de velocidade real se o odômetro zerar/regredir.
+
+### Implementação
+- **`src/lib/treadmill-distance.ts`** (novo, puro e testável): `HybridDistance.advance(DistanceFrame)` → `DistanceAdvance { deltaKm, source }`. Odômetro monotônico → delta do odômetro (metros→km); frame sem odômetro → integração de velocidade (`instantSpeedKmh/3600 × dt`) com a velocidade real; regressão além de `ODOMETER_JITTER_TOLERANCE_M` (0,5 m) = reset no console → **troca permanente** para integração na sessão. 1º frame com odômetro só semeia baseline. `odometerActive` exposto. **12 testes novos** em `treadmill-distance.test.ts`.
+- **`WorkoutTracker.tsx`**:
+  - Native tick (esteira) e interval web: distância passa a acumular com `hybridDistRef.advance(currentDistanceFrame(delta))`; `lapDistRef` agora é **acumulada** (não derivada de `lapElapsed × dPerSec`) — flui para conclusão de steps por distância, meio-volta, KM TTS, barra de progresso e gráfico de pace.
+  - `currentDistanceFrame(dt)`: o odômetro só entra quando a esteira está **conectada** (sem BLE nunca usa odo stale); desconectado usa `speedRef` (alvo do plano ou ajuste manual).
+  - Mirror effect agora também alimenta `speedRef` com `metrics.instantSpeedKmh` quando conectado → pace history/display usam a velocidade real.
+  - **Barra grande de velocidade**: botões `+`/`−` **desabilitados** quando conectado (read-only); desconectado volta a ser editável e vira o fallback manual de velocidade de registro.
+  - Removidos os envios de `treadmill.setSpeed` no início/transição de etapas (esteira não controlável → só gerava erro; `startAdjusting` ganhou guard `if (treadmill.connected) return`). `setStepSpeed` mantido apenas para o fallback de registro.
+- **`TreadmillPanel.tsx`**: card **read-only** — removidos os controles ± de velocidade/inclinação e as props `targetSpeedKmh`/`onSpeedChange`/`onInclineChange`; mostra apenas velocidade real (`metrics.instantSpeedKmh`) e inclinação real (`metrics.instantaneousInclinePercent`).
+- **Inalterado**: `recordedSpeedKmh()` (points), exports HC/Strava (`telemetryAvgSpeedKmh`), auto-pause 9-a, tela/TTS/marquee (continuam exibindo o alvo do plano).
+
+### Validação
+- `npm run test`: 17 arquivos / **139 testes** passando (12 novos) ✓
+- `npm run build` (com `.env.apk` → `.env`): ✓
+- **Pendente device**: confirmar que o odômetro da esteira é monotônico em frames de 1s durante treino real e que a distância híbrida bate com o display da esteira.
+
+## [2026-09-12b] — CI: GitHub Release `latest` recriado a cada build (notes sempre atualizadas)
+
+### Contexto
+O release `latest` era apenas "sobrescrito" via `gh release upload --clobber` — o `publishedAt` nunca mudava e a página ficava mostrando vagamente "Latest · 2 meses atrás", mesmo com builds novos publicados.
+
+### Implementação
+- `.github/workflows/firebase-deploy.yml` (step "Upload APK to GitHub Release"):
+  - Acumula o body das notes num /tmp/release-notes-body.md com **Build #** (`CI_VERSION_CODE`), **versionName**, **commit** (`github.sha`), **data** (UTC) + conteúdo do `RELEASE_NOTES.txt`.
+  - Substitui o `gh release upload --clobber` (ou create condicional) por **`gh release delete latest --yes` + `gh release create latest`** sempre — renova o `publishedAt` a cada build e atualiza as notes.
+  - A URL estável `releases/download/latest/app-release.apk` e `.../update-manifest.json` continua intacta (tag aponta para o mesmo destino). Contador de downloads zera a cada build (trade-off aceito).
+
+### Validação
+- YAML válido (parse `python yaml.safe_load` ✓).
+- Efeito a partir do próximo push em `main` (não aplicado aos releases anteriores).
 
 ### Contexto
 Fase de implementação do grill do modo esteira BLE. Decisão 8-c (aprovada em grill): registrar a velocidade **real** reportada pela esteira (FTMS) nos pontos do treino, com auto-pause por velocidade reportada (9-a) e instrumentação de telemetria (P7).

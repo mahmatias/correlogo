@@ -1,18 +1,14 @@
 import { useState } from 'react';
-import { Bluetooth, BluetoothSearching, BluetoothConnected, Plus, Minus, X, RefreshCw } from 'lucide-react';
-import Button from './Button';
+import { BluetoothSearching, BluetoothConnected, X, RefreshCw } from 'lucide-react';
 import type { TreadmillConnection } from '../lib/use-treadmill';
 
 interface Props {
   treadmill: TreadmillConnection
-  targetSpeedKmh?: number
-  onSpeedChange?: (speed: number) => void
-  onInclineChange?: (incline: number) => void
 }
 
-export default function TreadmillPanel({ treadmill, targetSpeedKmh, onSpeedChange, onInclineChange }: Props) {
+export default function TreadmillPanel({ treadmill }: Props) {
   const [showScan, setShowScan] = useState(false);
-  const { state, connected, devices, metrics, speedKmh, inclinePercent, error, scan, connect, disconnect, setSpeed, setIncline } = treadmill;
+  const { state, connected, devices, metrics, speedKmh, inclinePercent, error, scan, connect, disconnect } = treadmill;
   const isConnecting = state === 'CONNECTING';
 
   const handleToggleConnect = () => {
@@ -25,29 +21,11 @@ export default function TreadmillPanel({ treadmill, targetSpeedKmh, onSpeedChang
     }
   };
 
-  const handleSpeedDown = () => {
-    const newSpeed = Math.max(1, speedKmh - 0.5);
-    setSpeed(newSpeed);
-    onSpeedChange?.(newSpeed);
-  };
-
-  const handleSpeedUp = () => {
-    const newSpeed = Math.min(25, speedKmh + 0.5);
-    setSpeed(newSpeed);
-    onSpeedChange?.(newSpeed);
-  };
-
-  const handleInclineDown = () => {
-    const newIncline = Math.max(-2, inclinePercent - 0.5);
-    setIncline(newIncline);
-    onInclineChange?.(newIncline);
-  };
-
-  const handleInclineUp = () => {
-    const newIncline = Math.min(15, inclinePercent + 0.5);
-    setIncline(newIncline);
-    onInclineChange?.(newIncline);
-  };
+  // Card read-only: valores REALMENTE reportados pela esteira (FTMS), não o alvo.
+  // speedKmh/inclinePercent (alvo sobrescrito por setSpeed/setIncline) só como
+  // fallback antes do primeiro frame de telemetria.
+  const realSpeed = metrics?.instantSpeedKmh ?? speedKmh;
+  const realIncline = metrics?.instantaneousInclinePercent ?? inclinePercent;
 
   return (
     <div className={`bg-bg-elevated rounded-xl p-3 space-y-3 ${!connected && !isConnecting ? 'border border-yellow-600/50' : ''}`}>
@@ -89,38 +67,17 @@ export default function TreadmillPanel({ treadmill, targetSpeedKmh, onSpeedChang
       )}
 
       {connected && metrics && (
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div>
-            <div className="text-lg font-bold text-accent-secondary">{speedKmh.toFixed(1)}</div>
+        <div className="flex items-stretch justify-between gap-4">
+          <div className="flex-1 text-center">
+            <div className="text-lg font-bold text-accent-secondary">{realSpeed.toFixed(1)}</div>
             <div className="text-[9px] text-text-muted uppercase">KM/h</div>
-            {targetSpeedKmh !== undefined && (
-              <div className="text-[8px] text-text-muted">Alvo: {targetSpeedKmh.toFixed(1)}</div>
-            )}
+            <div className="text-[8px] text-text-muted">velocidade real</div>
           </div>
-          <div>
-            <div className="text-lg font-bold">{metrics.totalDistanceMeters ? (metrics.totalDistanceMeters / 1000).toFixed(2) : '0.00'}</div>
-            <div className="text-[9px] text-text-muted uppercase">KM</div>
-          </div>
-          <div>
-            <div className="text-lg font-bold">{inclinePercent.toFixed(1)}%</div>
+          <div className="flex-1 text-center">
+            <div className="text-lg font-bold">{realIncline.toFixed(1)}%</div>
             <div className="text-[9px] text-text-muted uppercase">Inclinação</div>
+            <div className="text-[8px] text-text-muted">inclinação real</div>
           </div>
-        </div>
-      )}
-
-      {connected && (
-        <div className="flex items-center justify-between gap-4">
-          <button onClick={handleSpeedDown} className="p-2 rounded-lg bg-bg-surface hover:bg-bg-elevated"><Minus size={20} /></button>
-          <span className="text-sm font-semibold">{speedKmh.toFixed(1)} km/h</span>
-          <button onClick={handleSpeedUp} className="p-2 rounded-lg bg-bg-surface hover:bg-bg-elevated"><Plus size={20} /></button>
-        </div>
-      )}
-
-      {connected && (
-        <div className="flex items-center justify-between gap-4">
-          <button onClick={handleInclineDown} className="p-2 rounded-lg bg-bg-surface hover:bg-bg-elevated"><Minus size={20} /></button>
-          <span className="text-sm font-semibold">{inclinePercent.toFixed(1)}%</span>
-          <button onClick={handleInclineUp} className="p-2 rounded-lg bg-bg-surface hover:bg-bg-elevated"><Plus size={20} /></button>
         </div>
       )}
     </div>

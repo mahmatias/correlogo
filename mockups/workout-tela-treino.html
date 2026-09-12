@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Tela de Treino — Corre Logo (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* SUNSET PALETTE — copiado de src/index.css */
+    --bg-deep: #0A0A14;
+    --bg-surface: #12122A;
+    --bg-elevated: #1C1C40;
+    --border: #2A2A50;
+    --text-primary: #F0ECF5;
+    --text-secondary: #B0A8C8;
+    --text-muted: #7A7490;
+    --accent: #FF006E;
+    --accent-secondary: #FFBE0B;
+    --accent-tertiary: #7209B7;
+    --success: #22C55E;
+    --danger: #EF4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: #07070f;
+    color: var(--text-primary);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    padding: 20px 24px 48px;
+    overflow-x: auto;
+  }
+  h1, h2, h3 { font-family: 'Geologica', sans-serif; }
+
+  header.top {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 20px; margin: -20px -24px 24px;
+    background: rgba(7,7,15,.92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid #ffffff14;
+  }
+  header.top h1 { font-size: 16px; font-weight: 700; letter-spacing: .01em; }
+  header.top h1 em { color: var(--accent); font-style: normal; }
+  header.top span { font-size: 12px; color: #8b8b9e; }
+  header.top .kbd { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent-secondary); background: #ffffff0d; border: 1px solid #ffffff1a; padding: 2px 8px; border-radius: 6px; }
+
+  .row {
+    display: flex; gap: 30px; padding: 8px 4px 24px;
+    align-items: flex-start; flex-wrap: wrap; justify-content: center;
+  }
+  .stage { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .stage > label {
+    font-size: 12px; font-weight: 600; color: #b9b9cc;
+    letter-spacing: .08em; text-transform: uppercase;
+  }
+  .stage > label small { display: block; text-align: center; font-size: 10px; color: #7a7490; letter-spacing: 0; text-transform: none; }
+
+  /* ===== Phone frame ===== */
+  .phone {
+    width: 375px; height: 812px;
+    border-radius: 22px; border: 2px solid #2a2a50;
+    background: var(--bg-deep);
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 24px 70px rgba(0,0,0,.55);
+    display: flex; flex-direction: column;
+  }
+  .phone .screen { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ===== WorkoutTracker root (treadmill) ===== */
+  .wt {
+    flex: 1; display: flex; flex-direction: column;
+    background: var(--bg-deep); color: var(--text-primary);
+    padding: 12px 24px 48px; /* py-3 px-6 pb-[48px] */
+    overflow: hidden;
+  }
+
+  .wt .label-sm {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--text-secondary); text-align: center;
+    flex-shrink: 0;
+  }
+  .wt .step-title {
+    font-family: 'Geologica', sans-serif;
+    font-size: 30px; font-weight: 700; text-transform: uppercase;
+    color: var(--accent-secondary); text-align: center;
+    line-height: 1.2; flex-shrink: 0;
+  }
+
+  /* stats 3-col */
+  .stats { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; margin-top: 4px; }
+  .stats .s-l { font-size: 12px; text-transform: uppercase; color: var(--text-secondary); }
+  .stats .s-v { font-size: 18px; font-weight: 700; font-family: 'Geologica', sans-serif; }
+
+  /* HR card */
+  .hr-card { flex-shrink: 0; margin-top: 8px; width: 100%; padding: 8px 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .hr-card .lhs { display: flex; align-items: center; gap: 8px; }
+  .hr-card .lhs .ttl { font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  .hr-card .zone-badge { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 999px; border: 1px solid; }
+  .hr-card .rhs { display: flex; align-items: center; gap: 12px; }
+  .hr-card .hr-val { font-size: 24px; font-weight: 700; font-family: 'Geologica', sans-serif; line-height: 1; }
+  .hr-card .disconnect { font-size: 10px; color: var(--text-muted); text-decoration: underline; cursor: pointer; background: none; border: none; font-family: inherit; }
+  .btn-connect-hr { flex-shrink: 0; margin-top: 4px; width: 100%; padding: 6px 0; border-radius: 8px; background: var(--bg-elevated); color: var(--text-primary); font-size: 12px; font-weight: 500; border: none; font-family: inherit; cursor: pointer; }
+
+  /* marquee */
+  .marquee { flex-shrink: 0; position: relative; background: var(--bg-elevated); border-radius: 6px; margin-top: 4px; height: 36px; overflow: hidden; width: 100%; }
+  .marquee .mt { position: absolute; top: 50%; transform: translateY(-50%); font-size: 16px; color: var(--text-primary); white-space: nowrap; font-weight: 400; font-family: 'IBM Plex Sans', sans-serif; }
+  .marquee .mt.anim { animation: marquee 10s linear infinite; }
+  @keyframes marquee { 0% { left: 100%; } 100% { left: -100%; } }
+
+  /* progress bars */
+  .p-label { flex-shrink: 0; font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-secondary); margin-top: 4px; margin-bottom: 2px; }
+  .p-bar { flex-shrink: 0; position: relative; width: 100%; height: 18px; background: var(--bg-elevated); border-radius: 999px; }
+  .p-fill { height: 100%; background: var(--accent-secondary); border-radius: 999px; }
+  .p-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.55); pointer-events: none; }
+
+  /* distance box */
+  .dist-box { flex: 1 1 0; min-height: 90px; margin-top: 8px; width: 100%; padding: 8px 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .dist-box .big { font-family: 'Geologica', sans-serif; font-size: 42px; font-weight: 700; line-height: 1.1; }
+  .dist-box .big-label { font-size: 10px; text-transform: uppercase; letter-spacing: .16em; color: var(--text-secondary); }
+  .dist-box .med { font-family: 'Geologica', sans-serif; font-size: 20px; font-weight: 700; margin-top: 6px; }
+  .dist-box .med-label { font-size: 10px; text-transform: uppercase; letter-spacing: .16em; color: var(--text-secondary); }
+
+  /* TreadmillPanel */
+  .tp { flex-shrink: 0; margin-top: 8px; background: var(--bg-elevated); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 12px; width: 100%; }
+  .tp.warn { border: 1px solid #ca8a04; }
+  .tp .conn { display: flex; align-items: center; justify-content: space-between; }
+  .tp .conn .s { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+  .tp .conn .s.connected { color: #4ade80; }
+  .tp .conn .s.searching { color: #facc15; }
+  .tp .conn .s.idle { color: var(--text-secondary); }
+  .tp .conn .x { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; }
+  .tp .tm { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; }
+  .tp .tm.two { grid-template-columns: 1fr 1fr; }
+  .tp .tm .v { font-family: 'Geologica', sans-serif; font-size: 18px; font-weight: 700; color: var(--accent-secondary); }
+  .tp .tm .k { font-size: 9px; text-transform: uppercase; color: var(--text-muted); }
+  .tp .tm .sub { font-size: 8px; color: var(--text-muted); }
+  .tp .row-ctl { display: flex; align-items: center; justify-content: space-between; }
+  .tp .row-ctl .mid { font-size: 14px; font-weight: 600; }
+  .ctl-btn { width: 36px; height: 36px; border-radius: 8px; background: var(--bg-surface); border: none; color: var(--text-primary); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+  .ctl-btn.off { opacity: .35; cursor: not-allowed; }
+
+  /* big speed control */
+  .speed-ctl { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; background: var(--bg-elevated); border-radius: 12px; padding: 8px 12px; margin-top: 8px; width: 100%; }
+  .speed-ctl .v { font-family: 'Geologica', sans-serif; font-size: 24px; font-weight: 700; color: var(--accent-secondary); text-align: center; line-height: 1.05; }
+  .speed-ctl .k { font-size: 10px; text-transform: uppercase; color: var(--text-muted); text-align: center; }
+
+  /* stacked buttons */
+  .btns { flex-shrink: 0; flex-direction: column; display: flex; gap: 8px; margin-top: 8px; width: 100%; }
+  .btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 0; border-radius: 12px; font-weight: 700; text-transform: uppercase; font-size: 14px; border: none; font-family: 'Geologica', sans-serif; cursor: pointer; position: relative; overflow: hidden; }
+  .btn.solid { background: var(--bg-elevated); color: var(--text-primary); }
+  .btn.amber { background: var(--accent-secondary); color: #fff; }
+  .btn.pink { background: var(--accent); color: #fff; }
+  .btn.disabled { opacity: .5; cursor: not-allowed; }
+  .btn .fill { position: absolute; inset: 0; background: var(--accent-secondary); opacity: .45; }
+  .btn span.z { position: relative; display: flex; align-items: center; gap: 8px; z-index: 1; }
+
+  /* outdoor map placeholder */
+  .map { flex: .85 1 0; min-height: 120px; margin-top: 8px; border-radius: 12px; overflow: hidden; position: relative; background: #14141f; }
+  .map svg { width: 100%; height: 100%; display: block; }
+  .map .route { fill: none; stroke: #FFBE0B; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+  .map .dot { fill: #FF006E; }
+  .map .origin { fill: #22C55E; }
+
+  svg.ic { width: 16px; height: 16px; display: block; }
+  svg.ic.lg { width: 22px; height: 22px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1><em>Corre Logo</em> — Tela de Treino</h1>
+  <span>mockup fiel ao design atual (paleta Sunset) · telemetria FTMS validada no device</span>
+  <span class="kbd">esteira conectada = valores reais reportados pelo BLE</span>
+</header>
+
+<div class="row">
+
+  <!-- ============ 1. ESTEIRA CONECTADA ============ -->
+  <div class="stage">
+    <label>Esteira conectada<small>telemetria real · cinta HR ligada</small></label>
+    <div class="phone"><div class="screen"><div class="wt">
+
+      <div class="label-sm">Atual</div>
+      <div class="step-title">Corrida</div>
+
+      <div class="stats">
+        <div><div class="s-v">3,25 km</div><div class="s-l">Dist. Total</div></div>
+        <div><div class="s-v">18:42</div><div class="s-l">Tempo total</div></div>
+        <div><div class="s-v">10,4 km/h</div><div class="s-l">Vel. Média</div></div>
+      </div>
+
+      <div class="hr-card">
+        <div class="lhs">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          <span class="ttl">FC</span>
+          <span class="zone-badge" style="color:#f97316;border-color:#f9731655;background:#f9731614;">Zona 4 — Limiar</span>
+        </div>
+        <div class="rhs">
+          <div class="hr-val" style="color:#f97316;">156</div>
+          <button class="disconnect">Desconectar</button>
+        </div>
+      </div>
+
+      <div class="marquee">
+        <div class="mt anim">3:00 Corrida @ 10,0 km/h</div>
+      </div>
+
+      <div class="p-label">Progresso da Volta</div>
+      <div class="p-bar"><div class="p-fill" style="width:62%"></div><span class="p-pct">62%</span></div>
+
+      <div class="p-label">Progresso do Treino</div>
+      <div class="p-bar"><div class="p-fill" style="width:45%"></div><span class="p-pct">45%</span></div>
+
+      <div class="dist-box">
+        <div class="big">1:14</div>
+        <div class="big-label">Tempo Restante</div>
+        <div class="med">1,85 km</div>
+        <div class="med-label">Distância Percorrida</div>
+      </div>
+
+      <div class="tp">
+        <div class="conn">
+          <div class="s connected">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>
+            Esteira conectada
+          </div>
+          <button class="x"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <div class="tm two">
+          <div><div class="v">10,0</div><div class="k">KM/h</div><div class="sub">velocidade real</div></div>
+          <div><div class="v" style="color:var(--text-primary)">4,0%</div><div class="k">Inclinação</div><div class="sub">inclinação real</div></div>
+        </div>
+      </div>
+
+      <div class="speed-ctl">
+        <button class="ctl-btn off" style="margin:0"><svg class="ic lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg></button>
+        <div><div class="v">10,0</div><div class="k">Velocidade · via esteira</div></div>
+        <button class="ctl-btn off" style="margin:0"><svg class="ic lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+      </div>
+
+      <div class="btns">
+        <button class="btn solid"><span class="z"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 17 5-5-5-5"/><path d="M2 17 7 12 2 7"/></svg>Próxima volta</span></button>
+        <button class="btn amber"><span class="z"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>Pausar</span></button>
+      </div>
+
+    </div></div></div>
+  </div>
+
+  <!-- ============ 2. PAUSADA / FINALIZAR (hold) ============ -->
+  <div class="stage">
+    <label>Pausada — finalizar (hold)<small>marquee parado · barra de hold parcial</small></label>
+    <div class="phone"><div class="screen"><div class="wt">
+
+      <div class="label-sm">Atual</div>
+      <div class="step-title">Corrida</div>
+
+      <div class="stats">
+        <div><div class="s-v">3,25 km</div><div class="s-l">Dist. Total</div></div>
+        <div><div class="s-v">18:42</div><div class="s-l">Tempo total</div></div>
+        <div><div class="s-v">10,4 km/h</div><div class="s-l">Vel. Média</div></div>
+      </div>
+
+      <div class="hr-card">
+        <div class="lhs">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          <span class="ttl">FC</span>
+          <span class="zone-badge" style="color:#f97316;border-color:#f9731655;background:#f9731614;">Zona 4 — Limiar</span>
+        </div>
+        <div class="rhs">
+          <div class="hr-val" style="color:#f97316;">152</div>
+          <button class="disconnect">Desconectar</button>
+        </div>
+      </div>
+
+      <div class="marquee">
+        <div class="mt" style="left:8px">3:00 Corrida @ 10,0 km/h</div>
+      </div>
+
+      <div class="p-label">Progresso da Volta</div>
+      <div class="p-bar"><div class="p-fill" style="width:68%"></div><span class="p-pct">68%</span></div>
+
+      <div class="p-label">Progresso do Treino</div>
+      <div class="p-bar"><div class="p-fill" style="width:47%"></div><span class="p-pct">47%</span></div>
+
+      <div class="dist-box">
+        <div class="big">0:58</div>
+        <div class="big-label">Tempo Restante</div>
+        <div class="med">2,05 km</div>
+        <div class="med-label">Distância Percorrida</div>
+      </div>
+
+      <div class="tp">
+        <div class="conn">
+          <div class="s connected">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>
+            Esteira conectada
+          </div>
+          <button class="x"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <div class="tm two">
+          <div><div class="v">0,0</div><div class="k">KM/h</div><div class="sub">velocidade real</div></div>
+          <div><div class="v" style="color:var(--text-primary)">4,0%</div><div class="k">Inclinação</div><div class="sub">inclinação real</div></div>
+        </div>
+      </div>
+
+      <div class="speed-ctl">
+        <button class="ctl-btn off" style="margin:0"><svg class="ic lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg></button>
+        <div><div class="v">10,0</div><div class="k">Velocidade · via esteira</div></div>
+        <button class="ctl-btn off" style="margin:0"><svg class="ic lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+      </div>
+
+      <div class="btns">
+        <button class="btn pink"><span class="fill" style="width:72%"></span><span class="z"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>Finalizar</span></button>
+        <button class="btn amber"><span class="z"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>Continuar</span></button>
+      </div>
+
+    </div></div></div>
+  </div>
+
+  <!-- ============ 3. DESCONECTADA ============ -->
+  <div class="stage">
+    <label>Esteira desconectada<small>falha BLE / sem cinta</small></label>
+    <div class="phone"><div class="screen"><div class="wt">
+
+      <div class="label-sm">Atual</div>
+      <div class="step-title">Corrida</div>
+
+      <div class="stats">
+        <div><div class="s-v">0,98 km</div><div class="s-l">Dist. Total</div></div>
+        <div><div class="s-v">06:12</div><div class="s-l">Tempo total</div></div>
+        <div><div class="s-v">9,5 km/h</div><div class="s-l">Vel. Média</div></div>
+      </div>
+
+      <div class="hr-card">
+        <div class="lhs">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#7a7490" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          <span class="ttl">FC</span>
+        </div>
+        <div class="rhs"><div class="hr-val" style="color:var(--text-primary)">—</div></div>
+      </div>
+      <button class="btn-connect-hr">Conectar cinta cardíaca</button>
+
+      <div class="marquee">
+        <div class="mt anim">3:00 Corrida @ 10,0 km/h</div>
+      </div>
+
+      <div class="p-label">Progresso da Volta</div>
+      <div class="p-bar"><div class="p-fill" style="width:34%"></div><span class="p-pct">34%</span></div>
+
+      <div class="p-label">Progresso do Treino</div>
+      <div class="p-bar"><div class="p-fill" style="width:24%"></div><span class="p-pct">24%</span></div>
+
+      <div class="dist-box">
+        <div class="big">1:58</div>
+        <div class="big-label">Tempo Restante</div>
+        <div class="med">0,98 km</div>
+        <div class="med-label">Distância Percorrida</div>
+      </div>
+
+      <div class="tp warn">
+        <div class="conn">
+          <div class="s idle">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+            Reconectar esteira
+          </div>
+        </div>
+      </div>
+
+      <div class="speed-ctl">
+        <button class="ctl-btn" style="margin:0"><svg class="ic lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg></button>
+        <div><div class="v">9,5</div><div class="k">Velocidade</div></div>
+        <button class="ctl-btn" style="margin:0"><svg class="ic lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+      </div>
+
+      <div class="btns">
+        <button class="btn solid"><span class="z"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 17 5-5-5-5"/><path d="M2 17 7 12 2 7"/></svg>Próxima volta</span></button>
+        <button class="btn amber"><span class="z"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>Pausar</span></button>
+      </div>
+
+    </div></div></div>
+  </div>
+
+  <!-- ============ 4. TREINO LIVRE ============ -->
+  <div class="stage">
+    <label>Treino Livre<small>esteira conectada</small></label>
+    <div class="phone"><div class="screen"><div class="wt">
+
+      <div class="label-sm">Atual</div>
+      <div class="step-title">Corrida</div>
+
+      <div class="stats">
+        <div><div class="s-v">2,35 km</div><div class="s-l">Dist. Total</div></div>
+        <div><div class="s-v">24:12</div><div class="s-l">Tempo total</div></div>
+        <div><div class="s-v">5,8 km/h</div><div class="s-l">Vel. Média</div></div>
+      </div>
+
+      <div class="hr-card">
+        <div class="lhs">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          <span class="ttl">FC</span>
+          <span class="zone-badge" style="color:#eab308;border-color:#eab30855;background:#eab30814;">Zona 3 — Aeróbico</span>
+        </div>
+        <div class="rhs">
+          <div class="hr-val" style="color:#eab308;">138</div>
+          <button class="disconnect">Desconectar</button>
+        </div>
+      </div>
+
+      <div class="marquee">
+        <div class="mt anim">Corrida Livre</div>
+      </div>
+
+      <div class="p-label">Progresso do Treino</div>
+      <div class="p-bar"><div class="p-fill" style="width:56%"></div><span class="p-pct">56%</span></div>
+
+      <div class="dist-box">
+        <div class="big">24:12</div>
+        <div class="big-label">Tempo Decorrido</div>
+        <div class="med">2,35 km</div>
+        <div class="med-label">Distância Percorrida</div>
+      </div>
+
+      <div class="tp">
+        <div class="conn">
+          <div class="s connected">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>
+            Esteira conectada
+          </div>
+          <button class="x"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <div class="tm two">
+          <div><div class="v">5,8</div><div class="k">KM/h</div><div class="sub">velocidade real</div></div>
+          <div><div class="v" style="color:var(--text-primary)">2,5%</div><div class="k">Inclinação</div><div class="sub">inclinação real</div></div>
+        </div>
+      </div>
+
+      <div class="speed-ctl">
+        <button class="ctl-btn off" style="margin:0"><svg class="ic lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg></button>
+        <div><div class="v">5,8</div><div class="k">Velocidade · via esteira</div></div>
+        <button class="ctl-btn off" style="margin:0"><svg class="ic lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+      </div>
+
+      <div class="btns">
+        <button class="btn solid disabled"><span class="z"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 17 5-5-5-5"/><path d="M2 17 7 12 2 7"/></svg>Próxima volta</span></button>
+        <button class="btn amber"><span class="z"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>Pausar</span></button>
+      </div>
+
+    </div></div></div>
+  </div>
+
+  <!-- ============ 5. OUTDOOR ============ -->
+  <div class="stage">
+    <label>Outdoor (GPS)<small>mapa em vez de painel BLE</small></label>
+    <div class="phone"><div class="screen"><div class="wt">
+
+      <div class="label-sm">Atual</div>
+      <div class="step-title">Aquecimento</div>
+
+      <div class="stats">
+        <div><div class="s-v">0,80 km</div><div class="s-l">Dist. Total</div></div>
+        <div><div class="s-v">05:03</div><div class="s-l">Tempo total</div></div>
+        <div><div class="s-v">9,5 km/h</div><div class="s-l">Vel. Média</div></div>
+      </div>
+
+      <div class="hr-card">
+        <div class="lhs">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          <span class="ttl">FC</span>
+          <span class="zone-badge" style="color:#3b82f6;border-color:#3b82f655;background:#3b82f614;">Zona 1 — Recuperação</span>
+        </div>
+        <div class="rhs">
+          <div class="hr-val" style="color:#3b82f6;">112</div>
+          <button class="disconnect">Desconectar</button>
+        </div>
+      </div>
+
+      <div class="marquee">
+        <div class="mt anim">5:00 Aquecimento @ 9,5 km/h</div>
+      </div>
+
+      <div class="p-label">Progresso da Volta</div>
+      <div class="p-bar"><div class="p-fill" style="width:84%"></div><span class="p-pct">84%</span></div>
+
+      <div class="p-label">Progresso do Treino</div>
+      <div class="p-bar"><div class="p-fill" style="width:10%"></div><span class="p-pct">10%</span></div>
+
+      <div class="map">
+        <svg viewBox="0 0 327 170" preserveAspectRatio="xMidYMid slice">
+          <rect width="327" height="170" fill="#14141f"/>
+          <path d="M14 18 L120 22 L176 56 L238 40 L313 92 L312 120 L150 132 L96 96 L24 122 Z"
+                fill="none" stroke="#1a1a2c" stroke-width="1"/>
+          <path d="M-10 40 Q 60 30 100 58 T 200 74 T 300 90"
+                fill="none" stroke="#1a1a2c" stroke-width="1"/>
+          <path d="M-10 100 Q 80 96 140 124 T 300 140"
+                fill="none" stroke="#1a1a2c" stroke-width="1"/>
+          <path class="route" d="M24 122 L80 106 L126 120 L176 90 L220 98 L262 74 L300 92"/>
+          <circle class="dot" cx="24" cy="122" r="5"/>
+          <circle class="origin" cx="24" cy="122" r="2.5"/>
+        </svg>
+      </div>
+
+      <div class="dist-box" style="flex-shrink:0; flex:0;">
+        <div class="big">0:47</div>
+        <div class="big-label">Tempo Restante</div>
+        <div class="med">0,80 km</div>
+        <div class="med-label">Distância Percorrida</div>
+      </div>
+
+      <div class="btns" style="margin-top:auto; padding-bottom:4px;">
+        <button class="btn solid"><span class="z"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 17 5-5-5-5"/><path d="M2 17 7 12 2 7"/></svg>Próxima volta</span></button>
+        <button class="btn amber"><span class="z"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>Pausar</span></button>
+      </div>
+
+    </div></div></div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -99,15 +99,28 @@ jobs:
           # Move the 'latest' tag to HEAD so the release points to this commit
           git tag -f latest HEAD
           git push origin latest --force 2>/dev/null || true
-          if gh release view latest --json tagName > /dev/null 2>&1; then
-            gh release upload latest --clobber \
-              android/app/build/outputs/apk/release/app-release.apk \
-              /tmp/update-manifest.json
-          else
-            gh release create latest --notes "Build #$CI_VERSION_CODE" --title "Latest" \
-              android/app/build/outputs/apk/release/app-release.apk \
-              /tmp/update-manifest.json
-          fi
+          # Body de notes com os dados da build (sempre atualizado)
+          {
+            echo "## Build #$CI_VERSION_CODE"
+            echo ""
+            echo "- **versionName**: $VERSION_NAME"
+            echo "- **Commit**: \`${{ github.sha }}\`"
+            echo "- **Data**: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            echo ""
+            echo "---"
+            echo ""
+            cat RELEASE_NOTES.txt
+          } > /tmp/release-notes-body.md
+          # Recria o release sempre: renova o publishedAt na página do GitHub
+          # (`gh release upload` não muda a data exibida) e atualiza as notes.
+          # A URL de download `releases/download/latest/...` permanece estável
+          # (tag aponta para o mesmo destino).
+          gh release delete latest --yes 2>/dev/null || true
+          gh release create latest \
+            --title "Latest" \
+            --notes-file /tmp/release-notes-body.md \
+            android/app/build/outputs/apk/release/app-release.apk \
+            /tmp/update-manifest.json
           echo "Release URL: https://github.com/mahmatias/correlogo/releases/tag/latest"
 
       - name: Cleanup sensitive files

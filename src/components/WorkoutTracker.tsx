@@ -11,6 +11,8 @@ import { sendWorkoutToStravaViaEmail } from '../lib/gmailApi';
 import TreadmillPanel from './TreadmillPanel';
 import type { TreadmillConnection } from '../lib/use-treadmill';
 import { TelemetryTracker } from '../lib/treadmill-telemetry';
+import { HybridDistance } from '../lib/treadmill-distance';
+import type { DistanceFrame } from '../lib/treadmill-distance';
 import type { TreadmillMetrics } from '../lib/ftms-protocol';
 import type { HrBeltConnection } from '../lib/use-hr-belt';
 import { estimateHrMax, hrZone, zoneColor, zoneLabel, type HrZone } from '../lib/hr-zones';
@@ -115,15 +117,19 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       }
   }, [countdown]);
 
-  // Set treadmill speed to first step's target when workout starts
-  useEffect(() => {
-    if (countdown === 0 && treadmill.connected) {
-      const step = plan.steps[0];
-      if (step?.targetPace && step.targetPace > 0) {
-        treadmill.setSpeed(60 / step.targetPace);
-      }
+  // Recorded speed fallback = first step's target for recording (no control command:
+  // esteira é read-only via FTMS, o app apenas registra a velocidade real).
+  const recordFirstStepTarget = () => {
+    const step = plan.steps[0];
+    if (step?.targetPace && step.targetPace > 0) {
+      setStepSpeed(0);
     }
-  }, [countdown, treadmill.connected]);
+  };
+  useEffect(() => {
+    if (countdown === 0) {
+      recordFirstStepTarget();
+    }
+  }, [countdown]);
 
   // Sync refs to state
   useEffect(() => {
@@ -135,17 +141,15 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     return () => clearInterval(timer);
   }, []);
 
-  // Auto-sync speed to treadmill on step transition
+  // Fallback speed = next step's target on transition (sem comando de controle:
+  // esteira é read-only via FTMS; a velocidade real chega pela telemetria).
   const prevStepRef = useRef(currentStepIndex);
   useEffect(() => {
-    if (prevStepRef.current !== currentStepIndex && treadmill.connected) {
-      const step = plan.steps[currentStepIndex];
-      if (step?.targetPace && step.targetPace > 0) {
-        treadmill.setSpeed(60 / step.targetPace);
-      }
+    if (prevStepRef.current !== currentStepIndex) {
+      setStepSpeed(currentStepIndex);
     }
     prevStepRef.current = currentStepIndex;
-  }, [currentStepIndex, treadmill.connected]);
+  }, [currentStepIndex]);
 
   // GPS tracking + keep-alive + native timer
   useEffect(() => {
@@ -251,21 +255,21 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
       setElapsedSeconds(elapsed);
       elapsedRef.current = elapsed;
 
-      // Incremental distance (doesn't recalculate from scratch — avoid jump on speed change)
-      const dPerSec = speedRef.current / 3600;
+      // Distância incremental via HybridDistance (odômetro real quando
+      // monotônico; fallback velocidade × dt) — esteira como fonte da verdade.
       if (prevElapsedRef.current >= 0) {
         const delta = elapsed - prevElapsedRef.current;
         if (delta > 0) {
-          distRef.current += delta * dPerSec;
+          const adv = hybridDistRef.current!.advance(currentDistanceFrame(delta));
+          distRef.current += adv.deltaKm;
+          lapDistRef.current += adv.deltaKm;
         }
       }
       prevElapsedRef.current = elapsed;
 
-      // Lap tracking via lapStartElapsedRef
+      // Lap tracking via lapStartElapsedRef (distância acumulada, não derivada)
       const lapElapsed = elapsed - lapStartElapsedRef.current;
-      const lapDist = lapElapsed * dPerSec;
-      lapDistRef.current = lapDist;
-      setLapDistance(lapDist);
+      setLapDistance(lapDistRef.current);
       setLapSeconds(lapElapsed);
 
       // Accumulate point
@@ -383,9 +387,9 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
           setLapSeconds(s => s + 1);
           
           if (mode === 'treadmill') {
-            const dPerSec = (speedRef.current / 3600);
-            distRef.current += dPerSec;
-            lapDistRef.current += dPerSec;
+            const adv = hybridDistRef.current!.advance(currentDistanceFrame(1));
+            distRef.current += adv.deltaKm;
+            lapDistRef.current += adv.deltaKm;
           }
 
           elapsedRef.current += 1;
@@ -506,6 +510,8 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   // (que não são re-criados a cada frame) e acumulamos tudo no TelemetryTracker.
   const telemetryTrackerRef = useRef<TelemetryTracker | null>(null);
   if (!telemetryTrackerRef.current) telemetryTrackerRef.current = new TelemetryTracker();
+  const hybridDistRef = useRef<HybridDistance | null>(null);
+  if (!hybridDistRef.current) hybridDistRef.current = new HybridDistance();
   const treadmillMetricsRef = useRef<TreadmillMetrics | null>(null);
   const treadmillConnectedRef = useRef(treadmill.connected);
   const lastTreadmillMoveTimeRef = useRef(Date.now()); // last time treadmill reported movement
@@ -513,6 +519,11 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   useEffect(() => {
     treadmillMetricsRef.current = treadmill.metrics;
     treadmillConnectedRef.current = treadmill.connected;
+    // Fonte da verdade: quando conectada, a velocidade REAL reportada pela
+    // esteira alimenta speedRef (pace chart, barra, distância/fallback).
+    if (treadmill.connected && treadmill.metrics) {
+      speedRef.current = treadmill.metrics.instantSpeedKmh;
+    }
   }, [treadmill.metrics, treadmill.connected]);
 
   // Instrumentação (P7): acumula todos os frames FTMS recebidos da esteira.
@@ -533,6 +544,21 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
     const m = treadmillMetricsRef.current;
     if (treadmillConnectedRef.current && m) return m.instantSpeedKmh;
     return speedRef.current;
+  };
+
+  // Frame de distância para o HybridDistance: o odômetro só entra quando a
+  // esteira está CONECTADA (sem BLE, nunca usar baseline/odo stale) e a
+  // velocidade cai para speedRef (alvo ou ajuste manual) como fallback.
+  const currentDistanceFrame = (dtSeconds: number): DistanceFrame => {
+    const m = treadmillMetricsRef.current;
+    if (treadmillConnectedRef.current && m) {
+      return {
+        instantSpeedKmh: m.instantSpeedKmh,
+        totalDistanceMeters: m.totalDistanceMeters,
+        dtSeconds,
+      };
+    }
+    return { instantSpeedKmh: speedRef.current, dtSeconds };
   };
 
   // Média real da velocidade reportada pela esteira (para exports HC/Strava).
@@ -761,11 +787,14 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
   const pressStartRef = useRef<number>(0);
 
   const startAdjusting = (change: number) => {
+    // Read-only com a esteira conectada: a velocidade REAL (FTMS) é a fonte
+    // da verdade; o ajuste manual só vale como fallback sem BLE.
+    if (treadmill.connected) return;
+
     // 1 tap
     const newSpeed = Math.max(1, currentSpeed + (change > 0 ? 0.1 : -0.1));
     setCurrentSpeed(newSpeed);
     speedRef.current = newSpeed;
-    if (treadmill.connected) treadmill.setSpeed(newSpeed);
 
     // Hold logic
     speedTimeoutRef.current = setTimeout(() => {
@@ -1044,12 +1073,6 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
             <div className="flex-shrink-0 mt-2">
               <TreadmillPanel
                 treadmill={treadmill}
-                targetSpeedKmh={(() => {
-                  const step = plan.steps[currentStepIndex];
-                  return step?.targetPace ? 60 / step.targetPace : undefined;
-                })()}
-                onSpeedChange={(s) => { setCurrentSpeed(s); speedRef.current = s; }}
-                onInclineChange={(i) => { if (treadmill.connected) treadmill.setIncline(i); }}
               />
             </div>
         )}
@@ -1057,6 +1080,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
         {mode === 'treadmill' && (
             <div className="flex-shrink-0 flex items-center justify-between bg-bg-elevated rounded-xl p-2 mt-2">
                 <button 
+                    disabled={treadmill.connected}
                     onMouseDown={() => { if (speedTouchRef.current) return; if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(-0.1); } }}
                     onMouseUp={() => { stopAdjusting(); }}
                     onMouseLeave={() => { stopAdjusting(); }}
@@ -1064,7 +1088,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                     onTouchEnd={() => { stopAdjusting(); setTimeout(() => { speedTouchRef.current = false; }, 100); }}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startAdjusting(-0.1); } }}
                     onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') stopAdjusting(); }}
-                    className="p-2 rounded-lg bg-bg-elevated"
+                    className={`p-2 rounded-lg bg-bg-elevated ${treadmill.connected ? 'opacity-40 cursor-not-allowed' : ''}`}
                     style={{ touchAction: 'manipulation' }}
                     aria-label="Diminuir velocidade"
                 >
@@ -1073,8 +1097,10 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                 <div className="flex flex-col items-center">
                     <div className="text-2xl font-bold text-accent-secondary">{currentSpeed.toFixed(1)} KM/h</div>
                     <div className="text-[10px] text-text-muted uppercase">Velocidade</div>
+                    {treadmill.connected && <div className="text-[9px] text-text-muted">via esteira</div>}
                 </div>
                 <button 
+                    disabled={treadmill.connected}
                     onMouseDown={() => { if (speedTouchRef.current) return; if (mode === 'treadmill') { pressStartRef.current = Date.now(); startAdjusting(0.1); } }}
                     onMouseUp={() => { stopAdjusting(); }}
                     onMouseLeave={() => { stopAdjusting(); }}
@@ -1082,7 +1108,7 @@ export default function WorkoutTracker({ plan, onStop, mode, markAsCompleted, to
                     onTouchEnd={() => { stopAdjusting(); setTimeout(() => { speedTouchRef.current = false; }, 100); }}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startAdjusting(0.1); } }}
                     onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') stopAdjusting(); }}
-                    className="p-2 rounded-lg bg-bg-elevated"
+                    className={`p-2 rounded-lg bg-bg-elevated ${treadmill.connected ? 'opacity-40 cursor-not-allowed' : ''}`}
                     style={{ touchAction: 'manipulation' }}
                     aria-label="Aumentar velocidade"
                 >
