@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-09-12c] — Telas demonstrativas no README e na wiki (docs)
+
+### Implementação
+- **12 PNGs** em `docs/screens/` — renders estáticos dos mockups via **Chrome headless** (`--headless --screenshot`), isolando cada variante com o query param ?tela=N adicionado aos mockups:
+  - `mockups/workout-tela-treino.html` (?tela=1..5): esteira conectada, pausada, esteira desconectada, treino livre, outdoor GPS.
+  - `mockups/outras-telas.html` (novo — 3 cenários): **gerador de treinos** (Etapa 1, objetivo 10K + alerta de pace agressivo), **registros** (status de sync Gmail/HC, badge "Relógio"), **conquistas** (stats, badges medalha/cadeado, recordes). Layouts fiéis aos componentes reais (`TrainingGenerator`, `ProgramReview`, `SessionHistory`, `Achievements`, `TabBar`).
+  - `mockups/share-cards.html` (?tela=1..4): as 4 variantes de card 1080×1920.
+- **`docs/wiki/showcase/screens.md`** (novo): página de galeria com captions por estado/tela + seção "como reproduzir os renders".
+- **`docs/wiki/README.md`**: novo índice "🖼️ Demonstração".
+- **`README.md`**: nova seção "Telas" (4 imagens inline + link para a galeria).
+- **`TODO.md`**: item "AGENTS.md desatualizado" ✅ superado (seção Production já reflete Firebase-only + nota do release recriado); item "Aguardando push → build 177" reescrito como reteste de Gmail >1h sem re-login no device (back-nav já tem item próprio).
+
+### Validação
+- Dimensões dos PNGs conferidas (telas 383×820, cards 1120×1960) ✓
+- **Pendente**: revisão visual pelo usuário (render headless do modelo não visualiza imagens).
+
 ## [2026-09-12] — esteira read-only: telemetria real como fonte da verdade (distância híbrida odômetro + velocidade)
 
 ### Contexto

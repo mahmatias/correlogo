@@ -55,6 +55,9 @@ Wiki técnica completa do projeto Corre Logo — app de treinos de corrida com p
 ### 🐛 Troubleshooting
 - [Problemas Comuns](troubleshooting/common.md)
 
+### 🖼️ Demonstração
+- [Telas do App (Galeria)](showcase/screens.md) — renders dos mockups: treino (esteira/outdoor), gerador, registros, conquistas e share cards
+
 ### 📈 Roadmap & Decisões
 - [Changelog](roadmap/changelog.md)
 - [Decisões Arquiteturais](roadmap/decisions.md)

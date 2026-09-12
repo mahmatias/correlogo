@@ -1,5 +1,22 @@
 # Handoff
 
+## Session Context (2026-09-12c — Telas demonstrativas README + wiki)
+
+### What happened
+Pedido: "atualizar o readme e a wiki com telas demonstrativas do funcionamento do app". Usuário escolheu renders estáticos dos mockups via Chrome headless, cobrindo treinos, outdoor, sharecard, gerador de treinos, registros e conquistas.
+
+### Key implementation points
+- Query param `?tela=N` adicionado aos 3 mockups (`workout-tela-treino.html` 5 stages, `share-cards.html` 4, novo `outras-telas.html` 3), isolando uma variante e escondendo header/labels → captura limpa.
+- **`mockups/outras-telas.html`** (novo): gerador (Etapa 1, objetivo 10K/pace 5:00 + alerta agressivo), registros (status de sync Gmail/HC + badge "Relógio"), conquistas (stats/badges/recordes). Fiéis a `TrainingGenerator`, `ProgramReview`, `SessionHistory`, `Achievements`, `TabBar` (abas lucide + RunIcon).
+- 12 PNGs em `docs/screens/` (telas 383×820; cards 1120×1960 — mensuração via System.Drawing).
+- Wiki: `docs/wiki/showcase/screens.md` (galeria + "como reproduzir"); índice `docs/wiki/README.md` seção "🖼️ Demonstração"; `README.md` seção "Telas".
+- TODO: "AGENTS.md desatualizado" ✅ superado; item "Aguardando build 177" reescrito → reteste Gmail >1h (+back nav separado).
+
+### Validation
+- Dimensões dos 12 PNGs conferidas ✓
+- **Revisão visual MUITO IMPORTANTE**: o modelo não visualiza imagens — usuário precisa conferir a qualidade dos PNGs (especialmente as novas telas gerador/registros/conquistas).
+- **Nota infra**: os 2 últimos commits (`d8f3ff1` + docs) ainda NÃO foram pushados; o push dispara a CI com o novo fluxo de release (recriação do `latest`).
+
 ## Session Context (2026-09-12b — CI: GitHub Release `latest` recriado + notes a cada build)
 
 ### What happened

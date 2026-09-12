@@ -12,6 +12,12 @@ App de treinos de corrida com planos personalizados por VDOT, gerador Couch-to-5
 - **Auto-update**: O APK se atualiza sozinho via GitHub Release + manifest (a partir da 3.2)
 - **Design system Pôr-do-Sol**: Paleta temática com tokens CSS, dark mode, acessibilidade
 
+## Telas
+
+<img src="docs/screens/workout-esteira-conectada.png" width="210" alt="Esteira conectada — telemetria real"> <img src="docs/screens/workout-outdoor-gps.png" width="210" alt="Outdoor (GPS)"> <img src="docs/screens/registros.png" width="210" alt="Registros"> <img src="docs/screens/share-card-1.png" width="210" alt="Share card 1 — Stats + Pace">
+
+Galeria completa (treino, gerador de treinos, registros, conquistas e share cards): **docs/wiki/showcase/screens.md** → [**Telas do App**](docs/wiki/showcase/screens.md). Os renders são gerados a partir dos mockups em [`mockups/`](mockups/).
+
 ## Stack
 
 - **Frontend**: React 19 + TypeScript + Tailwind v4 + Vite

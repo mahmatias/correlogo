@@ -278,5 +278,16 @@
   svg.innerHTML = '<path d="' + d + '"/>' + mk(proj[0], '#22C55E') + mk(proj[proj.length - 1], '#EF4444');
   MAP.appendChild(svg);
 </script>
+<script>
+(function () {
+  var t = new URLSearchParams(location.search).get('tela');
+  if (!t) return;
+  var stages = document.querySelectorAll('.stage');
+  stages.forEach(function (s, i) { if (String(i + 1) !== t) s.style.display = 'none'; });
+  var st = document.createElement('style');
+  st.textContent = 'header.top, .stage > label, .note { display: none !important; } body { padding: 0 !important; display: flex; align-items: center; justify-content: center; overflow: hidden; } .row { padding: 0 !important; gap: 0 !important; }';
+  document.head.appendChild(st);
+})();
+</script>
 </body>
 </html>
